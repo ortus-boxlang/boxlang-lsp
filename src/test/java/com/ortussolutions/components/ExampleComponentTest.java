@@ -1,4 +1,4 @@
-package com.ortussolutions.bifs;
+package com.ortussolutions.components;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

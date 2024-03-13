@@ -1,0 +1,47 @@
+{
+    "name":"BoxLang Module Template",
+    "version":"0.0.0",
+    "location":"forgeboxStorage",
+    "author":"Ortus Solutions",
+    "homepage":"https://github.com/boxlang-modules/boxlang-module-template",
+    "documentation":"https://github.com/boxlang-modules/boxlang-module-template",
+    "repository":{
+        "type":"git",
+        "URL":"https://github.com/boxlang-modules/boxlang-module-template"
+    },
+    "bugs":"https://github.com/boxlang-modules/boxlang-module-template/issues",
+    "slug":"boxlang-module-template",
+    "shortDescription":"Module template for BoxLang modules",
+    "instructions":"https://github.com/boxlang-modules/boxlang-module-template",
+    "type":"boxlang-modules",
+    "keywords":[
+        "boxlang",
+        "template"
+    ],
+    "scripts":{
+        "onRelease":"publish",
+        "prePublish": "gradle shadow",
+        "postPublish":"!git push && git push --tags"
+    },
+    "private":false,
+    "license":[
+        {
+            "type":"MIT",
+            "URL":"https://github.com/boxlang-modules/boxlang-module-template/blob/master/LICENSE"
+        }
+    ],
+    "ignore": [
+        ".gitignore",
+        "README.md",
+        "settings.gradle",
+        "gradlew.bat",
+        "gradlew",
+        "build.gradle",
+        "/src/test/",
+        "/src/main/java/",
+        "gradle/",
+        "!/libs/"
+    ],
+    "dependencies":{},
+    "installPaths":{}
+}
