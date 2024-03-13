@@ -6,17 +6,22 @@ plugins {
 }
 
 group = 'com.ortussolutions'
-version = '1.0-SNAPSHOT'
+version = '1.0.0-SNAPSHOT'
+java.sourceCompatibility = JavaVersion.VERSION_17
+java.targetCompatibility = JavaVersion.VERSION_17
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    compileOnly files('src/test/resources/libs/boxlang-1.0.0-all.jar')
+    // Until BoxLang is published to Maven Central
+    compileOnly files( 'src/test/resources/libs/boxlang-1.0.0-all.jar' )
 
-    testImplementation platform('org.junit:junit-bom:5.9.1')
+    // Testing Dependencies
     testImplementation "org.junit.jupiter:junit-jupiter:5.+"
+	testImplementation "org.mockito:mockito-core:5.+"
+	testImplementation "com.google.truth:truth:1.+"
 }
 
 serviceLoader {
@@ -30,11 +35,11 @@ shadowJar {
 	manifest {
 		attributes 'Description': 'ExampleBoxLangModule'
 	}
-    destinationDirectory = file("$rootDir/libs")
+    destinationDirectory = file( "$rootDir/libs" )
 }
 
 clean {
-    delete files('libs')
+    delete files( 'libs' )
 }
 
 test {
