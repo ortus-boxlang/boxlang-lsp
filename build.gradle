@@ -25,11 +25,11 @@ dependencies {
 	// Until BoxLang is published to Maven Central
 	// Look for it in the local build directory
 	// You must run `./gradle build -x test` in the BoxLang project
-    compileOnly files( 'src/test/resources/libs/ortus-boxlang-1.0.0-all.jar' )
+    compileOnly files( 'src/test/resources/libs/boxlang-1.0.0-all.jar' )
     implementation 'org.apache.derby:derby:10.16.1.1'
 
     // Testing Dependencies
-	testImplementation files( 'src/test/resources/libs/ortus-boxlang-1.0.0-all.jar' )
+	testImplementation files( 'src/test/resources/libs/boxlang-1.0.0-all.jar' )
     testImplementation "org.junit.jupiter:junit-jupiter:5.+"
 	testImplementation "org.mockito:mockito-core:5.+"
 	testImplementation "com.google.truth:truth:1.+"
@@ -92,13 +92,43 @@ jar {
 }
 shadowJar {
     mergeServiceFiles()
-    destinationDirectory = file( "$rootDir/libs" )
+    destinationDirectory = file( "build/libs" )
 }
 build.finalizedBy( shadowJar )
 
-clean {
-    delete files( 'libs' )
+/**
+ * Custom task that creates a build/module folders
+ * - Copies the build/libs/BoxLangModuleTemplate-1.0.0-all.jar to build/module/libs/BoxLangModuleTemplate-1.0.0-all.jar
+ * - Copies the src/main/bx/** to build/module/ folder.
+ */
+task createModuleStructure(type: Copy) {
+    from( 'build/libs' ) {
+        include 'BoxLangModuleTemplate-1.0.0-all.jar'
+        into 'build/module/libs'
+    }
+    from( 'src/main/bx' ) {
+        include '**/*.bx'
+        into 'build/module'
+    }
+    // Copy the root box.json file to the build/module folder
+    from( '.' ) {
+        include 'box.json'
+        into 'build/module'
+    }
+    destinationDir = file( 'build/module' )
 }
+task zipModuleStructure( type: Zip ) {
+    group "distribution"
+    from createModuleStructure.destinationDir
+    archiveFileName = "${project.name}-${version}.zip"
+    destinationDirectory = file( "$buildDir/distributions" )
+    // Output that the module has been zippped
+    doLast {
+        println "+ Module has been zipped to the distribution folder"
+    }
+}
+createModuleStructure.finalizedBy( zipModuleStructure )
+shadowJar.finalizedBy( createModuleStructure )
 
 test {
     useJUnitPlatform()
@@ -109,11 +139,11 @@ test {
 
 /**
  * TEMPORARY until we publish to maven
- * Task to download the latest jar from https://ortus-temp.s3.amazonaws.com/jericho/libs/ortus-boxlang-1.0.0-all.jar
+ * Task to download the latest jar from https://ortus-temp.s3.amazonaws.com/jericho/libs/boxlang-1.0.0-all.jar
  */
 task downloadBoxLang( type: Download ) {
     // Configure the URL of the file to download
-    src "https://ortus-temp.s3.amazonaws.com/jericho/libs/ortus-boxlang-${boxlangVersion}-all.jar"
+    src "https://ortus-temp.s3.amazonaws.com/jericho/libs/boxlang-${boxlangVersion}-all.jar"
     // Specify the destination directory for the downloaded file
     dest "src/test/resources/libs"
     overwrite true
