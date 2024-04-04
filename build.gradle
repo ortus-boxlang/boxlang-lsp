@@ -7,14 +7,14 @@ plugins {
     id "com.github.harbby.gradle.serviceloader" version "1.1.8"
 	// https://github.com/johnrengelman/shadow
 	id 'com.github.johnrengelman.shadow' version '8.1.1'
+    // Download task
+    id "de.undercouch.download" version "5.6.0"
 }
 
 /**
  * Project Properties
  */
 group = 'com.ortussolutions'
-version = '1.0.0-SNAPSHOT'
-jdkVersion = 17
 
 repositories {
     mavenLocal()
@@ -25,20 +25,50 @@ dependencies {
 	// Until BoxLang is published to Maven Central
 	// Look for it in the local build directory
 	// You must run `./gradle build -x test` in the BoxLang project
-    compileOnly files( 'src/test/resources/libs/boxlang-1.0.0-all.jar' )
+    compileOnly files( 'src/test/resources/libs/ortus-boxlang-1.0.0-all.jar' )
+    implementation 'org.apache.derby:derby:10.16.1.1'
 
     // Testing Dependencies
-	testImplementation files( 'src/test/resources/libs/boxlang-1.0.0-all.jar' )
+	testImplementation files( 'src/test/resources/libs/ortus-boxlang-1.0.0-all.jar' )
     testImplementation "org.junit.jupiter:junit-jupiter:5.+"
 	testImplementation "org.mockito:mockito-core:5.+"
 	testImplementation "com.google.truth:truth:1.+"
 }
 
+java {
+	// See: https://docs.gradle.org/current/userguide/toolchains.html#toolchains
+    toolchain {
+        languageVersion = JavaLanguageVersion.of( project.properties[ "jdkVersion" ] )
+    }
+	withJavadocJar()
+    withSourcesJar()
+}
+
+compileJava {
+	// Compiler Options
+	options.incremental = true
+	options.release = Integer.parseInt( project.properties[ "jdkVersion" ] )
+	options.encoding = 'UTF-8'
+	options.debug()
+}
+
 javadoc {
-	//options.addBooleanOption( "Xdoclint:none", true )
+    // To avoid our own doclet issues
+	options.addBooleanOption( "Xdoclint:none", true )
 	//exclude '**/boxlang/parser/**'
 	options.addBooleanOption( 'html5', true )
 }
+task zipJavadocs( type: Zip ) {
+	group "documentation"
+	from javadoc.destinationDir
+	archiveFileName = "${project.name}-javadocs-${version}.zip"
+	destinationDirectory = file( "$buildDir/distributions" )
+	// Output that the docs have been zippped
+	doLast {
+		println "+ Javadocs have been zipped to the distribution folder"
+	}
+}
+javadoc.finalizedBy( zipJavadocs )
 
 /**
  * Docs are here:
@@ -54,12 +84,17 @@ serviceLoader {
 	serviceInterface 'ortus.boxlang.runtime.events.IInterceptor'
 }
 
+jar {
+    archiveVersion =  "${version}"
+ 	manifest {
+	   attributes 'Description': 'ExampleBoxLangModule'
+    }
+}
 shadowJar {
-	manifest {
-		attributes 'Description': 'ExampleBoxLangModule'
-	}
+    mergeServiceFiles()
     destinationDirectory = file( "$rootDir/libs" )
 }
+build.finalizedBy( shadowJar )
 
 clean {
     delete files( 'libs' )
@@ -67,4 +102,20 @@ clean {
 
 test {
     useJUnitPlatform()
+    testLogging {
+		showStandardStreams = true
+	}
+}
+
+/**
+ * TEMPORARY until we publish to maven
+ * Task to download the latest jar from https://ortus-temp.s3.amazonaws.com/jericho/libs/ortus-boxlang-1.0.0-all.jar
+ */
+task downloadBoxLang( type: Download ) {
+    // Configure the URL of the file to download
+    src "https://ortus-temp.s3.amazonaws.com/jericho/libs/ortus-boxlang-${boxlangVersion}-all.jar"
+    // Specify the destination directory for the downloaded file
+    dest "src/test/resources/libs"
+    overwrite true
+    onlyIfModified true
 }

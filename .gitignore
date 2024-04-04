@@ -13,3 +13,4 @@ build/
 
 ### BOXLANG ###
 /libs/
+src/test/resources/libs/
