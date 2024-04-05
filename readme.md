@@ -71,19 +71,7 @@ Here is a brief overview of the source directory structure:
 ## Project Properties
 
 The project name is defined in the `settings.gradle` file.  You can change it there.
-The project version is defined in the `build.gradle` file.  You can change it there.
-The BoxLang version and JDK Version are in the `box.json` file:
-
-```json
-{
-	"gradle": {
-		"properties" : {
-			"boxlangVersion": "1.0.0",
-			"jdkVersion": "21"
-		}
-	}
-}
-```
+The project version, BoxLang Version and JDK version is defined in the `build.gradle` file.  You can change it there.
 
 ## Gradle Tasks
 
