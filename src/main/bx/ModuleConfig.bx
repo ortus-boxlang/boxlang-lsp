@@ -30,7 +30,7 @@
 	 * Your module version. Try to use semantic versioning
 	 * @mandatory
 	 */
-	this.version = "2.0.0";
+	this.version = "@build.version@+@build.number@";
 
 	/**
 	 * The BoxLang mapping for your module.  All BoxLang modules are registered with an internal
