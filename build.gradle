@@ -32,7 +32,6 @@ dependencies {
 	// Look for it in the local build directory
 	// You must run `./gradle build -x test` in the BoxLang project
     compileOnly files( 'src/test/resources/libs/boxlang-1.0.0-all.jar' )
-    implementation 'org.apache.derby:derby:10.16.1.1'
 
     // Testing Dependencies
 	testImplementation files( 'src/test/resources/libs/boxlang-1.0.0-all.jar' )
