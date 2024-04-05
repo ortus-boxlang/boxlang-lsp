@@ -42,11 +42,5 @@
 	"scripts":{
 		"setupTemplate": "task run taskFile=src/build/SetupTemplate.cfc",
         "onRelease":"publish"
-    },
-	"gradle":{
-		"properties" : {
-			"boxlangVersion" : "1.0.0",
-			"jdkVersion" : "17"
-		}
-	}
+    }
 }

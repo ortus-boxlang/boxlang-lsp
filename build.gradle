@@ -14,15 +14,12 @@ plugins {
 /**
  * Project Properties
  */
-group = 'com.ortussolutions'
-version = "1.0.0"
-
 ext {
 	def boxJson = new groovy.json.JsonSlurper().parse( file( 'box.json' ) )
 	boxlangVersion = boxJson.gradle.properties.boxlangVersion
 	jdkVersion = boxJson.gradle.properties.jdkVersion
-	buildID = System.getenv( 'buildID' ) ?: '0'
-	branch = System.getenv( 'branch' ) ?: 'development'
+	buildID = System.getenv( 'BUILD_ID' ) ?: '0'
+	branch = System.getenv( 'BRANCH' ) ?: 'development'
 }
 
 repositories {
@@ -180,4 +177,61 @@ task downloadBoxLang( type: Download ) {
     dest "src/test/resources/libs"
     overwrite true
     onlyIfModified true
+}
+
+/**
+ * Project Wide Helper function
+ * This is not a task, but a reusable UDF
+ */
+project.ext.bumpVersion = { boolean major = false, boolean minor = false, boolean patch = false ->
+
+	def propertiesFile = file( '../gradle.properties' );
+	def properties = new Properties();
+
+	properties.load( propertiesFile.newDataInputStream() )
+	def versionTarget = major ? 0 : minor ? 1 : 2
+
+	def currentVersion = properties.getProperty( 'version' )
+	def versionParts = currentVersion.split( '\\.' )
+	def newPathVersion = versionParts[ versionTarget ].toInteger() + 1
+	def newVersion = '';
+
+	if( patch ){
+		newVersion = "${versionParts[ 0 ]}.${versionParts[ 1 ]}.${newPathVersion}"
+	} else if( minor ){
+		newVersion = "${versionParts[ 0 ]}.${newPathVersion}.${versionParts[ 2 ]}"
+	} else if( major ){
+		newVersion = "${newPathVersion}.${versionParts[ 1 ]}.${versionParts[ 2 ]}"
+	}
+
+	properties.setProperty( 'version', newVersion )
+	properties.store( propertiesFile.newWriter(), null )
+
+	println "Bumped version from ${currentVersion} to ${newVersion}"
+}
+/**
+ * Bump the major version number
+ */
+task bumpMajorVersion {
+	doLast{
+		bumpVersion( true )
+	}
+}
+
+/**
+ * Bump the minor version number
+ */
+task bumpMinorVersion {
+	doLast{
+		bumpVersion( false, true )
+	}
+}
+
+/**
+ * Bump the patch version number
+ */
+task bumpPatchVersion {
+	doLast{
+		bumpVersion( false, false, true )
+	}
 }
