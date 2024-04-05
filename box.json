@@ -1,47 +1,52 @@
 {
-    "name":"BoxLang Module Template",
-    "version":"0.0.0",
-    "location":"forgeboxStorage",
+    "name":"@MODULE_NAME@",
+    "version":"@build.version@+@build.number@",
+    "location"  : "https://downloads.ortussolutions.com/ortussolutions/boxlang-modules/@MODULE_SLUG@/@build.version@/@MODULE_SLUG@-@build.version@.zip",
     "author":"Ortus Solutions",
-    "homepage":"https://github.com/boxlang-modules/boxlang-module-template",
-    "documentation":"https://github.com/boxlang-modules/boxlang-module-template",
+    "homepage":"https://github.com/boxlang-modules/@MODULE_SLUG@",
+    "documentation":"https://github.com/boxlang-modules/@MODULE_SLUG@",
     "repository":{
         "type":"git",
-        "URL":"https://github.com/boxlang-modules/boxlang-module-template"
+        "URL":"https://github.com/boxlang-modules/@MODULE_SLUG@"
     },
-    "bugs":"https://github.com/boxlang-modules/boxlang-module-template/issues",
-    "slug":"boxlang-module-template",
+    "bugs":"https://github.com/boxlang-modules/@MODULE_SLUG@/issues",
+    "slug":"@MODULE_SLUG@",
     "shortDescription":"Module template for BoxLang modules",
-    "instructions":"https://github.com/boxlang-modules/boxlang-module-template",
     "type":"boxlang-modules",
     "keywords":[
-        "boxlang",
-        "template"
+        "boxlang"
     ],
-    "scripts":{
-        "onRelease":"publish",
-        "prePublish": "gradle shadow",
-        "postPublish":"!git push && git push --tags"
-    },
     "private":false,
     "license":[
         {
-            "type":"MIT",
-            "URL":"https://github.com/boxlang-modules/boxlang-module-template/blob/master/LICENSE"
+            "type":"Apache-2.0",
+            "URL":"https://www.apache.org/licenses/LICENSE-2.0"
         }
     ],
+	"devDependencies" 	:{
+		"commandbox-cfformat":"*",
+        "commandbox-docbox":"*",
+		"commandbox-dotenv":"*",
+        "commandbox-cfconfig":"*",
+		"testbox": "*"
+	},
     "ignore": [
-        ".gitignore",
-        "README.md",
+        "**/.*",
         "settings.gradle",
         "gradlew.bat",
         "gradlew",
         "build.gradle",
-        "/src/test/",
-        "/src/main/java/",
-        "gradle/",
-        "!/libs/"
+        "/src/**",
+        "gradle/**"
     ],
-    "dependencies":{},
-    "installPaths":{}
+	"scripts":{
+		"setupTemplate": "task run taskFile=src/build/SetupTemplate.cfc",
+        "onRelease":"publish"
+    },
+	"gradle":{
+		"properties" : {
+			"boxlangVersion" : "1.0.0",
+			"jdkVersion" : "17"
+		}
+	}
 }

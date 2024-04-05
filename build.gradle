@@ -15,6 +15,15 @@ plugins {
  * Project Properties
  */
 group = 'com.ortussolutions'
+version = "1.0.0"
+
+ext {
+	def boxJson = new groovy.json.JsonSlurper().parse( file( 'box.json' ) )
+	boxlangVersion = boxJson.gradle.properties.boxlangVersion
+	jdkVersion = boxJson.gradle.properties.jdkVersion
+	buildID = System.getenv( 'buildID' ) ?: '0'
+	branch = System.getenv( 'branch' ) ?: 'development'
+}
 
 repositories {
     mavenLocal()
@@ -118,18 +127,26 @@ spotless {
  */
 task createModuleStructure(type: Copy) {
     from( 'build/libs' ) {
-        include 'BoxLangModuleTemplate-1.0.0-all.jar'
-        into 'build/module/libs'
+		include "${project.name}-${version}-all.jar"
+        into 'libs'
     }
     from( 'src/main/bx' ) {
-        include '**/*.bx'
-        into 'build/module'
+		include '**/*.bx'
     }
-    // Copy the root box.json file to the build/module folder
     from( '.' ) {
         include 'box.json'
-        into 'build/module'
+		include 'readme.md'
+		include 'changelog.md'
+
     }
+
+	// Token Replacements Go Here
+	filter( line -> line.replaceAll( '@build.version@', project.version ) )
+	if( project.branch == "development" ){
+		filter( line -> line.replaceAll( '\\+@build.number@', '-SNAPSHOT' ) )
+	} else {
+		filter( line -> line.replaceAll( '@build.number@', project.buildID ) )
+	}
     destinationDir = file( 'build/module' )
 }
 task zipModuleStructure( type: Zip ) {

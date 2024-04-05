@@ -42,7 +42,6 @@ Here is a brief overview of the directory structure:
 * `build.gradle` - The gradle build file for the module
 * `changelog.md` - A nice changelog tracking file
 * `CONTRIBUTING.md` - A contribution guideline
-* `gradle.properties` - Gradle properties for usage in the build
 * `gradlew` - The gradle wrapper
 * `gradlew.bat` - The gradle wrapper for windows
 * `ModuleConfig.cfc` - Your module's configuration. Modify as needed.
@@ -68,6 +67,23 @@ Here is a brief overview of the source directory structure:
   * `java` - Java test code
   * `resources` - Resources for testing
     * `libs` - BoxLang binary goes here for now.
+
+## Project Properties
+
+The project name is defined in the `settings.gradle` file.  You can change it there.
+The project version is defined in the `build.gradle` file.  You can change it there.
+The BoxLang version and JDK Version are in the `box.json` file:
+
+```json
+{
+	"gradle": {
+		"properties" : {
+			"boxlangVersion": "1.0.0",
+			"jdkVersion": "21"
+		}
+	}
+}
+```
 
 ## Gradle Tasks
 
