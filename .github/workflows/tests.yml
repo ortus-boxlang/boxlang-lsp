@@ -26,7 +26,7 @@ jobs:
           #  os: "windows-latest"
           #  experimental: true
           # Disabled for now until we can figure out the gradle matrix
-          #- jdkVersion: "21"
+          #- jdkVersion: "17"
           #  os: "ubuntu-latest"
           #  experimental: true
     steps:

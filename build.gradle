@@ -15,9 +15,6 @@ plugins {
  * Project Properties
  */
 ext {
-	def boxJson = new groovy.json.JsonSlurper().parse( file( 'box.json' ) )
-	boxlangVersion = boxJson.gradle.properties.boxlangVersion
-	jdkVersion = boxJson.gradle.properties.jdkVersion
 	buildID = System.getenv( 'BUILD_ID' ) ?: '0'
 	branch = System.getenv( 'BRANCH' ) ?: 'development'
 }
