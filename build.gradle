@@ -37,11 +37,12 @@ dependencies {
 
 java {
 	// See: https://docs.gradle.org/current/userguide/toolchains.html#toolchains
+    // This is to provide build consistency across developers and CI/CD
     toolchain {
         languageVersion = JavaLanguageVersion.of( project.properties[ "jdkVersion" ] )
     }
+    // Produces a javadocs jar
 	withJavadocJar()
-    withSourcesJar()
 }
 
 compileJava {
@@ -95,6 +96,20 @@ shadowJar {
     destinationDirectory = file( "build/libs" )
 }
 build.finalizedBy( shadowJar )
+
+/**
+ * Source Code Formatting
+ */
+spotless {
+    java {
+		target fileTree( "." ) {
+            include "**/*.java"
+            exclude "**/build/**", "bin/**", "examples/**"
+        }
+        eclipse().configFile( "./.ortus-java-style.xml" )
+		toggleOffOn()
+    }
+}
 
 /**
  * Custom task that creates a build/module folders

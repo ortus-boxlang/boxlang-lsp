@@ -30,15 +30,15 @@ import ortus.boxlang.runtime.validation.Validator;
 @BoxComponent( allowsBody = false )
 public class ExampleComponent extends Component {
 
-	static Key locationKey = Key.of( "location" );
-	static Key shoutKey    = Key.of( "shout" );
+	static Key	locationKey	= Key.of( "location" );
+	static Key	shoutKey	= Key.of( "shout" );
 
 	public ExampleComponent() {
 		super();
 		declaredAttributes = new Attribute[] {
-		    new Attribute( Key._NAME, "string", Set.of(Validator.REQUIRED) ),
-			new Attribute( locationKey, "string", "world", Set.of(Validator.REQUIRED, Validator.valueOneOf("world", "universe")) ),
-			new Attribute( shoutKey, "boolean", false, Set.of(Validator.REQUIRED) ),
+		    new Attribute( Key._NAME, "string", Set.of( Validator.REQUIRED ) ),
+		    new Attribute( locationKey, "string", "world", Set.of( Validator.REQUIRED, Validator.valueOneOf( "world", "universe" ) ) ),
+		    new Attribute( shoutKey, "boolean", false, Set.of( Validator.REQUIRED ) ),
 		};
 	}
 
@@ -50,18 +50,20 @@ public class ExampleComponent extends Component {
 	 * @param body           The body of the Component
 	 * @param executionState The execution state of the Component
 	 *
-	 * @attribute.name     The name of the person greeting us.
+	 * @attribute.name The name of the person greeting us.
+	 * 
 	 * @attribute.location The location of the person.
-	 * @attribute.shout    Whether the person is shouting or not.
+	 * 
+	 * @attribute.shout Whether the person is shouting or not.
 	 *
 	 */
 	public BodyResult _invoke( IBoxContext context, IStruct attributes, ComponentBody body, IStruct executionState ) {
-		String name	= attributes.getAsString( Key._NAME );
-		String location = attributes.getAsString( locationKey );
-		Boolean shout = attributes.getAsBoolean( shoutKey );
+		String			name		= attributes.getAsString( Key._NAME );
+		String			location	= attributes.getAsString( locationKey );
+		Boolean			shout		= attributes.getAsBoolean( shoutKey );
 
-		StringBuilder sb = new StringBuilder();
-		String greeting = sb.append("Hello, ").append(location).append(" - from ").append(name).append(".").toString();
+		StringBuilder	sb			= new StringBuilder();
+		String			greeting	= sb.append( "Hello, " ).append( location ).append( " - from " ).append( name ).append( "." ).toString();
 		context.writeToBuffer( shout ? greeting.toUpperCase() : greeting );
 
 		return DEFAULT_RETURN;

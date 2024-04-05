@@ -17,30 +17,30 @@ import ortus.boxlang.runtime.scopes.VariablesScope;
 
 public class ExampleComponentTest {
 
-    static BoxRuntime instance;
-    IBoxContext context;
-    IScope variables;
-    static Key result = new Key("result");
+	static BoxRuntime	instance;
+	IBoxContext			context;
+	IScope				variables;
+	static Key			result	= new Key( "result" );
 
-    @BeforeAll
-    public static void setUp() {
-        instance = BoxRuntime.getInstance(true);
-    }
+	@BeforeAll
+	public static void setUp() {
+		instance = BoxRuntime.getInstance( true );
+	}
 
-    @BeforeEach
-    public void setupEach() {
-        context = new ScriptingRequestBoxContext(instance.getRuntimeContext());
-        variables = context.getScopeNearby(VariablesScope.name);
-    }
+	@BeforeEach
+	public void setupEach() {
+		context		= new ScriptingRequestBoxContext( instance.getRuntimeContext() );
+		variables	= context.getScopeNearby( VariablesScope.name );
+	}
 
-    @DisplayName("It can test the ExampleComponent")
-    @Test
-    public void testExampleComponent() {
-        instance.executeSource("""
-                	<cfExampleComponent name="Ortus Solutions">
-                	<cfset result = getBoxContext().getBuffer().toString()>
-                """, context, BoxSourceType.CFTEMPLATE);
-        assertTrue(variables.getAsString(result).contains("Hello, world - from Ortus Solutions."));
-    }
+	@DisplayName( "It can test the ExampleComponent" )
+	@Test
+	public void testExampleComponent() {
+		instance.executeSource( """
+		                        	<cfExampleComponent name="Ortus Solutions">
+		                        	<cfset result = getBoxContext().getBuffer().toString()>
+		                        """, context, BoxSourceType.CFTEMPLATE );
+		assertTrue( variables.getAsString( result ).contains( "Hello, world - from Ortus Solutions." ) );
+	}
 
 }

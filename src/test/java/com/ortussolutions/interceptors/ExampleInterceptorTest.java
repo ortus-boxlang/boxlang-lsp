@@ -16,40 +16,40 @@ import ortus.boxlang.runtime.types.Struct;
 
 public class ExampleInterceptorTest {
 
-    static BoxRuntime         runtime;
-    static InterceptorService interceptorService;
-    IBoxContext               context;
-    IScope                    variables;
-    static Key                result = new Key( "result" );
+	static BoxRuntime			runtime;
+	static InterceptorService	interceptorService;
+	IBoxContext					context;
+	IScope						variables;
+	static Key					result	= new Key( "result" );
 
-    @BeforeAll
-    public static void setUp() {
-        runtime            = BoxRuntime.getInstance( true );
-        interceptorService = runtime.getInterceptorService();
-    }
+	@BeforeAll
+	public static void setUp() {
+		runtime				= BoxRuntime.getInstance( true );
+		interceptorService	= runtime.getInterceptorService();
+	}
 
-    @BeforeEach
-    public void setupEach() {
-        context   = new ScriptingRequestBoxContext( runtime.getRuntimeContext() );
-        variables = context.getScopeNearby( VariablesScope.name );
-    }
+	@BeforeEach
+	public void setupEach() {
+		context		= new ScriptingRequestBoxContext( runtime.getRuntimeContext() );
+		variables	= context.getScopeNearby( VariablesScope.name );
+	}
 
-    @DisplayName( "Test my interceptor" )
-    @Test
-    public void testInterceptor() {
-        // Register the interceptor with the interceptor service
-        interceptorService.register(
-            new ExampleInterceptor()
-        );
+	@DisplayName( "Test my interceptor" )
+	@Test
+	public void testInterceptor() {
+		// Register the interceptor with the interceptor service
+		interceptorService.register(
+		    new ExampleInterceptor()
+		);
 
-        // Announce the event the interceptor listens to
-        interceptorService.announce(
-            Key.of( "onApplicationStart" ),
-            Struct.of( "data", "some data" )
-        );
+		// Announce the event the interceptor listens to
+		interceptorService.announce(
+		    Key.of( "onApplicationStart" ),
+		    Struct.of( "data", "some data" )
+		);
 
-        // Assertions go here
+		// Assertions go here
 
-    }
+	}
 
 }

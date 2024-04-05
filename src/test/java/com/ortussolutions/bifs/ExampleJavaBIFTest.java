@@ -36,7 +36,7 @@ public class ExampleJavaBIFTest {
 	@Test
 	public void testExampleBIF() {
 		instance.executeSource( "result = ExampleJavaBIF()", context );
-		assertEquals(  "Hello from an ExampleJavaBIF!", variables.get( result ) );
+		assertEquals( "Hello from an ExampleJavaBIF!", variables.get( result ) );
 	}
 
 }
