@@ -30,7 +30,7 @@ This project is open source, and as such, the maintainers give their free time t
 BoxLang tracks its issues in Jira and each module track it's own issues in its repo.
 
 - BoxLang JIra : https://ortussolutions.atlassian.net/browse/BL/issues
-- Module Issues: https://github.com/boxlang-modules/@MODULE_NAME@/issues
+- Module Issues: https://github.com/boxlang-modules/@MODULE_SLUG@/issues
 
 If you file a bug report, your issue should contain a title, a clear description of the issue, a way to replicate the issue, and any support files that we might need to replicate your issue. The goal of a bug report is to make it easy for yourself - and others - to replicate the bug and develop a fix for it.  All issues that do not contain a way to replicate will not be addressed.
 
