@@ -55,6 +55,11 @@ compileJava {
 	options.debug()
 }
 
+compileTestJava{
+	// Make sure the service loaders are created before testing
+	dependsOn compileJava, serviceLoaderBuild
+}
+
 javadoc {
     // To avoid our own doclet issues
 	options.addBooleanOption( "Xdoclint:none", true )
@@ -182,7 +187,7 @@ task downloadBoxLang( type: Download ) {
     // Specify the destination directory for the downloaded file
     dest "src/test/resources/libs"
     overwrite true
-    onlyIfModified true
+    onlyIfModified false
 }
 
 /**
