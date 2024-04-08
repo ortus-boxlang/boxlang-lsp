@@ -185,7 +185,7 @@ task downloadBoxLang( type: Download ) {
     // Configure the URL of the file to download
     src "https://ortus-temp.s3.amazonaws.com/jericho/libs/boxlang-${boxlangVersion}-all.jar"
     // Specify the destination directory for the downloaded file
-    dest "src/test/resources/libs"
+    dest "src/test/resources/libs/boxlang-${boxlangVersion}-all.jar"
     overwrite true
     onlyIfModified false
 }
