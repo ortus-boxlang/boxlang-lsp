@@ -1,6 +1,8 @@
 package ortus.boxlanglsp;
 
-import java.util.ArrayList;
+import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -11,10 +13,7 @@ import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.DocumentSymbolCapabilities;
 import org.eclipse.lsp4j.DocumentSymbolParams;
-import org.eclipse.lsp4j.Position;
-import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.SymbolInformation;
-import org.eclipse.lsp4j.SymbolKind;
 import org.eclipse.lsp4j.TextDocumentRegistrationOptions;
 import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter;
 import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter;
@@ -22,6 +21,11 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.TextDocumentService;
+
+import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.compiler.ast.Issue;
+import ortus.boxlang.compiler.javaboxpiler.JavaBoxpiler;
+import ortus.boxlang.compiler.parser.ParsingResult;
 
 public class BoxLangTextDocumentService implements TextDocumentService {
 
@@ -54,8 +58,10 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 
     @Override
     public void didSave(DidSaveTextDocumentParams params) {
+        System.out.println("The file was saved");
+        System.out.println(params.getTextDocument().getUri());
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'didSave'");
+        // throw new UnsupportedOperationException("Unimplemented method 'didSave'");
     }
 
     /**
@@ -84,16 +90,24 @@ public class BoxLangTextDocumentService implements TextDocumentService {
             DocumentSymbolParams params) {
 
         return CompletableFuture.supplyAsync(() -> {
-            List<Either<SymbolInformation, DocumentSymbol>> symbols = new ArrayList<Either<SymbolInformation, DocumentSymbol>>();
+            URI fileURI = URI.create(params.getTextDocument().getUri());
+            Path path = Paths.get(fileURI);
+            ParsingResult result = JavaBoxpiler.getInstance()
+                    .parse(path.toFile());
 
-            var r = new Range(new Position(0, 0), new Position(0, 0));
-            DocumentSymbol symbolA = new DocumentSymbol(
-                    "Value Name",
-                    SymbolKind.Field, r, r);
+            DocumentSymbolBoxNodeVisitor visitor = new DocumentSymbolBoxNodeVisitor();
 
-            symbols.add(Either.forRight(symbolA));
+            visitor.setFilePath(path);
 
-            return symbols;
+            BoxNode root = result.getRoot();
+
+            if (root != null) {
+                result.getRoot().accept(visitor);
+            }
+
+            List<Issue> issues = result.getIssues();
+
+            return visitor.getDocumentSymbols();
         });
     }
 

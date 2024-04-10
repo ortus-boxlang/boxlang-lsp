@@ -13,10 +13,6 @@ plugins {
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()
-
-    flatDir {
-        
-    }
 }
 
 dependencies {
@@ -30,6 +26,8 @@ dependencies {
 
     // https://mvnrepository.com/artifact/org.eclipse.lsp4j/org.eclipse.lsp4j
     implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.22.0")
+
+    implementation( project( ":boxlang" ) )
 }
 
 // Apply a specific Java toolchain to ease working on different environments.

@@ -13,12 +13,16 @@ import org.eclipse.lsp4j.launch.LSPLauncher;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageClientAware;
 
+import ortus.boxlang.runtime.BoxRuntime;
+
 public class App {
     public String getGreeting() {
         return "Hello World!";
     }
 
     public static void main(String[] args) {
+        BoxRuntime.getInstance();
+
         try (ServerSocket socket = new ServerSocket(5173)) {
             while (true) {
                 System.out.println("waiting for a connection");
