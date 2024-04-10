@@ -7,7 +7,8 @@
 
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
-    application
+    id "application"
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 repositories {
@@ -25,9 +26,12 @@ dependencies {
     implementation("com.google.guava:guava:32.1.1-jre")
 
     // https://mvnrepository.com/artifact/org.eclipse.lsp4j/org.eclipse.lsp4j
-    implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.22.0")
+    implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:0.22.0"
 
-    implementation( project( ":boxlang" ) )
+    // cli 
+    implementation 'info.picocli:picocli:4.7.5'
+
+    implementation project(":boxlang" )
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -42,7 +46,38 @@ application {
     mainClass.set("ortus.boxlanglsp.App")
 }
 
-tasks.named<Test>("test") {
-    // Use JUnit Platform for unit tests.
-    useJUnitPlatform()
+jar {
+    archiveBaseName = 'boxlang-lsp'
+    archiveVersion =  "${version}"
+	/**
+	 *  The manifest for the shadowJar task is configured to inherit from the manifest of the standard jar task.
+	 */
+ 	manifest {
+       attributes 'Main-Class': 'ortus.boxlanglsp.App'
+	   attributes 'Description': 'This is the Ortus BoxLang LSP'
+    }
 }
+shadowJar {
+	archiveBaseName = "boxlang-lsp"
+    dependencies {
+        exclude project(':boxlang') 
+    }
+}
+
+/**
+ * Test Task Customizations
+ */
+test {
+	useJUnitPlatform()
+	testLogging {
+		showStandardStreams = true
+	}
+	// dependsOn compileJava, compileTestModule, compileTestJava
+	// classpath += files( "./modules" )
+	//exclude '**/resources/**'
+}
+
+// tasks.named<Test>("test") {
+//     // Use JUnit Platform for unit tests.
+//     useJUnitPlatform()
+// }

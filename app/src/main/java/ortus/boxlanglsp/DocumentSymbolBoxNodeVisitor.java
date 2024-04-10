@@ -52,15 +52,14 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
         classSymbol.setChildren(new ArrayList<DocumentSymbol>());
         this.symbolStack.add(classSymbol);
 
-        for (var child : node.getChildren()) {
-            child.accept(this);
-        }
+        visitChildren(node);
 
         this.symbolStack.removeLast();
     }
 
     public void visit(BoxProperty node) {
         if (!inClass()) {
+            visitChildren(node);
             return;
         }
 
@@ -87,6 +86,7 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
         property.setSelectionRange(r);
 
         trackSymbol(property);
+        visitChildren(node);
     }
 
     public void visit(BoxFunctionDeclaration node) {
@@ -110,10 +110,12 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
         assignmentSymbol.setSelectionRange(range);
 
         trackSymbol(assignmentSymbol);
+        visitChildren(node);
     }
 
     public void visit(BoxAssignment node) {
         if (!(node.getLeft() instanceof BoxIdentifier)) {
+            visitChildren(node);
             return;
         }
         BoxIdentifier id = (BoxIdentifier) node.getLeft();
@@ -127,6 +129,7 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
         assignmentSymbol.setSelectionRange(range);
 
         trackSymbol(assignmentSymbol);
+        visitChildren(node);
     }
 
     private void trackSymbol(DocumentSymbol symbol) {
@@ -139,7 +142,7 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
     }
 
     private boolean inClass() {
-        return symbolStack.getLast().getKind() == SymbolKind.Class;
+        return symbolStack.size() > 0 && symbolStack.getLast().getKind() == SymbolKind.Class;
     }
 
     private Range getRange(BoxNode node) {
@@ -160,6 +163,12 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
             return path.substring(0, path.lastIndexOf("."));
         } else {
             return path;
+        }
+    }
+
+    private void visitChildren(BoxNode node) {
+        for (BoxNode child : node.getChildren()) {
+            child.accept(this);
         }
     }
 }

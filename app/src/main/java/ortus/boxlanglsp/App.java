@@ -4,6 +4,8 @@
 package ortus.boxlanglsp;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutionException;
@@ -14,41 +16,64 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageClientAware;
 
 import ortus.boxlang.runtime.BoxRuntime;
+import picocli.CommandLine;
 
 public class App {
-    public String getGreeting() {
-        return "Hello World!";
+    public static void main(String[] args) {
+        CLI cli = new CLI();
+        new CommandLine(cli).parseArgs(args);
+
+        App app = new App();
+
+        app.runUsingDebugServer(cli.debugServerPort);
     }
 
-    public static void main(String[] args) {
+    public App() {
         BoxRuntime.getInstance();
+    }
 
-        try (ServerSocket socket = new ServerSocket(5173)) {
+    private void runLSP(InputStream in, OutputStream out) {
+        LanguageServer languageServer = new LanguageServer();
+
+        Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(
+                languageServer,
+                in,
+                out);
+
+        if (languageServer instanceof LanguageClientAware lca) {
+            LanguageClient client = launcher.getRemoteProxy();
+            lca.connect(client);
+        }
+
+        try {
+            launcher.startListening().get();
+        } catch (InterruptedException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+
+    private void runUsingSTDIn() {
+        // System.out.println("Starting server over stdin");
+        runLSP(System.in, System.out);
+    }
+
+    private void runUsingDebugServer(int port) {
+        System.out.println("Starting debug server on port " + port);
+        try (ServerSocket socket = new ServerSocket(port)) {
+            if (port == 0) {
+                System.out.println(String.format("Listening on port: %s", socket.getLocalPort()));
+            }
             while (true) {
                 System.out.println("waiting for a connection");
                 Socket connectionSocket = socket.accept();
 
                 System.out.println("Got a connection");
-                LanguageServer languageServer = new LanguageServer();
-
-                Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(
-                        languageServer,
-                        connectionSocket.getInputStream(),
-                        connectionSocket.getOutputStream());
-
-                if (languageServer instanceof LanguageClientAware lca) {
-                    LanguageClient client = launcher.getRemoteProxy();
-                    lca.connect(client);
-                }
-
                 try {
-                    launcher.startListening().get();
-                } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                } catch (ExecutionException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
+                    runLSP(connectionSocket.getInputStream(), connectionSocket.getOutputStream());
                 } finally {
                     connectionSocket.close();
                     System.out.println("Closing debug connection");
@@ -58,6 +83,5 @@ public class App {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 }
