@@ -1,9 +1,13 @@
 {
 	"java.format.enabled": true,
-	"java.format.settings.url": ".ortus-java-style.xml",
+	"java.format.settings.url" : "https://raw.githubusercontent.com/Ortus-Solutions/coding-standards/master/formatters/ortus-java-style.xml",
 	"java.configuration.updateBuildConfiguration": "automatic",
 	"java.dependency.packagePresentation": "hierarchical",
 	"java.project.explorer.showNonJavaResources": true,
+	"files.associations": {
+		"*.bx": "cfml",
+		"*.bxm": "cfml"
+	},
 	"java.compile.nullAnalysis.mode": "automatic",
 	"java.debug.settings.onBuildFailureProceed": true,
 	"java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx2G -Xms100m -Xlog:disable",
@@ -13,8 +17,10 @@
 		"editor.insertSpaces": false,
 		"editor.tabSize": 4
 	},
-	"editor.formatOnSave": true,
+	"editor.formatOnSave": false,
 	"editor.codeActionsOnSave": {
 		"source.organizeImports": "explicit"
-	}
+	},
+	"editor.defaultFormatter": null
 }
+
