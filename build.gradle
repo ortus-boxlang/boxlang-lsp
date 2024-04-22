@@ -59,6 +59,7 @@ compileTestJava{
 	// Make sure the service loaders are created before testing
 	dependsOn compileJava, serviceLoaderBuild
 }
+compileTestJava.finalizedBy( shadowJar )
 
 javadoc {
     // To avoid our own doclet issues
