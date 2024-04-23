@@ -1,4 +1,4 @@
-package com.ortussolutions.bifs;
+package ortus.boxlang.moduleslug.bifs;
 
 import ortus.boxlang.runtime.bifs.BIF;
 import ortus.boxlang.runtime.bifs.BoxBIF;

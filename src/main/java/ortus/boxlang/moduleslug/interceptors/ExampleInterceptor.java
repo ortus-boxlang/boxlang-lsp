@@ -1,10 +1,10 @@
-package com.ortussolutions.interceptors;
+package ortus.boxlang.moduleslug.interceptors;
 
 import org.slf4j.LoggerFactory;
 
 import ortus.boxlang.runtime.events.BaseInterceptor;
-import ortus.boxlang.runtime.types.IStruct;
 import ortus.boxlang.runtime.events.InterceptionPoint;
+import ortus.boxlang.runtime.types.IStruct;
 
 public class ExampleInterceptor extends BaseInterceptor {
 

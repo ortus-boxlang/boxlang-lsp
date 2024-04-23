@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.ortussolutions.components;
+package ortus.boxlang.moduleslug.components;
 
 import java.util.Set;
 
@@ -51,9 +51,9 @@ public class ExampleComponent extends Component {
 	 * @param executionState The execution state of the Component
 	 *
 	 * @attribute.name The name of the person greeting us.
-	 * 
+	 *
 	 * @attribute.location The location of the person.
-	 * 
+	 *
 	 * @attribute.shout Whether the person is shouting or not.
 	 *
 	 */

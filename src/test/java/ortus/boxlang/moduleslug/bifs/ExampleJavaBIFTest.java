@@ -1,13 +1,12 @@
-package com.ortussolutions.components;
+package ortus.boxlang.moduleslug.bifs;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import ortus.boxlang.compiler.parser.BoxSourceType;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.context.IBoxContext;
 import ortus.boxlang.runtime.context.ScriptingRequestBoxContext;
@@ -15,7 +14,7 @@ import ortus.boxlang.runtime.scopes.IScope;
 import ortus.boxlang.runtime.scopes.Key;
 import ortus.boxlang.runtime.scopes.VariablesScope;
 
-public class ExampleComponentTest {
+public class ExampleJavaBIFTest {
 
 	static BoxRuntime	instance;
 	IBoxContext			context;
@@ -33,14 +32,11 @@ public class ExampleComponentTest {
 		variables	= context.getScopeNearby( VariablesScope.name );
 	}
 
-	@DisplayName( "It can test the ExampleComponent" )
+	@DisplayName( "It can test the ExampleBIF" )
 	@Test
-	public void testExampleComponent() {
-		instance.executeSource( """
-		                        	<cfExampleComponent name="Ortus Solutions">
-		                        	<cfset result = getBoxContext().getBuffer().toString()>
-		                        """, context, BoxSourceType.CFTEMPLATE );
-		assertTrue( variables.getAsString( result ).contains( "Hello, world - from Ortus Solutions." ) );
+	public void testExampleBIF() {
+		instance.executeSource( "result = ExampleJavaBIF()", context );
+		assertEquals( "Hello from an ExampleJavaBIF!", variables.get( result ) );
 	}
 
 }
