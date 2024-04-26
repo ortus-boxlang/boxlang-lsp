@@ -1,11 +1,10 @@
 package ortus.boxlanglsp;
 
 import java.net.URI;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.eclipse.lsp4j.DefinitionParams;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
@@ -13,19 +12,19 @@ import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.DocumentSymbolCapabilities;
 import org.eclipse.lsp4j.DocumentSymbolParams;
+import org.eclipse.lsp4j.Location;
+import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentRegistrationOptions;
 import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter;
+import org.eclipse.lsp4j.adapters.LocationLinkListAdapter;
 import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
-import ortus.boxlang.compiler.ast.BoxNode;
-import ortus.boxlang.compiler.ast.Issue;
-import ortus.boxlang.compiler.javaboxpiler.JavaBoxpiler;
-import ortus.boxlang.compiler.parser.ParsingResult;
+import ortus.boxlanglsp.workspace.ProjectContextProvider;
 
 public class BoxLangTextDocumentService implements TextDocumentService {
 
@@ -65,6 +64,25 @@ public class BoxLangTextDocumentService implements TextDocumentService {
     }
 
     /**
+     * The goto definition request is sent from the client to the server to resolve
+     * the definition location of a symbol at a given text document position.
+     * <p>
+     * Registration Options: {@link org.eclipse.lsp4j.DefinitionRegistrationOptions}
+     */
+    @JsonRequest
+    @ResponseJsonAdapter(LocationLinkListAdapter.class)
+    public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(
+            DefinitionParams params) {
+
+        // TODO add more completion proposals other than function name
+        // TODO get completion proposal name from params
+        return CompletableFuture.supplyAsync(() -> {
+            return Either
+                    .forLeft(ProjectContextProvider.getInstance().findMatchingFunctionDeclerations("getCircumference"));
+        });
+    }
+
+    /**
      * The document symbol request is sent from the client to the server to list all
      * symbols found in a given text document.
      * <p>
@@ -90,24 +108,9 @@ public class BoxLangTextDocumentService implements TextDocumentService {
             DocumentSymbolParams params) {
 
         return CompletableFuture.supplyAsync(() -> {
-            URI fileURI = URI.create(params.getTextDocument().getUri());
-            Path path = Paths.get(fileURI);
-            ParsingResult result = JavaBoxpiler.getInstance()
-                    .parse(path.toFile());
 
-            DocumentSymbolBoxNodeVisitor visitor = new DocumentSymbolBoxNodeVisitor();
-
-            visitor.setFilePath(path);
-
-            BoxNode root = result.getRoot();
-
-            if (root != null) {
-                result.getRoot().accept(visitor);
-            }
-
-            List<Issue> issues = result.getIssues();
-
-            return visitor.getDocumentSymbols();
+            return ProjectContextProvider.getInstance()
+                    .getDocumentSymbols(URI.create(params.getTextDocument().getUri()));
         });
     }
 

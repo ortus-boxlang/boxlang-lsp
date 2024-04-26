@@ -28,6 +28,9 @@ dependencies {
     // https://mvnrepository.com/artifact/org.eclipse.lsp4j/org.eclipse.lsp4j
     implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:0.22.0"
 
+    // https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
+	implementation 'org.apache.commons:commons-lang3:3.14.0'
+
     // cli 
     implementation 'info.picocli:picocli:4.7.5'
 

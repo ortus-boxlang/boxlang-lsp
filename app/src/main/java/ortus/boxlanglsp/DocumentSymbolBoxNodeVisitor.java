@@ -64,12 +64,12 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
         }
 
         DocumentSymbol property = new DocumentSymbol();
-        BoxAnnotation nameAnnotation = node.getAnnotations()
+        BoxAnnotation nameAnnotation = node.getAllAnnotations()
                 .stream()
                 .filter(annotation -> annotation.getKey().getValue().equalsIgnoreCase("name"))
                 .findFirst()
                 .orElseGet(() -> {
-                    return node.getAnnotations().getFirst();
+                    return node.getAllAnnotations().getFirst();
                 });
 
         if (nameAnnotation.getValue() == null) {
