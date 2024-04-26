@@ -9,8 +9,10 @@
             "name": "Debug server",
             "request": "launch",
             "mainClass": "ortus.boxlanglsp.App",
+            "projectName": "app",
             "args": [
-                "--debug-server"
+                "--debug-server-port",
+                "5173"
             ]
         }
     ]
