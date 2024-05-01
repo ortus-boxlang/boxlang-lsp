@@ -44,7 +44,7 @@ public class FunctionDefinition {
         loc.setUri(fn.getFileURI().toString());
         loc.setRange(new Range(
                 new Position(start.getLine() - 1, start.getColumn()),
-                new Position(end.getLine() - 1, end.getColumn())));
+                new Position(end.getLine() - 1, end.getColumn() + 1)));
 
         return loc;
     }

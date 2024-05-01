@@ -1,6 +1,8 @@
 package ortus.boxlanglsp;
 
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -74,12 +76,25 @@ public class BoxLangTextDocumentService implements TextDocumentService {
     public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(
             DefinitionParams params) {
 
-        // TODO add more completion proposals other than function name
-        // TODO get completion proposal name from params
+        try {
+            URI docURI = new URI(params.getTextDocument().getUri());
+
+            // TODO add more completion proposals other than function name
+            // TODO get completion proposal name from params
+            return CompletableFuture.supplyAsync(() -> {
+                return Either
+                        .forLeft(ProjectContextProvider.getInstance().findDefinitionPossibiltiies(docURI,
+                                params.getPosition()));
+            });
+        } catch (URISyntaxException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
         return CompletableFuture.supplyAsync(() -> {
-            return Either
-                    .forLeft(ProjectContextProvider.getInstance().findMatchingFunctionDeclerations("getCircumference"));
+            return Either.forLeft(null);
         });
+
     }
 
     /**
@@ -110,7 +125,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
         return CompletableFuture.supplyAsync(() -> {
 
             return ProjectContextProvider.getInstance()
-                    .getDocumentSymbols(URI.create(params.getTextDocument().getUri()));
+                    .getDocumentSymbols(URI.create(params.getTextDocument().getUri()))
+                    .orElseGet(() -> new ArrayList<Either<SymbolInformation, DocumentSymbol>>());
         });
     }
 
