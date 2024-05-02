@@ -17,6 +17,13 @@ repositories {
 }
 
 dependencies {
+
+    // Until BoxLang is published to Maven Central
+	// Look for it in the local build directory
+	// You must run `./gradle build -x test` in the BoxLang project
+    compileOnly files( '../resources/libs/boxlang-1.0.0-all.jar' )
+    testImplementation files( '../resources/libs/boxlang-1.0.0-all.jar' )
+
     // Use JUnit Jupiter for testing.
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
 
@@ -33,8 +40,6 @@ dependencies {
 
     // cli 
     implementation 'info.picocli:picocli:4.7.5'
-
-    implementation project(":boxlang" )
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -62,9 +67,6 @@ jar {
 }
 shadowJar {
 	archiveBaseName = "boxlang-lsp"
-    dependencies {
-        exclude project(':boxlang') 
-    }
 }
 
 /**

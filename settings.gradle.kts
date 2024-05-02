@@ -11,4 +11,4 @@ plugins {
 }
 
 rootProject.name = "boxlang-lsp"
-include("app", "boxlang" )
+include("app" )
