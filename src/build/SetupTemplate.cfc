@@ -27,6 +27,12 @@ component {
 		if( !len( moduleName ) ){
 			error( "Module Name is required" );
 		}
+
+		var moduleRegisteredName = ask( "What is the name this module should be registered as by the BoxLang runtime?" );
+		if( !len( moduleRegisteredName ) ){
+			error( "Module Registration name is required" );
+		}
+
 		var moduleSlug = ask( "What is the slug for your module?" );
 		if( !len( moduleSlug ) ){
 			error( "Module Slug is required" );
@@ -41,6 +47,14 @@ component {
 				path        = "/#variables.cwd#/**",
 				token       = "@MODULE_NAME@",
 				replacement = moduleName
+			)
+			.run();
+
+		command( "tokenReplace" )
+			.params(
+				path        = "/#variables.cwd#/**",
+				token       = "@MODULE_REGISTERED_NAME@",
+				replacement = moduleRegisteredName
 			)
 			.run();
 
