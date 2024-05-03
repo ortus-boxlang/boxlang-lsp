@@ -16,9 +16,10 @@
  * - functionService : The BoxLang FunctionService
  * - interceptorService : The BoxLang InterceptorService
  * - moduleRecord : The ModuleRecord instance
+ *
  */
 @BoxBIF "ExampleBxBIF"
-component {
+class {
 
     /**
      * An example BOXLANG BIF
