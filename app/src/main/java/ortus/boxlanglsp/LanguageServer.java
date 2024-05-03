@@ -27,6 +27,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 
     private WorkspaceService workspaceService = new BoxLangWorkspaceService();
     private TextDocumentService textDocumentService = new BoxLangTextDocumentService();
+    private ProjectContextProvider projectContextProvider = ProjectContextProvider.getInstance();
 
     @Override
     public CompletableFuture<InitializeResult> initialize(InitializeParams params) {
@@ -74,6 +75,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 
         // textDocumentService.setClient(client);
         ((BoxLangTextDocumentService) textDocumentService).setLanguageClient(client);
+        projectContextProvider.setLanguageClient(client);
 
         client.showMessage(new MessageParams(MessageType.Info, "Connected to the BoxLang Langauge Server!"));
         // TODO Auto-generated method stub
@@ -86,7 +88,8 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
             Files
                     .walk(Path.of(new URI(folders.get(0).getUri())))
                     .filter(Files::isRegularFile)
-                    .filter((path) -> StringUtils.endsWithAny(path.toString(), ".bx", ".cfc"))
+                    .filter((path) -> StringUtils.endsWithAny(path.toString(), ".bx", ".bxs", ".bxm", ".cfc", ".cfs",
+                            ".cfm"))
                     .forEach((clazzPath) -> {
                         try {
 

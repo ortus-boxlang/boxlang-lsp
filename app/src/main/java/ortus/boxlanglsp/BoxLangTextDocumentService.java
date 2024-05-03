@@ -38,20 +38,23 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 
     @Override
     public void didOpen(DidOpenTextDocumentParams params) {
+        ProjectContextProvider.getInstance().trackDocumentOpen(convertDocumentURI(params.getTextDocument().getUri()),
+                params.getTextDocument().getText());
         System.out.println("The file was opened");
         System.out.println(params.getTextDocument().getUri());
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method 'didOpen'");
     }
 
     @Override
     public void didChange(DidChangeTextDocumentParams params) {
+        ProjectContextProvider.getInstance().trackDocumentChange(convertDocumentURI(params.getTextDocument().getUri()),
+                params.getContentChanges());
         // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'didChange'");
+        // throw new UnsupportedOperationException("Unimplemented method 'didChange'");
     }
 
     @Override
     public void didClose(DidCloseTextDocumentParams params) {
+        ProjectContextProvider.getInstance().trackDocumentClose(convertDocumentURI(params.getTextDocument().getUri()));
         System.out.println("The file was closed");
         System.out.println(params.getTextDocument().getUri());
         // throw new UnsupportedOperationException("Unimplemented method 'didClose'");
@@ -59,6 +62,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 
     @Override
     public void didSave(DidSaveTextDocumentParams params) {
+        ProjectContextProvider.getInstance().trackDocumentSave(convertDocumentURI(params.getTextDocument().getUri()),
+                params.getText());
         System.out.println("The file was saved");
         System.out.println(params.getTextDocument().getUri());
         // TODO Auto-generated method stub
@@ -79,8 +84,6 @@ public class BoxLangTextDocumentService implements TextDocumentService {
         try {
             URI docURI = new URI(params.getTextDocument().getUri());
 
-            // TODO add more completion proposals other than function name
-            // TODO get completion proposal name from params
             return CompletableFuture.supplyAsync(() -> {
                 return Either
                         .forLeft(ProjectContextProvider.getInstance().findDefinitionPossibiltiies(docURI,
@@ -128,6 +131,17 @@ public class BoxLangTextDocumentService implements TextDocumentService {
                     .getDocumentSymbols(URI.create(params.getTextDocument().getUri()))
                     .orElseGet(() -> new ArrayList<Either<SymbolInformation, DocumentSymbol>>());
         });
+    }
+
+    private URI convertDocumentURI(String docURI) {
+        try {
+            return new URI(docURI);
+        } catch (URISyntaxException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        return null;
     }
 
 }
