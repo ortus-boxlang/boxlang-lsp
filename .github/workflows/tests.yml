@@ -71,7 +71,7 @@ jobs:
       - name: Test Module
         run: |
           gradle downloadBoxLang
-          gradle test --stacktrace --console=plain
+          gradle shadowJar test --stacktrace --console=plain
 
       - name: Upload Test Results
         if: always()
