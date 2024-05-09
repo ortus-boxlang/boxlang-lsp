@@ -34,6 +34,7 @@ import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlanglsp.DocumentSymbolBoxNodeVisitor;
 import ortus.boxlanglsp.workspace.visitors.DefinitionTargetVisitor;
+import ortus.boxlanglsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
 
 public class ProjectContextProvider {
 
@@ -49,6 +50,15 @@ public class ProjectContextProvider {
             String latestContent) {
 
     }
+
+    // record SymbolTypeRegion(
+    // URI uri,
+    // String name,
+    // BoxLangType type,
+    // FQN fqn,
+    // Position position) {
+
+    // }
 
     record FileParseResult(
             URI uri,
@@ -252,7 +262,10 @@ public class ProjectContextProvider {
         PublishDiagnosticsParams diagnositcParams = new PublishDiagnosticsParams();
 
         diagnositcParams.setUri(docURI.toString());
-        diagnositcParams.setDiagnostics(res.issues().stream().map((issue) -> {
+
+        List<Diagnostic> diagnostics = new ArrayList<Diagnostic>();
+        diagnositcParams.setDiagnostics(diagnostics);
+        diagnostics.addAll(res.issues().stream().map((issue) -> {
             Diagnostic diagnostic = new Diagnostic();
 
             diagnostic.setSeverity(DiagnosticSeverity.Error);
@@ -264,6 +277,12 @@ public class ProjectContextProvider {
 
             return diagnostic;
         }).toList());
+
+        if (res.astRoot() != null) {
+            FunctionReturnDiagnosticVisitor returnDiagnosticVisitor = new FunctionReturnDiagnosticVisitor();
+            res.astRoot().accept(returnDiagnosticVisitor);
+            diagnostics.addAll(returnDiagnosticVisitor.getDiagnostics());
+        }
 
         this.client.publishDiagnostics(diagnositcParams);
     }
