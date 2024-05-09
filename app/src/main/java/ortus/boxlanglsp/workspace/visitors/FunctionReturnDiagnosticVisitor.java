@@ -27,7 +27,7 @@ public class FunctionReturnDiagnosticVisitor extends VoidBoxVisitor {
     }
 
     public void visit(BoxReturn node) {
-        BoxFunctionDeclaration currentFunc = funcStack.getLast();
+        BoxFunctionDeclaration currentFunc = this.funcStack.get(this.funcStack.size() - 1);
 
         if (currentFunc.getType() == null) {
             // TODO add support for void type
@@ -60,7 +60,7 @@ public class FunctionReturnDiagnosticVisitor extends VoidBoxVisitor {
     }
 
     private Diagnostic checkMismatchedReturnValue(BoxReturn node) {
-        BoxType declaredReturnType = this.funcStack.getLast().getType().getType();
+        BoxType declaredReturnType = this.funcStack.get(this.funcStack.size() - 1).getType().getType();
         BoxLangType returnValueType = ExpressionTypeResolver.determineType(node.getExpression());
 
         if (declaredReturnType == BoxType.String && returnValueType == BoxLangType.STRING) {
@@ -86,7 +86,8 @@ public class FunctionReturnDiagnosticVisitor extends VoidBoxVisitor {
     }
 
     private Diagnostic checkVoidTriesToReturnValue(BoxReturn node) {
-        if (!(this.funcStack.getLast().getType().getType() == BoxType.Void && node.getExpression() != null)) {
+        if (!(this.funcStack.get(this.funcStack.size() - 1).getType().getType() == BoxType.Void
+                && node.getExpression() != null)) {
             return null;
         }
 

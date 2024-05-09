@@ -54,7 +54,7 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
 
         visitChildren(node);
 
-        this.symbolStack.removeLast();
+        this.symbolStack.remove(symbolStack.size() - 1);
     }
 
     public void visit(BoxProperty node) {
@@ -68,9 +68,7 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
                 .stream()
                 .filter(annotation -> annotation.getKey().getValue().equalsIgnoreCase("name"))
                 .findFirst()
-                .orElseGet(() -> {
-                    return node.getAllAnnotations().getFirst();
-                });
+                .orElseGet(() -> node.getAllAnnotations().get(0));
 
         if (nameAnnotation.getValue() == null) {
             property.setName(nameAnnotation.getKey().getValue());
@@ -134,7 +132,7 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
 
     private void trackSymbol(DocumentSymbol symbol) {
         if (symbolStack.size() > 0) {
-            symbolStack.getLast().getChildren().add(symbol);
+            symbolStack.get(symbolStack.size() - 1).getChildren().add(symbol);
             return;
         }
 
@@ -142,7 +140,7 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
     }
 
     private boolean inClass() {
-        return symbolStack.size() > 0 && symbolStack.getLast().getKind() == SymbolKind.Class;
+        return symbolStack.size() > 0 && symbolStack.get(symbolStack.size() - 1).getKind() == SymbolKind.Class;
     }
 
     private Range getRange(BoxNode node) {

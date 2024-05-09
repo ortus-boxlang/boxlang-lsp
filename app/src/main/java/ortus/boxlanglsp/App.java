@@ -40,9 +40,9 @@ public class App {
                 in,
                 out);
 
-        if (languageServer instanceof LanguageClientAware lca) {
+        if (languageServer instanceof LanguageClientAware) {
             LanguageClient client = launcher.getRemoteProxy();
-            lca.connect(client);
+            languageServer.connect(client);
         }
 
         try {
