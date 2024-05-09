@@ -21,6 +21,7 @@ import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
+import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 
@@ -29,6 +30,7 @@ import ortus.boxlang.compiler.ast.Issue;
 import ortus.boxlang.compiler.ast.Point;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
+import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
 import ortus.boxlang.compiler.javaboxpiler.JavaBoxpiler;
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
@@ -91,6 +93,27 @@ public class ProjectContextProvider {
 
     public void setLanguageClient(LanguageClient client) {
         this.client = client;
+    }
+
+    public List<? extends TextEdit> formatDocument(URI docUri) {
+        ParsingResult res = this.getLatestParsingResult(docUri);
+
+        List<TextEdit> edits = new ArrayList<TextEdit>();
+
+        PrettyPrintBoxVisitor prettyPrintBoxVisitor = new PrettyPrintBoxVisitor();
+
+        res.getRoot().accept(prettyPrintBoxVisitor);
+
+        if (res.getRoot() != null) {
+            Range range = positionToRange(res.getRoot().getPosition());
+            range.getStart().setLine(0);
+            range.getStart().setCharacter(0);
+            range.getEnd().setLine(range.getEnd().getLine() + 1);
+            edits.add(new TextEdit(range,
+                    prettyPrintBoxVisitor.getOutput()));
+        }
+
+        return edits;
     }
 
     public void trackDocumentChange(URI docUri, List<TextDocumentContentChangeEvent> changes) {

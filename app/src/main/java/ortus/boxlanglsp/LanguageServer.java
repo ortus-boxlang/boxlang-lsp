@@ -36,6 +36,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 
             capabilities.setTextDocumentSync(TextDocumentSyncKind.Full);
             capabilities.setDocumentSymbolProvider(true);
+            capabilities.setDocumentFormattingProvider(true);
             // capabilities.setReferencesProvider(true);
             capabilities.setDefinitionProvider(true);
             // CompletionOptions completionOptions = new CompletionOptions();

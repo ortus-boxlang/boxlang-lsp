@@ -11,6 +11,7 @@ import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
+import org.eclipse.lsp4j.DocumentFormattingParams;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.DocumentSymbolCapabilities;
 import org.eclipse.lsp4j.DocumentSymbolParams;
@@ -18,6 +19,7 @@ import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentRegistrationOptions;
+import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter;
 import org.eclipse.lsp4j.adapters.LocationLinkListAdapter;
 import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter;
@@ -68,6 +70,21 @@ public class BoxLangTextDocumentService implements TextDocumentService {
         System.out.println(params.getTextDocument().getUri());
         // TODO Auto-generated method stub
         // throw new UnsupportedOperationException("Unimplemented method 'didSave'");
+    }
+
+    /**
+     * The document formatting request is sent from the client to the server to
+     * format a whole document.
+     * <p>
+     * Registration Options:
+     * {@link org.eclipse.lsp4j.DocumentFormattingRegistrationOptions}
+     */
+    @JsonRequest
+    public CompletableFuture<List<? extends TextEdit>> formatting(DocumentFormattingParams params) {
+        return CompletableFuture.supplyAsync(() -> {
+            return ProjectContextProvider.getInstance()
+                    .formatDocument(convertDocumentURI(params.getTextDocument().getUri()));
+        });
     }
 
     /**
