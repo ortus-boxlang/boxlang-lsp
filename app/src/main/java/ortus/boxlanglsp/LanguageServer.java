@@ -16,6 +16,7 @@ import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.WorkspaceFolder;
+import org.eclipse.lsp4j.jsonrpc.services.JsonNotification;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageClientAware;
 import org.eclipse.lsp4j.services.TextDocumentService;
@@ -28,6 +29,13 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
     private WorkspaceService workspaceService = new BoxLangWorkspaceService();
     private TextDocumentService textDocumentService = new BoxLangTextDocumentService();
     private ProjectContextProvider projectContextProvider = ProjectContextProvider.getInstance();
+
+    @JsonNotification(value = "boxlang/changesettings", useSegment = false)
+    public CompletableFuture<Void> changeSettings(ChangeSettingParams params) {
+
+        projectContextProvider.setShouldPublishDiagnostics(params.enableExperimentalDiagnostics);
+        return CompletableFuture.completedFuture(null);
+    }
 
     @Override
     public CompletableFuture<InitializeResult> initialize(InitializeParams params) {

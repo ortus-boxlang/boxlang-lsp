@@ -47,20 +47,13 @@ public class ProjectContextProvider {
     private List<FunctionDefinition> functionDefinitions = new ArrayList<FunctionDefinition>();
     private Map<URI, OpenDocument> openDocuments = new HashMap<URI, OpenDocument>();
 
+    private boolean shouldPublishDiagnostics = false;
+
     record OpenDocument(
             URI uri,
             String latestContent) {
 
     }
-
-    // record SymbolTypeRegion(
-    // URI uri,
-    // String name,
-    // BoxLangType type,
-    // FQN fqn,
-    // Position position) {
-
-    // }
 
     record FileParseResult(
             URI uri,
@@ -89,6 +82,19 @@ public class ProjectContextProvider {
         }
 
         return instance;
+    }
+
+    public void setShouldPublishDiagnostics(boolean shouldPublishDiagnostics) {
+        if (this.shouldPublishDiagnostics == shouldPublishDiagnostics) {
+            return;
+        }
+
+        this.shouldPublishDiagnostics = shouldPublishDiagnostics;
+
+        this.parsedFiles.keySet()
+                .stream()
+                .parallel()
+                .forEach((uri) -> publishDiagnostics(uri));
     }
 
     public void setLanguageClient(LanguageClient client) {
@@ -188,7 +194,7 @@ public class ProjectContextProvider {
 
         this.parsedFiles.put(docUri, res);
 
-        publicDiagnostics(docUri);
+        publishDiagnostics(docUri);
 
         return res;
     }
@@ -275,7 +281,7 @@ public class ProjectContextProvider {
         return visitor.getDefinitionTarget();
     }
 
-    private void publicDiagnostics(URI docURI) {
+    private void publishDiagnostics(URI docURI) {
         if (this.client == null) {
             return;
         }
@@ -288,6 +294,12 @@ public class ProjectContextProvider {
 
         List<Diagnostic> diagnostics = new ArrayList<Diagnostic>();
         diagnositcParams.setDiagnostics(diagnostics);
+
+        if (!this.shouldPublishDiagnostics) {
+            this.client.publishDiagnostics(diagnositcParams);
+            return;
+        }
+
         diagnostics.addAll(res.issues().stream().map((issue) -> {
             Diagnostic diagnostic = new Diagnostic();
 
