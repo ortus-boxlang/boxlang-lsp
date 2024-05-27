@@ -86,7 +86,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
         ((BoxLangTextDocumentService) textDocumentService).setLanguageClient(client);
         projectContextProvider.setLanguageClient(client);
 
-        client.showMessage(new MessageParams(MessageType.Info, "Connected to the BoxLang Langauge Server!"));
+        client.showMessage(new MessageParams(MessageType.Info, "Connected to the BoxLang Language Server!"));
         // TODO Auto-generated method stub
         // throw new UnsupportedOperationException("Unimplemented method 'connect'");
     }
