@@ -21,7 +21,7 @@ on:
 env:
   MODULE_ID: @MODULE_SLUG@
   SNAPSHOT: ${{ inputs.snapshot || false }}
-  JDK: 17
+  JDK: 21
   GRADLE: 8.7
   BUILD_ID: ${{ github.run_number }}
 

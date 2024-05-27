@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ "ubuntu-latest", "windows-latest" ]
-        jdkVersion: [ "17" ]
+        jdkVersion: [ "21" ]
         experimental: [false]
         #include:
           #- jdkVersion: "17"
