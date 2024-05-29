@@ -1,15 +1,15 @@
 /**
- * This is the module descriptor and entry point for your module in the Runtime.
+ * This is the module descriptor and entry point for your module in the runtime.
  * The unique name of the moduel is the name of the directory on the modules folder.
- * A BoxLang Mapping will be created for you with the name of the module.
+ * A BoxLang mapping will be created for you with the name of the module.
  *
- * A Module can have the following folders that will be automatically registered:
+ * A module can have the following folders that will be automatically registered:
  * + bifs - Custom BIFs that will be registered into the runtime
- * + interceptors - Custom Interceptors that will be registered into the runtime via the configure() method
- * + libs - Custom Java libraries that your module leverages
+ * + interceptors - Custom interceptors that will be registered into the runtime via the configure() method
+ * + libs - Custom java libraries that your module leverages
  * + tags - Custom tags that will be registered into the runtime
  *
- * Every Module will have it's own ClassLoader that will be used to load the module libs and dependencies.
+ * Every module will have its own classloader that will be used to load the module libs and dependencies.
  */
 
 class {
@@ -132,8 +132,8 @@ class {
 	 * --------------------------------------------------------------------------
 	 * Module Events
 	 * --------------------------------------------------------------------------
-	 * You can listen to any Runtime events by creating the methods
-	 * that match the approved Runtime Interception Points
+	 * You can listen to any runtime events by creating the methods
+	 * that match the approved runtime interception points
 	 */
 
 	 function afterModuleActivations(){
