@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.eclipse.lsp4j.CompletionItem;
+import org.eclipse.lsp4j.CompletionList;
+import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.DefinitionParams;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
@@ -36,6 +39,14 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 
     public void setLanguageClient(LanguageClient client) {
         this.client = client;
+    }
+
+    @JsonRequest
+    public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(CompletionParams position) {
+        return CompletableFuture.supplyAsync(() -> {
+            return Either.forLeft(ProjectContextProvider.getInstance()
+                    .getAvaialbeCompletions(convertDocumentURI(position.getTextDocument().getUri()), position));
+        });
     }
 
     @Override

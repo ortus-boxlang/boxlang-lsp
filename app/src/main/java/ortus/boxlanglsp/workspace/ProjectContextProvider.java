@@ -11,11 +11,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.eclipse.lsp4j.CompletionItem;
+import org.eclipse.lsp4j.CompletionItemKind;
+import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.Location;
+import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
@@ -34,6 +39,10 @@ import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
 import ortus.boxlang.compiler.javaboxpiler.JavaBoxpiler;
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
+import ortus.boxlang.runtime.BoxRuntime;
+import ortus.boxlang.runtime.bifs.BIFDescriptor;
+import ortus.boxlang.runtime.components.ComponentDescriptor;
+import ortus.boxlang.runtime.validation.Validator;
 import ortus.boxlanglsp.DocumentSymbolBoxNodeVisitor;
 import ortus.boxlanglsp.workspace.visitors.DefinitionTargetVisitor;
 import ortus.boxlanglsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
@@ -60,6 +69,10 @@ public class ProjectContextProvider {
             BoxNode astRoot,
             List<Issue> issues,
             List<Either<SymbolInformation, DocumentSymbol>> outline) {
+
+        public boolean isTemplate() {
+            return uri.toString().endsWith(".bxm");
+        }
 
     }
 
@@ -120,6 +133,14 @@ public class ProjectContextProvider {
         }
 
         return edits;
+    }
+
+    private FileParseResult consumeOrGet(URI docUri) {
+        if (!this.parsedFiles.containsKey(docUri)) {
+            this.consumeFile(docUri);
+        }
+
+        return this.parsedFiles.get(docUri);
     }
 
     public void trackDocumentChange(URI docUri, List<TextDocumentContentChangeEvent> changes) {
@@ -239,6 +260,115 @@ public class ProjectContextProvider {
                     return new ArrayList<Location>();
                 })
                 .orElseGet(() -> new ArrayList<Location>());
+    }
+
+    public List<CompletionItem> getAvaialbeCompletions(URI docURI, CompletionParams params) {
+        List<CompletionItem> items = new ArrayList<CompletionItem>();
+        FileParseResult res = consumeOrGet(docURI);
+
+        String docs = """
+                # Function: `ArrayAppend`
+
+                Append a value to an array
+
+                ## Method Signature
+                ```
+                ArrayAppend(array=[modifiableArray], value=[any], merge=[boolean])
+                ```
+                ### Arguments
+
+                | Argument | Type | Required | Description | Default |
+                |----------|------|----------|-------------|---------|
+                | `array` | `modifiableArray` | `true` | The array to which the element should be appended. |  |
+                | `value` | `any` | `true` | The element to append. Can be any type. |  |
+                | `merge` | `boolean` | `false` | If true, the value is assumed to be an array and the elements of the array are appended to the array. If false, the value is<br>                 appended as a single element. | `false` |
+                    """;
+
+        // probably need to think of these categorically
+        // argument "enum" completions
+        // variable completions
+        // method/func completions
+        // bif completions
+
+        // TODO if you are in a cfscript component within a template script completions
+        // TODO if you are in a cfset return script completions
+        // TODO add completions for in-scope symbols (properties, local variables,
+        // scopes, arguments)
+
+        if (res.isTemplate()) {
+            Stream.of(BoxRuntime.getInstance().getComponentService().getComponentNames()).map((name) -> {
+                ComponentDescriptor componentDescriptor = BoxRuntime.getInstance().getComponentService()
+                        .getComponent(name);
+
+                CompletionItem a = new CompletionItem();
+                a.setLabel("bx:" + name);
+                a.setKind(CompletionItemKind.Function);
+                a.setInsertText("<bx:%s %s></bx:" + name + ">");
+                a.setDetail(formatComponentSignature(componentDescriptor));
+
+                return a;
+            })
+                    .forEach((completion) -> items.add(completion));
+        } else {
+            Stream.of(BoxRuntime.getInstance().getFunctionService().getGlobalFunctionNames()).map((name) -> {
+                BIFDescriptor func = BoxRuntime.getInstance().getFunctionService().getGlobalFunction(name);
+                String args = Stream.of(func.getBIF().getDeclaredArguments()).map((arg) -> {
+                    if (!arg.required()) {
+                        return "[" + arg.signatureAsString() + "]";
+                    }
+
+                    return arg.signatureAsString();
+                }).collect(Collectors.joining(", "));
+
+                String signature = "%s(%s)".formatted(name, args);
+
+                CompletionItem a = new CompletionItem();
+                a.setLabel(name);
+                a.setKind(CompletionItemKind.Function);
+                a.setInsertText(name + "()");
+                a.setDocumentation(new MarkupContent("markdown", docs));
+                a.setDetail(signature);
+
+                return a;
+            })
+                    .forEach((completion) -> items.add(completion));
+        }
+
+        return items;
+    }
+
+    private String formatComponentSignature(ComponentDescriptor descriptor) {
+        String name = descriptor.name.toString();
+        String args = Stream.of(descriptor.getComponent().getDeclaredAttributes())
+                .sorted((a, b) -> {
+                    if (a.validators().contains(Validator.REQUIRED) && !b.validators().contains(Validator.REQUIRED)) {
+                        return 1;
+                    } else if (!a.validators().contains(Validator.REQUIRED)
+                            && b.validators().contains(Validator.REQUIRED)) {
+                        return -1;
+                    }
+
+                    return a.name().compareTo(b.name());
+                })
+                .map((attr) -> {
+                    Object defaultValue = attr.defaultValue();
+
+                    if (defaultValue == null) {
+                        defaultValue = "";
+                    }
+
+                    if (attr.validators().contains(Validator.REQUIRED)) {
+                        return "[%s=\"%s\"]".formatted(attr.name(), defaultValue);
+                    }
+
+                    return "%s=\"%s\"".formatted(attr.name(), defaultValue);
+                }).collect(Collectors.joining(" "));
+
+        if (descriptor.allowsBody || descriptor.requiresBody) {
+            return "<bx:%s %s>{body}</bx:%s>".formatted(name, args, name);
+        }
+
+        return "<bx:%s %s />".formatted(name, args);
     }
 
     private List<Either<SymbolInformation, DocumentSymbol>> generateOutline(URI textDocument, BoxNode root) {

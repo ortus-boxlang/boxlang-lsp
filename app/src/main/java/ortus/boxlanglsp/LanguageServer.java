@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.MessageParams;
@@ -47,9 +48,9 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
             capabilities.setDocumentFormattingProvider(true);
             // capabilities.setReferencesProvider(true);
             capabilities.setDefinitionProvider(true);
-            // CompletionOptions completionOptions = new CompletionOptions();
+            CompletionOptions completionOptions = new CompletionOptions();
             // completionOptions.
-            // capabilities.setCompletionProvider(null);
+            capabilities.setCompletionProvider(completionOptions);
 
             scanWorkspaceFolders(params.getWorkspaceFolders());
 
