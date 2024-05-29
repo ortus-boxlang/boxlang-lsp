@@ -44,8 +44,10 @@ import ortus.boxlang.runtime.bifs.BIFDescriptor;
 import ortus.boxlang.runtime.components.ComponentDescriptor;
 import ortus.boxlang.runtime.validation.Validator;
 import ortus.boxlanglsp.DocumentSymbolBoxNodeVisitor;
+import ortus.boxlanglsp.workspace.types.ParsedProperty;
 import ortus.boxlanglsp.workspace.visitors.DefinitionTargetVisitor;
 import ortus.boxlanglsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
+import ortus.boxlanglsp.workspace.visitors.PropertyVisitor;
 
 public class ProjectContextProvider {
 
@@ -68,12 +70,16 @@ public class ProjectContextProvider {
             URI uri,
             BoxNode astRoot,
             List<Issue> issues,
-            List<Either<SymbolInformation, DocumentSymbol>> outline) {
+            List<Either<SymbolInformation, DocumentSymbol>> outline,
+            List<ParsedProperty> properties) {
 
         public boolean isTemplate() {
             return uri.toString().endsWith(".bxm");
         }
 
+        public boolean isClass() {
+            return uri.toString().endsWith(".bx");
+        }
     }
 
     public static ortus.boxlang.compiler.ast.Position toBLPosition(Position lspPosition) {
@@ -201,13 +207,14 @@ public class ProjectContextProvider {
         FileParseResult res;
 
         if (root == null) {
-            res = new FileParseResult(docUri, null, result.getIssues(), null);
+            res = new FileParseResult(docUri, null, result.getIssues(), null, null);
         } else {
             res = new FileParseResult(
                     docUri,
                     root,
                     result.getIssues(),
-                    generateOutline(docUri, root));
+                    generateOutline(docUri, root),
+                    parseProperties(root));
             generateOutline(docUri, root);
 
             generateFunctionDefinitions(docUri, root);
@@ -266,6 +273,41 @@ public class ProjectContextProvider {
         List<CompletionItem> items = new ArrayList<CompletionItem>();
         FileParseResult res = consumeOrGet(docURI);
 
+        // probably need to think of these categorically
+        // argument "enum" completions
+        // variable completions
+        // method/func completions
+        // bif completions
+
+        // TODO if you are in a cfscript component within a template script completions
+        // TODO if you are in a cfset return script completions
+        // TODO add completions for in-scope symbols (properties, local variables,
+        // scopes, arguments)
+
+        getAvailablePropertyCompletions(res).ifPresent(completions -> items.addAll(completions));
+        getAvailableComponentCompletions(res).ifPresent(completions -> items.addAll(completions));
+        getAvailableBIFCompletions(res).ifPresent(completions -> items.addAll(completions));
+
+        return items;
+    }
+
+    private List<ParsedProperty> parseProperties(BoxNode root) {
+        PropertyVisitor visitor = new PropertyVisitor();
+
+        root.accept(visitor);
+
+        return visitor.getProperties();
+    }
+
+    private Optional<List<CompletionItem>> getAvailablePropertyCompletions(FileParseResult parsedFile) {
+        if (!parsedFile.isClass()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(parsedFile.properties().stream().map(ParsedProperty::asCompletionItem).toList());
+    }
+
+    private Optional<List<CompletionItem>> getAvailableBIFCompletions(FileParseResult parsedFile) {
         String docs = """
                 # Function: `ArrayAppend`
 
@@ -284,57 +326,51 @@ public class ProjectContextProvider {
                 | `merge` | `boolean` | `false` | If true, the value is assumed to be an array and the elements of the array are appended to the array. If false, the value is<br>                 appended as a single element. | `false` |
                     """;
 
-        // probably need to think of these categorically
-        // argument "enum" completions
-        // variable completions
-        // method/func completions
-        // bif completions
-
-        // TODO if you are in a cfscript component within a template script completions
-        // TODO if you are in a cfset return script completions
-        // TODO add completions for in-scope symbols (properties, local variables,
-        // scopes, arguments)
-
-        if (res.isTemplate()) {
-            Stream.of(BoxRuntime.getInstance().getComponentService().getComponentNames()).map((name) -> {
-                ComponentDescriptor componentDescriptor = BoxRuntime.getInstance().getComponentService()
-                        .getComponent(name);
-
-                CompletionItem a = new CompletionItem();
-                a.setLabel("bx:" + name);
-                a.setKind(CompletionItemKind.Function);
-                a.setInsertText("<bx:%s %s></bx:" + name + ">");
-                a.setDetail(formatComponentSignature(componentDescriptor));
-
-                return a;
-            })
-                    .forEach((completion) -> items.add(completion));
-        } else {
-            Stream.of(BoxRuntime.getInstance().getFunctionService().getGlobalFunctionNames()).map((name) -> {
-                BIFDescriptor func = BoxRuntime.getInstance().getFunctionService().getGlobalFunction(name);
-                String args = Stream.of(func.getBIF().getDeclaredArguments()).map((arg) -> {
-                    if (!arg.required()) {
-                        return "[" + arg.signatureAsString() + "]";
-                    }
-
-                    return arg.signatureAsString();
-                }).collect(Collectors.joining(", "));
-
-                String signature = "%s(%s)".formatted(name, args);
-
-                CompletionItem a = new CompletionItem();
-                a.setLabel(name);
-                a.setKind(CompletionItemKind.Function);
-                a.setInsertText(name + "()");
-                a.setDocumentation(new MarkupContent("markdown", docs));
-                a.setDetail(signature);
-
-                return a;
-            })
-                    .forEach((completion) -> items.add(completion));
+        if (parsedFile.isTemplate()) {
+            return Optional.empty();
         }
 
-        return items;
+        return Optional
+                .of(Stream.of(BoxRuntime.getInstance().getFunctionService().getGlobalFunctionNames()).map((name) -> {
+                    BIFDescriptor func = BoxRuntime.getInstance().getFunctionService().getGlobalFunction(name);
+                    String args = Stream.of(func.getBIF().getDeclaredArguments()).map((arg) -> {
+                        if (!arg.required()) {
+                            return "[" + arg.signatureAsString() + "]";
+                        }
+
+                        return arg.signatureAsString();
+                    }).collect(Collectors.joining(", "));
+
+                    String signature = "%s(%s)".formatted(name, args);
+
+                    CompletionItem a = new CompletionItem();
+                    a.setLabel(name);
+                    a.setKind(CompletionItemKind.Function);
+                    a.setInsertText(name + "()");
+                    a.setDocumentation(new MarkupContent("markdown", docs));
+                    a.setDetail(signature);
+
+                    return a;
+                }).toList());
+    }
+
+    private Optional<List<CompletionItem>> getAvailableComponentCompletions(FileParseResult parsedFile) {
+        if (!parsedFile.isTemplate()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(Stream.of(BoxRuntime.getInstance().getComponentService().getComponentNames()).map((name) -> {
+            ComponentDescriptor componentDescriptor = BoxRuntime.getInstance().getComponentService()
+                    .getComponent(name);
+
+            CompletionItem a = new CompletionItem();
+            a.setLabel("bx:" + name);
+            a.setKind(CompletionItemKind.Function);
+            a.setInsertText("<bx:%s %s></bx:" + name + ">");
+            a.setDetail(formatComponentSignature(componentDescriptor));
+
+            return a;
+        }).toList());
     }
 
     private String formatComponentSignature(ComponentDescriptor descriptor) {
