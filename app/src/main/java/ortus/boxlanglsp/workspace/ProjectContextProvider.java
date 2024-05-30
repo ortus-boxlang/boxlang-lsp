@@ -343,14 +343,14 @@ public class ProjectContextProvider {
 
                     String signature = "%s(%s)".formatted(name, args);
 
-                    CompletionItem a = new CompletionItem();
-                    a.setLabel(name);
-                    a.setKind(CompletionItemKind.Function);
-                    a.setInsertText(name + "()");
-                    a.setDocumentation(new MarkupContent("markdown", docs));
-                    a.setDetail(signature);
+                    CompletionItem item = new CompletionItem();
+                    item.setLabel(name);
+                    item.setKind(CompletionItemKind.Function);
+                    item.setInsertText(name + "()");
+                    item.setDocumentation(new MarkupContent("markdown", docs));
+                    item.setDetail(signature);
 
-                    return a;
+                    return item;
                 }).toList());
     }
 
@@ -363,14 +363,35 @@ public class ProjectContextProvider {
             ComponentDescriptor componentDescriptor = BoxRuntime.getInstance().getComponentService()
                     .getComponent(name);
 
-            CompletionItem a = new CompletionItem();
-            a.setLabel("bx:" + name);
-            a.setKind(CompletionItemKind.Function);
-            a.setInsertText("<bx:%s %s></bx:" + name + ">");
-            a.setDetail(formatComponentSignature(componentDescriptor));
+            CompletionItem item = new CompletionItem();
+            item.setLabel("bx:" + name);
+            item.setKind(CompletionItemKind.Function);
+            item.setInsertText(formatComponentInsert(componentDescriptor));
+            item.setDetail(formatComponentSignature(componentDescriptor));
 
-            return a;
+            return item;
         }).toList());
+    }
+
+    private String formatComponentInsert(ComponentDescriptor descriptor) {
+        String name = descriptor.name.toString();
+        String args = Stream.of(descriptor.getComponent().getDeclaredAttributes())
+                .filter((attr) -> attr.validators().contains(Validator.REQUIRED))
+                .map((attr) -> {
+                    Object defaultValue = attr.defaultValue();
+
+                    if (defaultValue == null) {
+                        defaultValue = "";
+                    }
+
+                    return "%s=\"%s\"".formatted(attr.name(), defaultValue);
+                }).collect(Collectors.joining(" "));
+
+        if (descriptor.allowsBody || descriptor.requiresBody) {
+            return "<bx:%s %s>$1</bx:%s>".formatted(name, args, name);
+        }
+
+        return "<bx:%s %s />".formatted(name, args);
     }
 
     private String formatComponentSignature(ComponentDescriptor descriptor) {
@@ -378,10 +399,10 @@ public class ProjectContextProvider {
         String args = Stream.of(descriptor.getComponent().getDeclaredAttributes())
                 .sorted((a, b) -> {
                     if (a.validators().contains(Validator.REQUIRED) && !b.validators().contains(Validator.REQUIRED)) {
-                        return 1;
+                        return -1;
                     } else if (!a.validators().contains(Validator.REQUIRED)
                             && b.validators().contains(Validator.REQUIRED)) {
-                        return -1;
+                        return 1;
                     }
 
                     return a.name().compareTo(b.name());
@@ -393,7 +414,7 @@ public class ProjectContextProvider {
                         defaultValue = "";
                     }
 
-                    if (attr.validators().contains(Validator.REQUIRED)) {
+                    if (!attr.validators().contains(Validator.REQUIRED)) {
                         return "[%s=\"%s\"]".formatted(attr.name(), defaultValue);
                     }
 
