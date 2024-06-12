@@ -34,6 +34,6 @@ public class ExpressionTypeResolver {
             return BoxLangType.UDF;
         }
 
-        return null;
+        return BoxLangType.ANY;
     }
 }

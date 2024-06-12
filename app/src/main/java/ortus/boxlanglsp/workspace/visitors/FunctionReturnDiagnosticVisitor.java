@@ -63,7 +63,8 @@ public class FunctionReturnDiagnosticVisitor extends VoidBoxVisitor {
         BoxType declaredReturnType = this.funcStack.get(this.funcStack.size() - 1).getType().getType();
         BoxLangType returnValueType = ExpressionTypeResolver.determineType(node.getExpression());
 
-        if (declaredReturnType == BoxType.String && returnValueType == BoxLangType.STRING) {
+        if (declaredReturnType == BoxType.String
+                && (returnValueType == BoxLangType.STRING || returnValueType == BoxLangType.ANY)) {
             return null;
         }
         if (declaredReturnType == BoxType.String && returnValueType == BoxLangType.NUMERIC) {
