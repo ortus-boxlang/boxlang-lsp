@@ -195,7 +195,7 @@ task downloadBoxLang( type: Download ) {
  */
 project.ext.bumpVersion = { boolean major = false, boolean minor = false, boolean patch = false ->
 
-	def propertiesFile = file( '../gradle.properties' );
+	def propertiesFile = file( './gradle.properties' );
 	def properties = new Properties();
 
 	properties.load( propertiesFile.newDataInputStream() )
