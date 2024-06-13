@@ -206,9 +206,9 @@ jobs:
         run: |
           if [ $LTS == 'true' ]
           then
-            ./gradlew bumpPatchVersion --stacktrace --console=plain
+            gradle bumpPatchVersion --stacktrace --console=plain
           else
-            ./gradlew bumpMinorVersion --stacktrace --console=plain
+            gradle bumpMinorVersion --stacktrace --console=plain
           fi
           git pull
 
