@@ -70,8 +70,9 @@ jobs:
 
       - name: Test Module
         run: |
-          gradle downloadBoxLang
-          gradle shadowJar test --stacktrace --console=plain
+          ./gradlew downloadBoxLang
+          # this is done in order to build the module structure before testing
+          ./gradlew shadowJar test --stacktrace --console=plain
 
       - name: Upload Test Results
         if: always()

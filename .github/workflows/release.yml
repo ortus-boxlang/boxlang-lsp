@@ -34,7 +34,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       checks: write
+      pull-requests: write
       contents: write
+      issues: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -42,7 +44,7 @@ jobs:
       - name: Setup CommandBox
         uses: Ortus-Solutions/setup-commandbox@v2.0.1
         with:
-          forgeboxAPIKey: ${{ secrets.FORGEBOX_TOKEN }}
+          forgeboxAPIKey: ${{ secrets.FORGEBOX_API_TOKEN }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -82,8 +84,8 @@ jobs:
         run: |
           npm install -g markdownlint-cli
           markdownlint changelog.md --fix
-          gradle downloadBoxLang
-          gradle build -x test --stacktrace --console=plain
+          ./gradlew downloadBoxLang
+          ./gradlew build -x test --stacktrace --console=plain
 
       - name: Commit Changelog [unreleased] with latest version
         uses: EndBug/add-and-commit@v9.1.4
@@ -108,8 +110,6 @@ jobs:
         with:
           name: boxlang-build
           path: |
-            build/distributions/**
-            build/libs/**
             build/reports/tests/**
             changelog.md
 
@@ -118,11 +118,11 @@ jobs:
         with:
           args: --acl public-read
         env:
-          AWS_S3_BUCKET: "ortus-temp"
+          AWS_S3_BUCKET: "downloads.ortussolutions.com"
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_SECRET }}
           SOURCE_DIR: "build/distributions"
-          DEST_DIR: "boxlang-modules/${{ env.MODULE_ID }}/${{ env.VERSION }}"
+          DEST_DIR: "ortussolutions/boxlang-modules/${{ env.MODULE_ID }}/${{ env.VERSION }}"
 
       # - name: Upload API Docs to S3
       #   uses: jakejarvis/s3-sync-action@master
@@ -135,8 +135,10 @@ jobs:
       #     SOURCE_DIR: "build-coldbox/apidocs"
       #     DEST_DIR: ""
 
-      # - name: Publish to Maven Central
-      #   run: |
+      - name: Publish to ForgeBox
+        run: |
+          cd build/module
+          box forgebox publish --force
 
       - name: Create Github Release
         uses: taiki-e/create-gh-release-action@v1.8.0
@@ -184,7 +186,9 @@ jobs:
     needs: [build]
     permissions:
       checks: write
+      pull-requests: write
       contents: write
+      issues: write
     steps:
       - name: Checkout Development Repository
         uses: actions/checkout@v4
