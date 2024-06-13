@@ -11,10 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.eclipse.lsp4j.CompletionItem;
-import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
@@ -38,11 +36,9 @@ import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
 import ortus.boxlang.compiler.javaboxpiler.JavaBoxpiler;
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
-import ortus.boxlang.runtime.BoxRuntime;
-import ortus.boxlang.runtime.bifs.BIFDescriptor;
-import ortus.boxlang.runtime.components.ComponentDescriptor;
-import ortus.boxlang.runtime.validation.Validator;
 import ortus.boxlanglsp.DocumentSymbolBoxNodeVisitor;
+import ortus.boxlanglsp.workspace.completion.CompletionFacts;
+import ortus.boxlanglsp.workspace.completion.CompletionProviderRuleBook;
 import ortus.boxlanglsp.workspace.types.ParsedProperty;
 import ortus.boxlanglsp.workspace.visitors.DefinitionTargetVisitor;
 import ortus.boxlanglsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
@@ -65,7 +61,7 @@ public class ProjectContextProvider {
 
     }
 
-    record FileParseResult(
+    public record FileParseResult(
             URI uri,
             BoxNode astRoot,
             List<Issue> issues,
@@ -269,25 +265,13 @@ public class ProjectContextProvider {
     }
 
     public List<CompletionItem> getAvaialbeCompletions(URI docURI, CompletionParams params) {
-        List<CompletionItem> items = new ArrayList<CompletionItem>();
         FileParseResult res = consumeOrGet(docURI);
-
-        // probably need to think of these categorically
-        // argument "enum" completions
-        // variable completions
-        // method/func completions
-        // bif completions
 
         // TODO if you are in a cfscript component within a template script completions
         // TODO if you are in a cfset return script completions
         // TODO add completions for in-scope symbols (properties, local variables,
-        // scopes, arguments)
 
-        getAvailablePropertyCompletions(res).ifPresent(completions -> items.addAll(completions));
-        getAvailableComponentCompletions(res).ifPresent(completions -> items.addAll(completions));
-        getAvailableBIFCompletions(res).ifPresent(completions -> items.addAll(completions));
-
-        return items;
+        return CompletionProviderRuleBook.execute(new CompletionFacts(res, params));
     }
 
     private List<ParsedProperty> parseProperties(BoxNode root) {
@@ -296,116 +280,6 @@ public class ProjectContextProvider {
         root.accept(visitor);
 
         return visitor.getProperties();
-    }
-
-    private Optional<List<CompletionItem>> getAvailablePropertyCompletions(FileParseResult parsedFile) {
-        if (!parsedFile.isClass()) {
-            return Optional.empty();
-        }
-
-        return Optional.of(parsedFile.properties().stream().map(ParsedProperty::asCompletionItem).toList());
-    }
-
-    private Optional<List<CompletionItem>> getAvailableBIFCompletions(FileParseResult parsedFile) {
-        if (parsedFile.isTemplate()) {
-            return Optional.empty();
-        }
-
-        return Optional
-                .of(Stream.of(BoxRuntime.getInstance().getFunctionService().getGlobalFunctionNames()).map((name) -> {
-                    BIFDescriptor func = BoxRuntime.getInstance().getFunctionService().getGlobalFunction(name);
-                    String args = Stream.of(func.getBIF().getDeclaredArguments()).map((arg) -> {
-                        if (!arg.required()) {
-                            return "[" + arg.signatureAsString() + "]";
-                        }
-
-                        return arg.signatureAsString();
-                    }).collect(Collectors.joining(", "));
-
-                    String signature = "%s(%s)".formatted(name, args);
-
-                    CompletionItem item = new CompletionItem();
-                    item.setLabel(name);
-                    item.setKind(CompletionItemKind.Function);
-                    item.setInsertText(name);
-                    item.setDetail(signature);
-
-                    return item;
-                }).toList());
-    }
-
-    private Optional<List<CompletionItem>> getAvailableComponentCompletions(FileParseResult parsedFile) {
-        if (!parsedFile.isTemplate()) {
-            return Optional.empty();
-        }
-
-        return Optional.of(Stream.of(BoxRuntime.getInstance().getComponentService().getComponentNames()).map((name) -> {
-            ComponentDescriptor componentDescriptor = BoxRuntime.getInstance().getComponentService()
-                    .getComponent(name);
-
-            CompletionItem item = new CompletionItem();
-            item.setLabel("bx:" + name.toLowerCase());
-            item.setKind(CompletionItemKind.Function);
-            item.setInsertText(formatComponentInsert(componentDescriptor));
-            item.setDetail(formatComponentSignature(componentDescriptor));
-
-            return item;
-        }).toList());
-    }
-
-    private String formatComponentInsert(ComponentDescriptor descriptor) {
-        String name = descriptor.name.toString();
-        String args = Stream.of(descriptor.getComponent().getDeclaredAttributes())
-                .filter((attr) -> attr.validators().contains(Validator.REQUIRED))
-                .map((attr) -> {
-                    Object defaultValue = attr.defaultValue();
-
-                    if (defaultValue == null) {
-                        defaultValue = "";
-                    }
-
-                    return "%s=\"%s\"".formatted(attr.name(), defaultValue);
-                }).collect(Collectors.joining(" "));
-
-        if (descriptor.allowsBody || descriptor.requiresBody) {
-            return "<bx:%s %s></bx:%s>".formatted(name.toLowerCase(), args, name.toLowerCase());
-        }
-
-        return "<bx:%s %s />".formatted(name.toLowerCase(), args);
-    }
-
-    private String formatComponentSignature(ComponentDescriptor descriptor) {
-        String name = descriptor.name.toString();
-        String args = Stream.of(descriptor.getComponent().getDeclaredAttributes())
-                .sorted((a, b) -> {
-                    if (a.validators().contains(Validator.REQUIRED) && !b.validators().contains(Validator.REQUIRED)) {
-                        return -1;
-                    } else if (!a.validators().contains(Validator.REQUIRED)
-                            && b.validators().contains(Validator.REQUIRED)) {
-                        return 1;
-                    }
-
-                    return a.name().compareTo(b.name());
-                })
-                .map((attr) -> {
-                    Object defaultValue = attr.defaultValue();
-
-                    if (defaultValue == null) {
-                        defaultValue = "";
-                    }
-
-                    if (!attr.validators().contains(Validator.REQUIRED)) {
-                        return "[%s=\"%s\"]".formatted(attr.name(), defaultValue);
-                    }
-
-                    return "%s=\"%s\"".formatted(attr.name(), defaultValue);
-                }).collect(Collectors.joining(" "));
-
-        if (descriptor.allowsBody || descriptor.requiresBody) {
-            return "<bx:%s %s>{body}</bx:%s>".formatted(name.toLowerCase(), args, name.toLowerCase());
-        }
-
-        return "<bx:%s %s />".formatted(name.toLowerCase(), args);
     }
 
     private List<Either<SymbolInformation, DocumentSymbol>> generateOutline(URI textDocument, BoxNode root) {
