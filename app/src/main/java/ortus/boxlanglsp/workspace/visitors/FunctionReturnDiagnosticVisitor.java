@@ -27,6 +27,9 @@ public class FunctionReturnDiagnosticVisitor extends VoidBoxVisitor {
     }
 
     public void visit(BoxReturn node) {
+        if (this.funcStack.size() == 0) {
+            return;
+        }
         BoxFunctionDeclaration currentFunc = this.funcStack.get(this.funcStack.size() - 1);
 
         if (currentFunc.getType() == null) {

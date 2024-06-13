@@ -20,7 +20,6 @@ import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.Location;
-import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
@@ -308,24 +307,6 @@ public class ProjectContextProvider {
     }
 
     private Optional<List<CompletionItem>> getAvailableBIFCompletions(FileParseResult parsedFile) {
-        String docs = """
-                # Function: `ArrayAppend`
-
-                Append a value to an array
-
-                ## Method Signature
-                ```
-                ArrayAppend(array=[modifiableArray], value=[any], merge=[boolean])
-                ```
-                ### Arguments
-
-                | Argument | Type | Required | Description | Default |
-                |----------|------|----------|-------------|---------|
-                | `array` | `modifiableArray` | `true` | The array to which the element should be appended. |  |
-                | `value` | `any` | `true` | The element to append. Can be any type. |  |
-                | `merge` | `boolean` | `false` | If true, the value is assumed to be an array and the elements of the array are appended to the array. If false, the value is<br>                 appended as a single element. | `false` |
-                    """;
-
         if (parsedFile.isTemplate()) {
             return Optional.empty();
         }
@@ -346,8 +327,7 @@ public class ProjectContextProvider {
                     CompletionItem item = new CompletionItem();
                     item.setLabel(name);
                     item.setKind(CompletionItemKind.Function);
-                    item.setInsertText(name + "()");
-                    item.setDocumentation(new MarkupContent("markdown", docs));
+                    item.setInsertText(name);
                     item.setDetail(signature);
 
                     return item;
@@ -364,7 +344,7 @@ public class ProjectContextProvider {
                     .getComponent(name);
 
             CompletionItem item = new CompletionItem();
-            item.setLabel("bx:" + name);
+            item.setLabel("bx:" + name.toLowerCase());
             item.setKind(CompletionItemKind.Function);
             item.setInsertText(formatComponentInsert(componentDescriptor));
             item.setDetail(formatComponentSignature(componentDescriptor));
@@ -388,10 +368,10 @@ public class ProjectContextProvider {
                 }).collect(Collectors.joining(" "));
 
         if (descriptor.allowsBody || descriptor.requiresBody) {
-            return "<bx:%s %s>$1</bx:%s>".formatted(name, args, name);
+            return "<bx:%s %s></bx:%s>".formatted(name.toLowerCase(), args, name.toLowerCase());
         }
 
-        return "<bx:%s %s />".formatted(name, args);
+        return "<bx:%s %s />".formatted(name.toLowerCase(), args);
     }
 
     private String formatComponentSignature(ComponentDescriptor descriptor) {
@@ -422,10 +402,10 @@ public class ProjectContextProvider {
                 }).collect(Collectors.joining(" "));
 
         if (descriptor.allowsBody || descriptor.requiresBody) {
-            return "<bx:%s %s>{body}</bx:%s>".formatted(name, args, name);
+            return "<bx:%s %s>{body}</bx:%s>".formatted(name.toLowerCase(), args, name.toLowerCase());
         }
 
-        return "<bx:%s %s />".formatted(name, args);
+        return "<bx:%s %s />".formatted(name.toLowerCase(), args);
     }
 
     private List<Either<SymbolInformation, DocumentSymbol>> generateOutline(URI textDocument, BoxNode root) {
