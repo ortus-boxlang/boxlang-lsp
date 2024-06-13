@@ -151,19 +151,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: refs/tags/v${{ env.VERSION }}
 
-      - name: Upload Release Asset
-        uses: sekwah41/upload-release-assets@v1
-        if: env.SNAPSHOT == 'false'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_name: boxlang-${{ env.VERSION }}.zip
-          asset_content_type: application/zip
-          asset_path: |
-            build/distributions/**
-            changelog.md
-
       - name: Inform Slack
         if: ${{ always() }}
         uses: rtCamp/action-slack-notify@v2
