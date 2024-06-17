@@ -1,4 +1,4 @@
-name: @MODULE_NAME@ Test Suites
+name: Test Suites
 
 # We are a reusable Workflow only
 on:
@@ -7,9 +7,13 @@ on:
       SLACK_WEBHOOK_URL:
         required: false
 
+env:
+  MODULE_ID: ${{ github.event.repository.name }}
+  GRADLE_VERSION: 8.7
+
 jobs:
   tests:
-    name: Tests
+    name: Tests ${{ github.event.repository.name }}
     runs-on: ${{ matrix.os }}
     env:
       DB_USER: root
@@ -42,7 +46,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
         with:
-          gradle-version: "8.7"
+          gradle-version: ${{ env.GRADLE_VERSION }}
 
       # - name: Setup Database and Fixtures
       #   run: |
@@ -70,9 +74,9 @@ jobs:
 
       - name: Test Module
         run: |
-          ./gradlew downloadBoxLang
+          gradle downloadBoxLang
           # this is done in order to build the module structure before testing
-          ./gradlew shadowJar test --stacktrace --console=plain
+          gradle shadowJar test --stacktrace --console=plain
 
       - name: Upload Test Results
         if: always()
@@ -82,6 +86,18 @@ jobs:
           path: |
             **/build/reports/tests/**
             **/build/test-results/**
+
+      - name: Inform Slack
+        if: ${{ failure() && github.ref == 'refs/heads/development' }}
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: boxlang
+          SLACK_COLOR: ${{ job.status }} # or a specific color like 'green' or '#ff00ff'
+          SLACK_ICON_EMOJI: ":bell:"
+          SLACK_MESSAGE: "${{ env.MODULE_ID }} Tests FAILED!  You broke the build! :("
+          SLACK_TITLE: "${{ env.MODULE_ID }} Build Failure"
+          SLACK_USERNAME: CI
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   publish-test-results:
     name: Publish Test Results
