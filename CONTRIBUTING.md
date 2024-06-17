@@ -93,8 +93,8 @@ You can support ColdBox and all of our Open Source initiatives at Ortus Solution
 
 Thank you to all the people who have already contributed to BoxLang! We: heart: : heart: : heart: love you!
 
-<a href = "https://github.com/ortus-solutions/boxlang/graphs/contributors">
-  <img src = "https://contrib.rocks/image?repo=ortus-solutions/boxlang"/>
+<a href = "https://github.com/ortus-boxlang/@MODULE_SLUG@/graphs/contributors">
+  <img src = "https://contrib.rocks/image?repo=ortus-boxlang/@MODULE_SLUG@"/>
 </a>
 
 Made with [contributors-img](https://contrib.rocks)

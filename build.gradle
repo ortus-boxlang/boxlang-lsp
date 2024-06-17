@@ -32,10 +32,10 @@ dependencies {
 	// Until BoxLang is published to Maven Central
 	// Look for it in the local build directory
 	// You must run `./gradle build -x test` in the BoxLang project
-    compileOnly files( 'src/test/resources/libs/boxlang-1.0.0-all.jar' )
+    compileOnly files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '-all.jar' )
 
     // Testing Dependencies
-	testImplementation files( 'src/test/resources/libs/boxlang-1.0.0-all.jar' )
+	testImplementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '-all.jar' )
     testImplementation "org.junit.jupiter:junit-jupiter:5.+"
 	testImplementation "org.mockito:mockito-core:5.+"
 	testImplementation "com.google.truth:truth:1.+"
