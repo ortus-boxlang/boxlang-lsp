@@ -52,7 +52,8 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
             // completionOptions.
             capabilities.setCompletionProvider(completionOptions);
 
-            scanWorkspaceFolders(params.getWorkspaceFolders());
+            // removing this until we improve the parser
+            // scanWorkspaceFolders(params.getWorkspaceFolders());
 
             return new InitializeResult(capabilities);
         });
