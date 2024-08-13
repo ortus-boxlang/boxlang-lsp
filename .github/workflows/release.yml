@@ -18,6 +18,9 @@ on:
         default: false
         type: boolean
 
+  # Manual Trigger
+  workflow_dispatch:
+
 env:
   MODULE_ID: ${{ github.event.repository.name }}
   JDK: 21
@@ -200,12 +203,7 @@ jobs:
 
       - name: Bump Version
         run: |
-          if [ $LTS == 'true' ]
-          then
-            gradle bumpPatchVersion --stacktrace --console=plain
-          else
-            gradle bumpMinorVersion --stacktrace --console=plain
-          fi
+          gradle bumpMinorVersion --stacktrace --console=plain
           git pull
 
       - name: Commit Version Bump
