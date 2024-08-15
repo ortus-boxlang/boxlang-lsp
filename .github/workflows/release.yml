@@ -94,6 +94,8 @@ jobs:
           gradle downloadBoxLang
           gradle build -x test --stacktrace --console=plain
 
+          cp app/build/libs/* ./
+
       - name: Commit Changelog [unreleased] with latest version
         uses: EndBug/add-and-commit@v9.1.4
         if: env.SNAPSHOT == 'false'
@@ -117,7 +119,7 @@ jobs:
         with:
           name: boxlang-lsp-build
           path: |
-            app/build/libs/*
+            boxlang-lsp-*
             changelog.md
 
       - name: Create Github Release
