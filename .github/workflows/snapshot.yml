@@ -1,0 +1,30 @@
+name: Snapshots
+
+on:
+  push:
+    branches:
+      - development
+
+  # Manual Trigger for Snapshot builds
+  workflow_dispatch:
+
+#Cancel running builds if another push to branch is made while this build is running
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  MODULE_ID: ${{ github.event.repository.name }}
+
+jobs:
+  #############################################
+  # Build Snapshot Release
+  #############################################
+  build:
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
+    permissions:
+      checks: write
+      contents: write
+    with:
+      snapshot: true
