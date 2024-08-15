@@ -9,6 +9,9 @@ plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     id "application"
     id 'com.github.johnrengelman.shadow' version '8.1.1'
+
+    // Download task
+    id "de.undercouch.download" version "5.6.0"
 }
 
 repositories {
@@ -86,3 +89,46 @@ test {
 //     // Use JUnit Platform for unit tests.
 //     useJUnitPlatform()
 // }
+
+task downloadBoxLang( type: Download ) {
+	// Create the destination directory
+	doFirst {
+		file( "src/test/resources/libs" ).mkdirs()
+	}
+	// Configure the URLs of the files to download
+	src([
+		"https://downloads.ortussolutions.com/ortussolutions/boxlang/${boxlangVersion}/boxlang-${boxlangVersion}-all.jar"//,
+		// "https://downloads.ortussolutions.com/ortussolutions/boxlang-runtimes/boxlang-web-support/${boxlangVersion}/boxlang-web-support-${boxlangVersion}.jar"
+	])
+	// Specify the destination directories for the downloaded files
+	dest "src/test/resources/libs/"
+    overwrite true
+    onlyIfModified false
+}
+
+/**
+ * Bump the major version number
+ */
+task bumpMajorVersion {
+	doLast{
+		bumpVersion( true )
+	}
+}
+
+/**
+ * Bump the minor version number
+ */
+task bumpMinorVersion {
+	doLast{
+		bumpVersion( false, true )
+	}
+}
+
+/**
+ * Bump the patch version number
+ */
+task bumpPatchVersion {
+	doLast{
+		bumpVersion( false, false, true )
+	}
+}
