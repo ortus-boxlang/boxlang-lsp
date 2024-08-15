@@ -21,11 +21,15 @@ repositories {
 
 dependencies {
 
-    // Until BoxLang is published to Maven Central
+	// Until BoxLang is published to Maven Central
 	// Look for it in the local build directory
 	// You must run `./gradle build -x test` in the BoxLang project
-    compileOnly files( '../resources/libs/boxlang-1.0.0-all.jar' )
-    testImplementation files( '../resources/libs/boxlang-1.0.0-all.jar' )
+	compileOnly files( '../boxlang/build/libs/boxlang-' + boxlangVersion + '-all.jar' )
+    compileOnly files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '-all.jar' )
+
+    // Testing Dependencies
+	testImplementation files( '../boxlang/build/libs/boxlang-' + boxlangVersion + '-all.jar'  )
+	testImplementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '-all.jar' )
 
     // Use JUnit Jupiter for testing.
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.3")
@@ -104,6 +108,37 @@ task downloadBoxLang( type: Download ) {
 	dest "src/test/resources/libs/"
     overwrite true
     onlyIfModified false
+}
+
+/**
+ * Project Wide Helper function
+ * This is not a task, but a reusable UDF
+ */
+project.ext.bumpVersion = { boolean major = false, boolean minor = false, boolean patch = false ->
+
+	def propertiesFile = file( './gradle.properties' );
+	def properties = new Properties();
+
+	properties.load( propertiesFile.newDataInputStream() )
+	def versionTarget = major ? 0 : minor ? 1 : 2
+
+	def currentVersion = properties.getProperty( 'version' )
+	def versionParts = currentVersion.split( '\\.' )
+	def newPathVersion = versionParts[ versionTarget ].toInteger() + 1
+	def newVersion = '';
+
+	if( patch ){
+		newVersion = "${versionParts[ 0 ]}.${versionParts[ 1 ]}.${newPathVersion}"
+	} else if( minor ){
+		newVersion = "${versionParts[ 0 ]}.${newPathVersion}.${versionParts[ 2 ]}"
+	} else if( major ){
+		newVersion = "${newPathVersion}.${versionParts[ 1 ]}.${versionParts[ 2 ]}"
+	}
+
+	properties.setProperty( 'version', newVersion )
+	properties.store( propertiesFile.newWriter(), null )
+
+	println "Bumped version from ${currentVersion} to ${newVersion}"
 }
 
 /**
