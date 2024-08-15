@@ -93,7 +93,7 @@ jobs:
           markdownlint changelog.md --fix
           gradle downloadBoxLang
           gradle build -x test --stacktrace --console=plain
-          
+
       - name: Commit Changelog [unreleased] with latest version
         uses: EndBug/add-and-commit@v9.1.4
         if: env.SNAPSHOT == 'false'
@@ -115,8 +115,9 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: boxlang-build
+          name: boxlang-lsp-build
           path: |
+            app/build/libs/*
             changelog.md
 
       - name: Create Github Release
@@ -137,8 +138,8 @@ jobs:
           SLACK_CHANNEL: coding
           SLACK_COLOR: ${{ job.status }} # or a specific color like 'green' or '#ff00ff'
           SLACK_ICON_EMOJI: ":bell:"
-          SLACK_MESSAGE: "BoxLang ${{ env.VERSION }} Built with ${{ job.status }}!"
-          SLACK_TITLE: "BoxLang Build"
+          SLACK_MESSAGE: "BoxLang LSP ${{ env.VERSION }} Built with ${{ job.status }}!"
+          SLACK_TITLE: "BoxLang LSP Build"
           SLACK_USERNAME: CI
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
 
