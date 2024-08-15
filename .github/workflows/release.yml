@@ -122,6 +122,17 @@ jobs:
             boxlang-lsp-*
             changelog.md
 
+      - name: Upload Distributions to S3
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --acl public-read
+        env:
+          AWS_S3_BUCKET: "downloads.ortussolutions.com"
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_SECRET }}
+          SOURCE_DIR: "build/distributions"
+          DEST_DIR: "ortussolutions/boxlang-lsp/${{ env.VERSION }}"
+
       - name: Create Github Release
         uses: taiki-e/create-gh-release-action@v1.8.0
         continue-on-error: true
