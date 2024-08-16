@@ -94,6 +94,9 @@ jobs:
           gradle downloadBoxLang
           gradle build -x test --stacktrace --console=plain
 
+          mkdir -p build/distribution
+          
+          cp app/build/libs/* ./build/distribution
           cp app/build/libs/* ./
 
       - name: Commit Changelog [unreleased] with latest version
