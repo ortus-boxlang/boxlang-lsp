@@ -64,9 +64,16 @@ jobs:
         id: current_version
         run: |
           # Read Version from gradle.properties
-          echo "VERSION=`grep '^version=' gradle.properties | cut -d'=' -f2`" >> $GITHUB_ENV
+          TMPVERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2)
+          # Replace existing prerelease identifier with -snapshot or append -snapshot if none exists
+          # If we are on the development branch, we always append -snapshot
+          if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
+            TMPVERSION=$(echo $TMPVERSION | sed 's/-.*$//')-snapshot
+          fi
+          # Set the version in the environment
+          echo "VERSION=$TMPVERSION" >> $GITHUB_ENV
 
-          # Branche
+          # Branch
           echo "Github Ref is $GITHUB_REF"
           echo "BRANCH=main" >> $GITHUB_ENV
 
