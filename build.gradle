@@ -67,6 +67,20 @@ compileTestJava{
 }
 compileTestJava.finalizedBy( shadowJar )
 
+/**
+ * Clean up
+ */
+clean {
+	doLast{
+		var userDir = file( "${System.getProperty('user.home')}/.boxlang/classes" )
+		if ( userDir.exists() ) {
+			userDir.deleteDir()
+			println "+ Cleared user home classes " + userDir.toString()
+		}
+		println "+ Clean finalized!"
+	}
+}
+
 javadoc {
     // To avoid our own doclet issues
 	options.addBooleanOption( "Xdoclint:none", true )
