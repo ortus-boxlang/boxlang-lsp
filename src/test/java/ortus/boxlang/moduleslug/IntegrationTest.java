@@ -2,6 +2,7 @@ package ortus.boxlang.moduleslug;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -32,7 +33,7 @@ public class IntegrationTest {
 
 	@BeforeAll
 	public static void setup() {
-		runtime			= BoxRuntime.getInstance( true );
+		runtime			= BoxRuntime.getInstance( true, Path.of( "src/test/resources/boxlang.json" ).toString() );
 		moduleService	= runtime.getModuleService();
 	}
 
