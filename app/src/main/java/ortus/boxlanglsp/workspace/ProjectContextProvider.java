@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionParams;
@@ -37,6 +39,7 @@ import ortus.boxlang.compiler.javaboxpiler.JavaBoxpiler;
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlanglsp.DocumentSymbolBoxNodeVisitor;
+import ortus.boxlanglsp.LSPTools;
 import ortus.boxlanglsp.workspace.completion.CompletionFacts;
 import ortus.boxlanglsp.workspace.completion.CompletionProviderRuleBook;
 import ortus.boxlanglsp.workspace.types.ParsedProperty;
@@ -75,6 +78,32 @@ public class ProjectContextProvider {
         public boolean isClass() {
             return uri.toString().endsWith(".bx");
         }
+    }
+
+    public static String readLine(String docURI, int lineNumber) {
+        return readLine(LSPTools.convertDocumentURI(docURI), lineNumber);
+    }
+
+    public static String readLine(URI docURI, int lineNumber) {
+        ProjectContextProvider instance = getInstance();
+        Stream<String> lineStream = Stream.ofNullable(null);
+
+        if (instance.openDocuments.containsKey(docURI)) {
+            OpenDocument doc = instance.openDocuments.get(docURI);
+            lineStream = List.of(doc.latestContent.split("\n"))
+                    .stream();
+        } else if (instance.parsedFiles.containsKey(docURI) && instance.parsedFiles.get(docURI).astRoot() != null) {
+            lineStream = List.of(instance.parsedFiles.get(docURI).astRoot().getSourceText().split("\n")).stream();
+        } else {
+            try {
+                lineStream = Files.lines(Path.of(docURI));
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+
+        return lineStream.skip(lineNumber).findFirst().get();
     }
 
     public static ortus.boxlang.compiler.ast.Position toBLPosition(Position lspPosition) {
