@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 
 import ortus.boxlang.moduleslug.util.KeyDictionary;
 import ortus.boxlang.runtime.BoxRuntime;
+import ortus.boxlang.runtime.context.IBoxContext;
 import ortus.boxlang.runtime.context.ScriptingRequestBoxContext;
 import ortus.boxlang.runtime.modules.ModuleRecord;
 import ortus.boxlang.runtime.scopes.IScope;
@@ -47,29 +48,32 @@ public abstract class BaseIntegrationTest {
 	public static void setup() {
 		runtime			= BoxRuntime.getInstance( true, Path.of( "src/test/resources/boxlang.json" ).toString() );
 		moduleService	= runtime.getModuleService();
+		// Load the module
+		loadModule( runtime.getRuntimeContext() );
 	}
 
 	@BeforeEach
 	public void setupEach() {
-
 		// Create the mock contexts
 		context		= new ScriptingRequestBoxContext();
 		variables	= context.getScopeNearby( VariablesScope.name );
-
-		// Load the module
-		loadModule();
 	}
 
-	protected void loadModule() {
-		String physicalPath = Paths.get( "./build/module" ).toAbsolutePath().toString();
-		moduleRecord = new ModuleRecord( physicalPath );
+	protected static void loadModule( IBoxContext context ) {
+		if ( !runtime.getModuleService().hasModule( moduleName ) ) {
+			System.out.println( "Loading module: " + moduleName );
+			String physicalPath = Paths.get( "./build/module" ).toAbsolutePath().toString();
+			moduleRecord = new ModuleRecord( physicalPath );
 
-		moduleService.getRegistry().put( moduleName, moduleRecord );
+			moduleService.getRegistry().put( moduleName, moduleRecord );
 
-		moduleRecord
-		    .loadDescriptor( context )
-		    .register( context )
-		    .activate( context );
+			moduleRecord
+			    .loadDescriptor( context )
+			    .register( context )
+			    .activate( context );
+		} else {
+			System.out.println( "Module already loaded: " + moduleName );
+		}
 	}
 
 }
