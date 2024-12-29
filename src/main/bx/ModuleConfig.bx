@@ -141,9 +141,7 @@ class {
 	 }
 
 	 function main( required array args ){
-		lsp = createObjecT( "java", "ortus.boxlang.lsp.App" );
+		var lsp = createObjecT( "java", "ortus.boxlang.lsp.App" );
 		lsp.main( javaCast( "String[]", args ) );
-		// this.lsp = ortus.boxlang.lsp.App.main( [] );
-		println( "This is the new LSP entrypoint!" );
 	 }
 }
