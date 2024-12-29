@@ -1,4 +1,4 @@
-package ortus.boxlanglsp;
+package ortus.boxlang.lsp;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -37,53 +37,53 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 
     private LanguageClient client;
 
-    public void setLanguageClient(LanguageClient client) {
+    public void setLanguageClient( LanguageClient client ) {
         this.client = client;
     }
 
     @JsonRequest
-    public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(CompletionParams position) {
-        return CompletableFuture.supplyAsync(() -> {
-            return Either.forLeft(ProjectContextProvider.getInstance()
-                    .getAvaialbeCompletions(LSPTools.convertDocumentURI(position.getTextDocument().getUri()),
-                            position));
-        });
+    public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion( CompletionParams position ) {
+        return CompletableFuture.supplyAsync( () -> {
+            return Either.forLeft( ProjectContextProvider.getInstance()
+                .getAvaialbeCompletions( LSPTools.convertDocumentURI( position.getTextDocument().getUri() ),
+                    position ) );
+        } );
     }
 
     @Override
-    public void didOpen(DidOpenTextDocumentParams params) {
+    public void didOpen( DidOpenTextDocumentParams params ) {
         ProjectContextProvider.getInstance().trackDocumentOpen(
-                LSPTools.convertDocumentURI(params.getTextDocument().getUri()),
-                params.getTextDocument().getText());
-        System.out.println("The file was opened");
-        System.out.println(params.getTextDocument().getUri());
+            LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
+            params.getTextDocument().getText() );
+        System.out.println( "The file was opened" );
+        System.out.println( params.getTextDocument().getUri() );
     }
 
     @Override
-    public void didChange(DidChangeTextDocumentParams params) {
+    public void didChange( DidChangeTextDocumentParams params ) {
         ProjectContextProvider.getInstance().trackDocumentChange(
-                LSPTools.convertDocumentURI(params.getTextDocument().getUri()),
-                params.getContentChanges());
+            LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
+            params.getContentChanges() );
         // TODO Auto-generated method stub
         // throw new UnsupportedOperationException("Unimplemented method 'didChange'");
     }
 
     @Override
-    public void didClose(DidCloseTextDocumentParams params) {
+    public void didClose( DidCloseTextDocumentParams params ) {
         ProjectContextProvider.getInstance()
-                .trackDocumentClose(LSPTools.convertDocumentURI(params.getTextDocument().getUri()));
-        System.out.println("The file was closed");
-        System.out.println(params.getTextDocument().getUri());
+            .trackDocumentClose( LSPTools.convertDocumentURI( params.getTextDocument().getUri() ) );
+        System.out.println( "The file was closed" );
+        System.out.println( params.getTextDocument().getUri() );
         // throw new UnsupportedOperationException("Unimplemented method 'didClose'");
     }
 
     @Override
-    public void didSave(DidSaveTextDocumentParams params) {
+    public void didSave( DidSaveTextDocumentParams params ) {
         ProjectContextProvider.getInstance().trackDocumentSave(
-                LSPTools.convertDocumentURI(params.getTextDocument().getUri()),
-                params.getText());
-        System.out.println("The file was saved");
-        System.out.println(params.getTextDocument().getUri());
+            LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
+            params.getText() );
+        System.out.println( "The file was saved" );
+        System.out.println( params.getTextDocument().getUri() );
         // TODO Auto-generated method stub
         // throw new UnsupportedOperationException("Unimplemented method 'didSave'");
     }
@@ -96,11 +96,11 @@ public class BoxLangTextDocumentService implements TextDocumentService {
      * {@link org.eclipse.lsp4j.DocumentFormattingRegistrationOptions}
      */
     @JsonRequest
-    public CompletableFuture<List<? extends TextEdit>> formatting(DocumentFormattingParams params) {
-        return CompletableFuture.supplyAsync(() -> {
+    public CompletableFuture<List<? extends TextEdit>> formatting( DocumentFormattingParams params ) {
+        return CompletableFuture.supplyAsync( () -> {
             return ProjectContextProvider.getInstance()
-                    .formatDocument(LSPTools.convertDocumentURI(params.getTextDocument().getUri()));
-        });
+                .formatDocument( LSPTools.convertDocumentURI( params.getTextDocument().getUri() ) );
+        } );
     }
 
     /**
@@ -110,26 +110,26 @@ public class BoxLangTextDocumentService implements TextDocumentService {
      * Registration Options: {@link org.eclipse.lsp4j.DefinitionRegistrationOptions}
      */
     @JsonRequest
-    @ResponseJsonAdapter(LocationLinkListAdapter.class)
+    @ResponseJsonAdapter( LocationLinkListAdapter.class )
     public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(
-            DefinitionParams params) {
+        DefinitionParams params ) {
 
         try {
-            URI docURI = new URI(params.getTextDocument().getUri());
+            URI docURI = new URI( params.getTextDocument().getUri() );
 
-            return CompletableFuture.supplyAsync(() -> {
+            return CompletableFuture.supplyAsync( () -> {
                 return Either
-                        .forLeft(ProjectContextProvider.getInstance().findDefinitionPossibiltiies(docURI,
-                                params.getPosition()));
-            });
-        } catch (URISyntaxException e) {
+                    .forLeft( ProjectContextProvider.getInstance().findDefinitionPossibiltiies( docURI,
+                        params.getPosition() ) );
+            } );
+        } catch ( URISyntaxException e ) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
 
-        return CompletableFuture.supplyAsync(() -> {
-            return Either.forLeft(null);
-        });
+        return CompletableFuture.supplyAsync( () -> {
+            return Either.forLeft( null );
+        } );
 
     }
 
@@ -153,17 +153,17 @@ public class BoxLangTextDocumentService implements TextDocumentService {
      * the richer data structure.
      */
     @JsonRequest
-    @ResponseJsonAdapter(DocumentSymbolResponseAdapter.class)
+    @ResponseJsonAdapter( DocumentSymbolResponseAdapter.class )
     @Override
     public CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> documentSymbol(
-            DocumentSymbolParams params) {
+        DocumentSymbolParams params ) {
 
-        return CompletableFuture.supplyAsync(() -> {
+        return CompletableFuture.supplyAsync( () -> {
 
             return ProjectContextProvider.getInstance()
-                    .getDocumentSymbols(URI.create(params.getTextDocument().getUri()))
-                    .orElseGet(() -> new ArrayList<Either<SymbolInformation, DocumentSymbol>>());
-        });
+                .getDocumentSymbols( URI.create( params.getTextDocument().getUri() ) )
+                .orElseGet( () -> new ArrayList<Either<SymbolInformation, DocumentSymbol>>() );
+        } );
     }
 
 }

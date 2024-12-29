@@ -1,4 +1,4 @@
-package ortus.boxlanglsp.workspace;
+package ortus.boxlang.lsp.workspace;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -16,7 +16,7 @@ public class FunctionDefinitionVisitor extends VoidBoxVisitor {
         return functionDefinitions;
     }
 
-    public void setFunctionDefinitions(List<FunctionDefinition> functionDefinitions) {
+    public void setFunctionDefinitions( List<FunctionDefinition> functionDefinitions ) {
         this.functionDefinitions = functionDefinitions;
     }
 
@@ -24,23 +24,23 @@ public class FunctionDefinitionVisitor extends VoidBoxVisitor {
         return fileURI;
     }
 
-    public void setFileURI(URI fileURI) {
+    public void setFileURI( URI fileURI ) {
         this.fileURI = fileURI;
     }
 
     private URI fileURI;
 
-    public void visit(BoxFunctionDeclaration node) {
+    public void visit( BoxFunctionDeclaration node ) {
         FunctionDefinition func = new FunctionDefinition();
-        func.setFileURI(fileURI);
-        func.setASTNode(node);
-        this.functionDefinitions.add(func);
-        visitChildren(node);
+        func.setFileURI( fileURI );
+        func.setASTNode( node );
+        this.functionDefinitions.add( func );
+        visitChildren( node );
     }
 
-    private void visitChildren(BoxNode node) {
-        for (BoxNode child : node.getChildren()) {
-            child.accept(this);
+    private void visitChildren( BoxNode node ) {
+        for ( BoxNode child : node.getChildren() ) {
+            child.accept( this );
         }
     }
 }

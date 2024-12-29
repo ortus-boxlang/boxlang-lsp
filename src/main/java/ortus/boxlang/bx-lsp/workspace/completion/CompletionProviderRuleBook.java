@@ -1,4 +1,4 @@
-package ortus.boxlanglsp.workspace.completion;
+package ortus.boxlang.lsp.workspace.completion;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,12 +12,12 @@ public class CompletionProviderRuleBook extends RuleCollection<CompletionFacts, 
     private static CompletionProviderRuleBook instance = new CompletionProviderRuleBook();
 
     static {
-        instance.addRule(new ComponentCompletionRule())
-                .addRule(new BIFCompletionRule())
-                .addRule(new PropertyCompletionRule());
+        instance.addRule( new ComponentCompletionRule() )
+            .addRule( new BIFCompletionRule() )
+            .addRule( new PropertyCompletionRule() );
     }
 
-    public static List<CompletionItem> execute(CompletionFacts facts) {
-        return instance.execute(facts, new ArrayList<CompletionItem>());
+    public static List<CompletionItem> execute( CompletionFacts facts ) {
+        return instance.execute( facts, new ArrayList<CompletionItem>() );
     }
 }

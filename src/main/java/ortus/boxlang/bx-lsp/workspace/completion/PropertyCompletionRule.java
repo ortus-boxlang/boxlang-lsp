@@ -1,4 +1,4 @@
-package ortus.boxlanglsp.workspace.completion;
+package ortus.boxlang.lsp.workspace.completion;
 
 import java.util.List;
 
@@ -10,13 +10,13 @@ import ortus.boxlanglsp.workspace.types.ParsedProperty;
 public class PropertyCompletionRule implements IRule<CompletionFacts, List<CompletionItem>> {
 
     @Override
-    public boolean when(CompletionFacts facts) {
+    public boolean when( CompletionFacts facts ) {
         return facts.fileParseResult().isClass() && facts.fileParseResult().properties() != null;
     }
 
     @Override
-    public void then(CompletionFacts facts, List<CompletionItem> result) {
-        result.addAll(facts.fileParseResult().properties().stream().map(ParsedProperty::asCompletionItem).toList());
+    public void then( CompletionFacts facts, List<CompletionItem> result ) {
+        result.addAll( facts.fileParseResult().properties().stream().map( ParsedProperty::asCompletionItem ).toList() );
     }
 
 }

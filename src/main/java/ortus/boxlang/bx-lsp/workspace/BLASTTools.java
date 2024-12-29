@@ -1,11 +1,12 @@
-package ortus.boxlanglsp.workspace;
+package ortus.boxlang.lsp.workspace;
 
-import org.eclipse.lsp4j.Position;
+import javax.swing.text.Position;
 
 import ortus.boxlang.compiler.ast.BoxNode;
 
 public class BLASTTools {
-    public static BoxNode findNodeAtPosition(BoxNode node, Position position) {
+
+    public static BoxNode findNodeAtPosition( BoxNode node, Position position ) {
         return null;
     }
 }

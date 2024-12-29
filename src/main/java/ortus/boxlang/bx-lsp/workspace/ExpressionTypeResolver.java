@@ -1,4 +1,4 @@
-package ortus.boxlanglsp.workspace;
+package ortus.boxlang.lsp.workspace;
 
 import ortus.boxlang.compiler.ast.BoxExpression;
 import ortus.boxlang.compiler.ast.expression.BoxArrayLiteral;
@@ -13,24 +13,24 @@ import ortus.boxlang.runtime.types.BoxLangType;
 
 public class ExpressionTypeResolver {
 
-    public static BoxLangType determineType(BoxExpression node) {
-        if (node instanceof BoxStringLiteral) {
+    public static BoxLangType determineType( BoxExpression node ) {
+        if ( node instanceof BoxStringLiteral ) {
             return BoxLangType.STRING;
-        } else if (node instanceof BoxStringInterpolation) {
+        } else if ( node instanceof BoxStringInterpolation ) {
             return BoxLangType.STRING;
-        } else if (node instanceof BoxIntegerLiteral) {
+        } else if ( node instanceof BoxIntegerLiteral ) {
             return BoxLangType.NUMERIC;
-        } else if (node instanceof BoxDecimalLiteral) {
+        } else if ( node instanceof BoxDecimalLiteral ) {
             return BoxLangType.NUMERIC;
-        } else if (node instanceof BoxBooleanLiteral) {
+        } else if ( node instanceof BoxBooleanLiteral ) {
             return BoxLangType.BOOLEAN;
-        } else if (node instanceof BoxArrayLiteral) {
+        } else if ( node instanceof BoxArrayLiteral ) {
             return BoxLangType.ARRAY;
-        } else if (node instanceof BoxStringLiteral) {
+        } else if ( node instanceof BoxStringLiteral ) {
             return BoxLangType.STRUCT;
-        } else if (node instanceof BoxClosure) {
+        } else if ( node instanceof BoxClosure ) {
             return BoxLangType.UDF;
-        } else if (node instanceof BoxLambda) {
+        } else if ( node instanceof BoxLambda ) {
             return BoxLangType.UDF;
         }
 
