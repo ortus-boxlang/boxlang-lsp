@@ -41,4 +41,6 @@ jobs:
       #     cmd: run-script format:check
 
       - name: Verify Code Formatting
-        run: ./gradlew spotlessCheck
+        run: |
+          chmod +x ./gradlew
+          ./gradlew spotlessCheck
