@@ -18,22 +18,15 @@ on:
         default: false
         type: boolean
 
-  # Manual Trigger for LTS Releases
+  # Manual Trigger
   workflow_dispatch:
-    inputs:
-      lts:
-        description: "The LTS marker"
-        required: false
-        default: false
-        type: boolean
 
 env:
   MODULE_ID: ${{ github.event.repository.name }}
-  SNAPSHOT: ${{ inputs.snapshot || false }}
   JDK: 21
   GRADLE: 8.7
   BUILD_ID: ${{ github.run_number }}
-  LTS: ${{ inputs.lts || false }}
+  SNAPSHOT: ${{ inputs.snapshot || false }}
 
 jobs:
   #############################################
@@ -44,10 +37,17 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       checks: write
+      pull-requests: write
       contents: write
+      issues: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Setup CommandBox
+        uses: Ortus-Solutions/setup-commandbox@v2.0.1
+        with:
+          forgeboxAPIKey: ${{ secrets.FORGEBOX_API_TOKEN }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -63,14 +63,17 @@ jobs:
       - name: Setup Environment Variables For Build Process
         id: current_version
         run: |
+          # Read Version from gradle.properties
           TMPVERSION=$(grep '^version=' gradle.properties | cut -d'=' -f2)
+          # Replace existing prerelease identifier with -snapshot or append -snapshot if none exists
+          # If we are on the development branch, we always append -snapshot
           if [[ "${{ github.ref }}" == "refs/heads/development" ]]; then
-            # Replace existing prerelease identifier with -snapshot or append -snapshot if none exists
             TMPVERSION=$(echo $TMPVERSION | sed 's/-.*$//')-snapshot
           fi
+          # Set the version in the environment
           echo "VERSION=$TMPVERSION" >> $GITHUB_ENV
 
-          # Branche
+          # Branch
           echo "Github Ref is $GITHUB_REF"
           echo "BRANCH=main" >> $GITHUB_ENV
 
@@ -87,17 +90,12 @@ jobs:
           changelogPath: ./changelog.md
           tag: v${{ env.VERSION }}
 
-      - name: Build v${{ env.VERSION }}
+      - name: Build it!
         run: |
           npm install -g markdownlint-cli
           markdownlint changelog.md --fix
           gradle downloadBoxLang
           gradle build -x test --stacktrace --console=plain
-
-          mkdir -p build/distributions
-          
-          cp app/build/libs/* ./build/distributions
-          cp app/build/libs/* ./
 
       - name: Commit Changelog [unreleased] with latest version
         uses: EndBug/add-and-commit@v9.1.4
@@ -120,9 +118,9 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: boxlang-lsp-build
+          name: boxlang-build
           path: |
-            boxlang-lsp-*
+            build/reports/tests/**
             changelog.md
 
       - name: Upload Distributions to S3
@@ -134,7 +132,24 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_SECRET }}
           SOURCE_DIR: "build/distributions"
-          DEST_DIR: "ortussolutions/boxlang-lsp/${{ env.VERSION }}"
+          DEST_DIR: "ortussolutions/boxlang-modules/${{ env.MODULE_ID }}/${{ env.VERSION }}"
+
+      - name: Upload API Docs to S3
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --acl public-read
+        env:
+          AWS_S3_BUCKET: "apidocs.ortussolutions.com"
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_SECRET }}
+          SOURCE_DIR: "build/docs/javadoc"
+          DEST_DIR: "boxlang-modules/${{ env.MODULE_ID }}/${{ env.VERSION }}"
+
+      - name: Publish to ForgeBox
+        run: |
+          cd build/module
+          box forgebox publish --force
+          cd $GITHUB_WORKSPACE
 
       - name: Create Github Release
         uses: taiki-e/create-gh-release-action@v1.8.0
@@ -154,8 +169,8 @@ jobs:
           SLACK_CHANNEL: coding
           SLACK_COLOR: ${{ job.status }} # or a specific color like 'green' or '#ff00ff'
           SLACK_ICON_EMOJI: ":bell:"
-          SLACK_MESSAGE: "BoxLang LSP ${{ env.VERSION }} Built with ${{ job.status }}!"
-          SLACK_TITLE: "BoxLang LSP Build"
+          SLACK_MESSAGE: "Module ${{ env.MODULE_ID }} v${{ env.VERSION }} Built with ${{ job.status }}!"
+          SLACK_TITLE: "BoxLang Module ${{ env.MODULE_ID }}"
           SLACK_USERNAME: CI
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
 
@@ -169,17 +184,19 @@ jobs:
     needs: [build]
     permissions:
       checks: write
+      pull-requests: write
       contents: write
+      issues: write
     steps:
       - name: Checkout Development Repository
         uses: actions/checkout@v4
-        if: env.LTS == 'false'
         with:
           ref: development
 
-      - name: Checkout LTS Repository
-        uses: actions/checkout@v4
-        if: env.LTS == 'true'
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: ${{ env.GRADLE }}
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -187,23 +204,13 @@ jobs:
           name: boxlang-build
           path: .tmp
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v3
-        with:
-          gradle-version: ${{ env.GRADLE }}
-
       - name: Copy Changelog
         run: |
           cp .tmp/changelog.md changelog.md
 
       - name: Bump Version
         run: |
-          if [ $LTS == 'true' ]
-          then
-            gradle bumpPatchVersion --stacktrace --console=plain
-          else
-            gradle bumpBetaVersion --stacktrace --console=plain
-          fi
+          gradle bumpMinorVersion --stacktrace --console=plain
           git pull
 
       - name: Commit Version Bump
