@@ -12,7 +12,7 @@
  * BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package ortus.boxlang.moduleslug;
+package ortus.boxlang.lsp;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,7 +20,6 @@ import java.nio.file.Paths;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 
-import ortus.boxlang.moduleslug.util.KeyDictionary;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.context.IBoxContext;
 import ortus.boxlang.runtime.context.ScriptingRequestBoxContext;
@@ -40,7 +39,7 @@ public abstract class BaseIntegrationTest {
 	protected static ModuleService			moduleService;
 	protected static ModuleRecord			moduleRecord;
 	protected static Key					result		= new Key( "result" );
-	protected static Key					moduleName	= KeyDictionary.moduleName;
+	protected static Key					moduleName	= Key.of( "bx-lsp" );
 	protected ScriptingRequestBoxContext	context;
 	protected IScope						variables;
 

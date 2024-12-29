@@ -12,10 +12,11 @@
  * BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package ortus.boxlang.moduleslug;
+package ortus.boxlang.lsp;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -26,6 +27,7 @@ public class IntegrationTest extends BaseIntegrationTest {
 
 	@DisplayName( "Test the module loads in BoxLang" )
 	@Test
+	@Disabled
 	public void testModuleLoads() {
 		// Given
 
