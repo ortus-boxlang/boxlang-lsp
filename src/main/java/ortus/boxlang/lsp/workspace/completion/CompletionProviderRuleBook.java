@@ -5,7 +5,7 @@ import java.util.List;
 
 import org.eclipse.lsp4j.CompletionItem;
 
-import ortus.boxlanglsp.workspace.rules.RuleCollection;
+import ortus.boxlang.lsp.workspace.rules.RuleCollection;
 
 public class CompletionProviderRuleBook extends RuleCollection<CompletionFacts, List<CompletionItem>> {
 

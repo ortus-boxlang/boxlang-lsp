@@ -1,5 +1,5 @@
 {
-	"name": "@MODULE_NAME@",
+	"name": "bx-lsp",
 	"version": "@build.version@+@build.number@",
 	"location": "https://downloads.ortussolutions.com/ortussolutions/boxlang-modules/@MODULE_SLUG@/@build.version@/@MODULE_SLUG@-@build.version@.zip",
 	"author": "Ortus Solutions",
@@ -13,10 +13,10 @@
 	"slug": "@MODULE_SLUG@",
 	"shortDescription": "Module template for BoxLang modules",
 	"type": "boxlang-modules",
-	"keywords": ["boxlang"],
+	"keywords": [ "boxlang" ],
 	"boxlang": {
 		"minimumVersion": "1.0.0",
-		"moduleName": "@MODULE_REGISTERED_NAME@"
+		"moduleName": "bx-lsp"
 	},
 	"private": false,
 	"license": [

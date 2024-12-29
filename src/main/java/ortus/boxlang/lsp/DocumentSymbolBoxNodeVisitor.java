@@ -9,10 +9,10 @@ import java.util.List;
 
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.SymbolKind;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
-import org.w3c.dom.ranges.Range;
 
 import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxNode;

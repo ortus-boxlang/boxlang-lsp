@@ -2,7 +2,7 @@ package ortus.boxlang.lsp.workspace.completion;
 
 import org.eclipse.lsp4j.CompletionParams;
 
-import ortus.boxlanglsp.workspace.ProjectContextProvider.FileParseResult;
+import ortus.boxlang.lsp.workspace.ProjectContextProvider.FileParseResult;
 
 public record CompletionFacts( FileParseResult fileParseResult, CompletionParams completionParams ) {
 

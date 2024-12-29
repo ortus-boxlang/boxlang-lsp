@@ -5,16 +5,16 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import javax.xml.validation.Validator;
-
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.InsertTextFormat;
 
+import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.rules.IRule;
 import ortus.boxlang.runtime.BoxRuntime;
+import ortus.boxlang.runtime.components.Attribute;
 import ortus.boxlang.runtime.components.ComponentDescriptor;
-import ortus.boxlanglsp.workspace.ProjectContextProvider;
-import ortus.boxlanglsp.workspace.rules.IRule;
+import ortus.boxlang.runtime.validation.Validator;
 
 public class ComponentCompletionRule implements IRule<CompletionFacts, List<CompletionItem>> {
 

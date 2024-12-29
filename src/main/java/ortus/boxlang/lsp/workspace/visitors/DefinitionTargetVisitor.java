@@ -1,6 +1,6 @@
 package ortus.boxlang.lsp.workspace.visitors;
 
-import javax.swing.text.Position;
+import org.eclipse.lsp4j.Position;
 
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;

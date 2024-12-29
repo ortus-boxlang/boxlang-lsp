@@ -4,8 +4,8 @@ import java.util.List;
 
 import org.eclipse.lsp4j.CompletionItem;
 
-import ortus.boxlanglsp.workspace.rules.IRule;
-import ortus.boxlanglsp.workspace.types.ParsedProperty;
+import ortus.boxlang.lsp.workspace.rules.IRule;
+import ortus.boxlang.lsp.workspace.types.ParsedProperty;
 
 public class PropertyCompletionRule implements IRule<CompletionFacts, List<CompletionItem>> {
 

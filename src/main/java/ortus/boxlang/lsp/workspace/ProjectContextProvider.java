@@ -38,14 +38,14 @@ import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
 import ortus.boxlang.compiler.javaboxpiler.JavaBoxpiler;
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
-import ortus.boxlanglsp.DocumentSymbolBoxNodeVisitor;
-import ortus.boxlanglsp.LSPTools;
-import ortus.boxlanglsp.workspace.completion.CompletionFacts;
-import ortus.boxlanglsp.workspace.completion.CompletionProviderRuleBook;
-import ortus.boxlanglsp.workspace.types.ParsedProperty;
-import ortus.boxlanglsp.workspace.visitors.DefinitionTargetVisitor;
-import ortus.boxlanglsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
-import ortus.boxlanglsp.workspace.visitors.PropertyVisitor;
+import ortus.boxlang.lsp.DocumentSymbolBoxNodeVisitor;
+import ortus.boxlang.lsp.LSPTools;
+import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
+import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
+import ortus.boxlang.lsp.workspace.types.ParsedProperty;
+import ortus.boxlang.lsp.workspace.visitors.DefinitionTargetVisitor;
+import ortus.boxlang.lsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
+import ortus.boxlang.lsp.workspace.visitors.PropertyVisitor;
 
 public class ProjectContextProvider {
 

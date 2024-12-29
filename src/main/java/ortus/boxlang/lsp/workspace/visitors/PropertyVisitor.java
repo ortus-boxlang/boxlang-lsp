@@ -7,7 +7,7 @@ import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
-import ortus.boxlanglsp.workspace.types.ParsedProperty;
+import ortus.boxlang.lsp.workspace.types.ParsedProperty;
 
 public class PropertyVisitor extends VoidBoxVisitor {
 

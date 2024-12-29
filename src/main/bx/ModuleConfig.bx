@@ -36,7 +36,7 @@ class {
 	 * The BoxLang mapping for your module.  All BoxLang modules are registered with an internal
 	 * mapping prefix of : bxModules.{this.mapping}, /bxmodules/{this.mapping}. Ex: bxModules.test, /bxmodules/test
 	 */
-	this.mapping = "bxSpreadsheet";
+	this.mapping = "bxLSP";
 
 	/**
 	 * Who built the module
@@ -102,16 +102,16 @@ class {
 		 */
 		interceptors = [
 			// { class="path.to.Interceptor", properties={} }
-			{ class : "#moduleRecord.invocationPath#.interceptors.Listener", properties : {
-				createdOn : now(),
-				by : "Luis Majano"
-			} }
+			// { class : "#moduleRecord.invocationPath#.interceptors.Listener", properties : {
+			// 	createdOn : now(),
+			// 	by : "Luis Majano"
+			// } }
 		];
 
 		/**
 		 * A list of custom interception points to register into the runtime
 		 */
-		customInterceptionPoints = [ "onBxTestModule" ];
+		// customInterceptionPoints = [ "onBxTestModule" ];
 	}
 
 	/**
@@ -138,5 +138,12 @@ class {
 
 	 function afterModuleActivations(){
 		// do something
+	 }
+
+	 function main( required array args ){
+		lsp = createObjecT( "java", "ortus.boxlang.lsp.App" );
+		lsp.main( javaCast( "String[]", args ) );
+		// this.lsp = ortus.boxlang.lsp.App.main( [] );
+		println( "This is the new LSP entrypoint!" );
 	 }
 }

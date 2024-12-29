@@ -23,8 +23,7 @@ import org.eclipse.lsp4j.services.LanguageClientAware;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.eclipse.lsp4j.services.WorkspaceService;
 
-import ortus.boxlang.lsp.BoxLangWorkspaceService;
-import ortus.boxlanglsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
 public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer, LanguageClientAware {
 

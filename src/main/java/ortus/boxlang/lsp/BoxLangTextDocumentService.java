@@ -31,7 +31,7 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
-import ortus.boxlanglsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
 public class BoxLangTextDocumentService implements TextDocumentService {
 

@@ -7,9 +7,9 @@ import java.util.stream.Stream;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 
+import ortus.boxlang.lsp.workspace.rules.IRule;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.bifs.BIFDescriptor;
-import ortus.boxlanglsp.workspace.rules.IRule;
 
 public class BIFCompletionRule implements IRule<CompletionFacts, List<CompletionItem>> {
 

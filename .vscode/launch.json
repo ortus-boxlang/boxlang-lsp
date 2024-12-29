@@ -6,13 +6,19 @@
     "configurations": [
         {
             "type": "java",
-            "name": "Debug server",
+            "name": "Run LSP",
             "request": "launch",
-            "mainClass": "ortus.boxlanglsp.App",
-            "projectName": "app",
+            "mainClass": "ortus.boxlang.runtime.BoxRunner",
+            "projectName": "boxlang-lsp",
+            "env": {
+                "BOXLANG_RUNTIME_MODULESDIRECTORY": "C:\\Users\\jacob\\Dev\\boxlang-lsp\\build\\module"
+            },
             "args": [
+                "--bx-config",
+                "C:\\Users\\jacob\\Dev\\boxlang-lsp\\boxlang.json",
+                "module:bx-lsp",
                 "--debug-server-port",
-                "5173"
+                "7777"
             ]
         }
     ]
