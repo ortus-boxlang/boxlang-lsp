@@ -27,93 +27,93 @@ import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
 public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer, LanguageClientAware {
 
-    private WorkspaceService       workspaceService       = new BoxLangWorkspaceService();
-    private TextDocumentService    textDocumentService    = new BoxLangTextDocumentService();
-    private ProjectContextProvider projectContextProvider = ProjectContextProvider.getInstance();
+	private WorkspaceService		workspaceService		= new BoxLangWorkspaceService();
+	private TextDocumentService		textDocumentService		= new BoxLangTextDocumentService();
+	private ProjectContextProvider	projectContextProvider	= ProjectContextProvider.getInstance();
 
-    @JsonNotification( value = "boxlang/changesettings", useSegment = false )
-    public CompletableFuture<Void> changeSettings( ChangeSettingParams params ) {
+	@JsonNotification( value = "boxlang/changesettings", useSegment = false )
+	public CompletableFuture<Void> changeSettings( ChangeSettingParams params ) {
 
-        projectContextProvider.setShouldPublishDiagnostics( params.enableExperimentalDiagnostics );
-        return CompletableFuture.completedFuture( null );
-    }
+		projectContextProvider.setShouldPublishDiagnostics( params.enableExperimentalDiagnostics );
+		return CompletableFuture.completedFuture( null );
+	}
 
-    @Override
-    public CompletableFuture<InitializeResult> initialize( InitializeParams params ) {
-        return CompletableFuture.supplyAsync( () -> {
-            ServerCapabilities capabilities = new ServerCapabilities();
+	@Override
+	public CompletableFuture<InitializeResult> initialize( InitializeParams params ) {
+		return CompletableFuture.supplyAsync( () -> {
+			ServerCapabilities capabilities = new ServerCapabilities();
 
-            capabilities.setTextDocumentSync( TextDocumentSyncKind.Full );
-            capabilities.setDocumentSymbolProvider( true );
-            capabilities.setDocumentFormattingProvider( true );
-            // capabilities.setReferencesProvider(true);
-            capabilities.setDefinitionProvider( true );
-            CompletionOptions completionOptions = new CompletionOptions();
-            // completionOptions.
-            capabilities.setCompletionProvider( completionOptions );
+			capabilities.setTextDocumentSync( TextDocumentSyncKind.Full );
+			capabilities.setDocumentSymbolProvider( true );
+			capabilities.setDocumentFormattingProvider( true );
+			// capabilities.setReferencesProvider(true);
+			capabilities.setDefinitionProvider( true );
+			CompletionOptions completionOptions = new CompletionOptions();
+			// completionOptions.
+			capabilities.setCompletionProvider( completionOptions );
 
-            // removing this until we improve the parser
-            // scanWorkspaceFolders(params.getWorkspaceFolders());
+			// removing this until we improve the parser
+			// scanWorkspaceFolders(params.getWorkspaceFolders());
 
-            return new InitializeResult( capabilities );
-        } );
-    }
+			return new InitializeResult( capabilities );
+		} );
+	}
 
-    @Override
-    public CompletableFuture<Object> shutdown() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException( "Unimplemented method 'shutdown'" );
-    }
+	@Override
+	public CompletableFuture<Object> shutdown() {
+		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException( "Unimplemented method 'shutdown'" );
+	}
 
-    @Override
-    public void exit() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException( "Unimplemented method 'exit'" );
-    }
+	@Override
+	public void exit() {
+		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException( "Unimplemented method 'exit'" );
+	}
 
-    @Override
-    public TextDocumentService getTextDocumentService() {
-        return textDocumentService;
-    }
+	@Override
+	public TextDocumentService getTextDocumentService() {
+		return textDocumentService;
+	}
 
-    @Override
-    public WorkspaceService getWorkspaceService() {
-        return workspaceService;
-    }
+	@Override
+	public WorkspaceService getWorkspaceService() {
+		return workspaceService;
+	}
 
-    @Override
-    public void connect( LanguageClient client ) {
+	@Override
+	public void connect( LanguageClient client ) {
 
-        // textDocumentService.setClient(client);
-        ( ( BoxLangTextDocumentService ) textDocumentService ).setLanguageClient( client );
-        projectContextProvider.setLanguageClient( client );
+		// textDocumentService.setClient(client);
+		( ( BoxLangTextDocumentService ) textDocumentService ).setLanguageClient( client );
+		projectContextProvider.setLanguageClient( client );
 
-        client.showMessage( new MessageParams( MessageType.Info, "Connected to the BoxLang Language Server!" ) );
-        // TODO Auto-generated method stub
-        // throw new UnsupportedOperationException("Unimplemented method 'connect'");
-    }
+		client.showMessage( new MessageParams( MessageType.Info, "Connected to the BoxLang Language Server!" ) );
+		// TODO Auto-generated method stub
+		// throw new UnsupportedOperationException("Unimplemented method 'connect'");
+	}
 
-    private void scanWorkspaceFolders( List<WorkspaceFolder> folders ) {
-        ProjectContextProvider provider = ProjectContextProvider.getInstance();
-        try {
-            Files
-                .walk( Path.of( new URI( folders.get( 0 ).getUri() ) ) )
-                .filter( Files::isRegularFile )
-                .filter( ( path ) -> StringUtils.endsWithAny( path.toString(), ".bx", ".bxs", ".bxm", ".cfc", ".cfs",
-                    ".cfm" ) )
-                .forEach( ( clazzPath ) -> {
-                    try {
+	private void scanWorkspaceFolders( List<WorkspaceFolder> folders ) {
+		ProjectContextProvider provider = ProjectContextProvider.getInstance();
+		try {
+			Files
+			    .walk( Path.of( new URI( folders.get( 0 ).getUri() ) ) )
+			    .filter( Files::isRegularFile )
+			    .filter( ( path ) -> StringUtils.endsWithAny( path.toString(), ".bx", ".bxs", ".bxm", ".cfc", ".cfs",
+			        ".cfm" ) )
+			    .forEach( ( clazzPath ) -> {
+				    try {
 
-                        provider.consumeFile( clazzPath.toUri() );
-                    } catch ( Exception e ) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                } );
-        } catch ( IOException | URISyntaxException e ) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-    }
+					    provider.consumeFile( clazzPath.toUri() );
+				    } catch ( Exception e ) {
+					    // TODO Auto-generated catch block
+					    e.printStackTrace();
+				    }
+			    } );
+		} catch ( IOException | URISyntaxException e ) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 
 }

@@ -6,7 +6,7 @@ import ortus.boxlang.compiler.ast.BoxNode;
 
 public class BLASTTools {
 
-    public static BoxNode findNodeAtPosition( BoxNode node, Position position ) {
-        return null;
-    }
+	public static BoxNode findNodeAtPosition( BoxNode node, Position position ) {
+		return null;
+	}
 }

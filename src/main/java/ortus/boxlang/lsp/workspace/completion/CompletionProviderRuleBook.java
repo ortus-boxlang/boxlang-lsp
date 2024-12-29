@@ -9,15 +9,15 @@ import ortus.boxlang.lsp.workspace.rules.RuleCollection;
 
 public class CompletionProviderRuleBook extends RuleCollection<CompletionFacts, List<CompletionItem>> {
 
-    private static CompletionProviderRuleBook instance = new CompletionProviderRuleBook();
+	private static CompletionProviderRuleBook instance = new CompletionProviderRuleBook();
 
-    static {
-        instance.addRule( new ComponentCompletionRule() )
-            .addRule( new BIFCompletionRule() )
-            .addRule( new PropertyCompletionRule() );
-    }
+	static {
+		instance.addRule( new ComponentCompletionRule() )
+		    .addRule( new BIFCompletionRule() )
+		    .addRule( new PropertyCompletionRule() );
+	}
 
-    public static List<CompletionItem> execute( CompletionFacts facts ) {
-        return instance.execute( facts, new ArrayList<CompletionItem>() );
-    }
+	public static List<CompletionItem> execute( CompletionFacts facts ) {
+		return instance.execute( facts, new ArrayList<CompletionItem>() );
+	}
 }

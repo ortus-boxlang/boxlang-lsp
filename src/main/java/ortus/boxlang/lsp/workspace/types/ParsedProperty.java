@@ -10,13 +10,13 @@ public record ParsedProperty(
     String type,
     BoxProperty node ) {
 
-    public CompletionItem asCompletionItem() {
-        CompletionItem item = new CompletionItem();
-        item.setLabel( this.name );
-        item.setKind( CompletionItemKind.Property );
-        item.setInsertText( this.name );
-        item.setDetail( this.type );
+	public CompletionItem asCompletionItem() {
+		CompletionItem item = new CompletionItem();
+		item.setLabel( this.name );
+		item.setKind( CompletionItemKind.Property );
+		item.setInsertText( this.name );
+		item.setDetail( this.type );
 
-        return item;
-    }
+		return item;
+	}
 }

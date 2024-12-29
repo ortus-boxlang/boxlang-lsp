@@ -20,69 +20,69 @@ import picocli.CommandLine;
 
 public class App {
 
-    public static void main( String[] args ) {
-        CLI cli = new CLI();
-        new CommandLine( cli ).parseArgs( args );
+	public static void main( String[] args ) {
+		CLI cli = new CLI();
+		new CommandLine( cli ).parseArgs( args );
 
-        App app = new App();
+		App app = new App();
 
-        app.runUsingDebugServer( cli.debugServerPort );
-    }
+		app.runUsingDebugServer( cli.debugServerPort );
+	}
 
-    public App() {
-        BoxRuntime.getInstance();
-    }
+	public App() {
+		BoxRuntime.getInstance();
+	}
 
-    private void runLSP( InputStream in, OutputStream out ) {
-        LanguageServer           languageServer = new LanguageServer();
+	private void runLSP( InputStream in, OutputStream out ) {
+		LanguageServer				languageServer	= new LanguageServer();
 
-        Launcher<LanguageClient> launcher       = LSPLauncher.createServerLauncher(
-            languageServer,
-            in,
-            out );
+		Launcher<LanguageClient>	launcher		= LSPLauncher.createServerLauncher(
+		    languageServer,
+		    in,
+		    out );
 
-        if ( languageServer instanceof LanguageClientAware ) {
-            LanguageClient client = launcher.getRemoteProxy();
-            languageServer.connect( client );
-        }
+		if ( languageServer instanceof LanguageClientAware ) {
+			LanguageClient client = launcher.getRemoteProxy();
+			languageServer.connect( client );
+		}
 
-        try {
-            launcher.startListening().get();
-        } catch ( InterruptedException e ) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch ( ExecutionException e ) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-    }
+		try {
+			launcher.startListening().get();
+		} catch ( InterruptedException e ) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch ( ExecutionException e ) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 
-    private void runUsingSTDIn() {
-        // System.out.println("Starting server over stdin");
-        runLSP( System.in, System.out );
-    }
+	private void runUsingSTDIn() {
+		// System.out.println("Starting server over stdin");
+		runLSP( System.in, System.out );
+	}
 
-    private void runUsingDebugServer( int port ) {
-        System.out.println( "Starting debug server on port " + port );
-        try ( ServerSocket socket = new ServerSocket( port ) ) {
-            if ( port == 0 ) {
-                System.out.println( String.format( "Listening on port: %s", socket.getLocalPort() ) );
-            }
-            while ( true ) {
-                System.out.println( "waiting for a connection" );
-                Socket connectionSocket = socket.accept();
+	private void runUsingDebugServer( int port ) {
+		System.out.println( "Starting debug server on port " + port );
+		try ( ServerSocket socket = new ServerSocket( port ) ) {
+			if ( port == 0 ) {
+				System.out.println( String.format( "Listening on port: %s", socket.getLocalPort() ) );
+			}
+			while ( true ) {
+				System.out.println( "waiting for a connection" );
+				Socket connectionSocket = socket.accept();
 
-                System.out.println( "Got a connection" );
-                try {
-                    runLSP( connectionSocket.getInputStream(), connectionSocket.getOutputStream() );
-                } finally {
-                    connectionSocket.close();
-                    System.out.println( "Closing debug connection" );
-                }
+				System.out.println( "Got a connection" );
+				try {
+					runLSP( connectionSocket.getInputStream(), connectionSocket.getOutputStream() );
+				} finally {
+					connectionSocket.close();
+					System.out.println( "Closing debug connection" );
+				}
 
-            }
-        } catch ( IOException e ) {
-            e.printStackTrace();
-        }
-    }
+			}
+		} catch ( IOException e ) {
+			e.printStackTrace();
+		}
+	}
 }

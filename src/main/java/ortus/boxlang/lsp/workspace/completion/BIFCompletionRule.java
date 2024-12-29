@@ -13,36 +13,36 @@ import ortus.boxlang.runtime.bifs.BIFDescriptor;
 
 public class BIFCompletionRule implements IRule<CompletionFacts, List<CompletionItem>> {
 
-    @Override
-    public boolean when( CompletionFacts facts ) {
-        return !facts.fileParseResult().isTemplate();
-    }
+	@Override
+	public boolean when( CompletionFacts facts ) {
+		return !facts.fileParseResult().isTemplate();
+	}
 
-    @Override
-    public void then( CompletionFacts facts, List<CompletionItem> result ) {
+	@Override
+	public void then( CompletionFacts facts, List<CompletionItem> result ) {
 
-        var options = Stream.of( BoxRuntime.getInstance().getFunctionService().getGlobalFunctionNames() ).map( ( name ) -> {
-            BIFDescriptor  func      = BoxRuntime.getInstance().getFunctionService().getGlobalFunction( name );
-            String         args      = Stream.of( func.getBIF().getDeclaredArguments() ).map( ( arg ) -> {
-                                         if ( !arg.required() ) {
-                                             return "[" + arg.signatureAsString() + "]";
-                                         }
+		var options = Stream.of( BoxRuntime.getInstance().getFunctionService().getGlobalFunctionNames() ).map( ( name ) -> {
+			BIFDescriptor	func		= BoxRuntime.getInstance().getFunctionService().getGlobalFunction( name );
+			String			args		= Stream.of( func.getBIF().getDeclaredArguments() ).map( ( arg ) -> {
+											if ( !arg.required() ) {
+												return "[" + arg.signatureAsString() + "]";
+											}
 
-                                         return arg.signatureAsString();
-                                     } ).collect( Collectors.joining( ", " ) );
+											return arg.signatureAsString();
+										} ).collect( Collectors.joining( ", " ) );
 
-            String         signature = "%s(%s)".formatted( name, args );
+			String			signature	= "%s(%s)".formatted( name, args );
 
-            CompletionItem item      = new CompletionItem();
-            item.setLabel( name );
-            item.setKind( CompletionItemKind.Function );
-            item.setInsertText( name );
-            item.setDetail( signature );
+			CompletionItem	item		= new CompletionItem();
+			item.setLabel( name );
+			item.setKind( CompletionItemKind.Function );
+			item.setInsertText( name );
+			item.setDetail( signature );
 
-            return item;
-        } ).toList();
+			return item;
+		} ).toList();
 
-        result.addAll( options );
-    }
+		result.addAll( options );
+	}
 
 }
