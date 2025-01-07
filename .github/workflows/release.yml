@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
 
 env:
-  MODULE_ID: ${{ github.event.repository.name }}
+  MODULE_ID: bx-lsp
   JDK: 21
   GRADLE: 8.7
   BUILD_ID: ${{ github.run_number }}
