@@ -29,6 +29,7 @@ import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 
+import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.Issue;
 import ortus.boxlang.compiler.ast.Point;
@@ -42,6 +43,8 @@ import ortus.boxlang.lsp.DocumentSymbolBoxNodeVisitor;
 import ortus.boxlang.lsp.LSPTools;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
 import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
+import ortus.boxlang.lsp.workspace.context.Newable;
+import ortus.boxlang.lsp.workspace.context.Resource;
 import ortus.boxlang.lsp.workspace.types.ParsedProperty;
 import ortus.boxlang.lsp.workspace.visitors.DefinitionTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
@@ -55,6 +58,8 @@ public class ProjectContextProvider {
 	private Map<URI, BoxNode>			astCache					= new HashMap<URI, BoxNode>();
 	private List<FunctionDefinition>	functionDefinitions			= new ArrayList<FunctionDefinition>();
 	private Map<URI, OpenDocument>		openDocuments				= new HashMap<URI, OpenDocument>();
+	private List<Resource>				resources					= new ArrayList<Resource>();
+	public List<Newable>				newables					= new ArrayList<Newable>();
 
 	private boolean						shouldPublishDiagnostics	= false;
 
@@ -165,6 +170,29 @@ public class ProjectContextProvider {
 		return edits;
 	}
 
+	public void addToContext( URI docUri ) {
+		FileParseResult result = consumeFile( docUri, false );
+
+		this.resources.stream()
+		    .filter( res -> res.path().equals( docUri ) )
+		    .findFirst()
+		    .ifPresentOrElse(
+		        res -> {
+			        Resource replacement = Resource.replace( res, result );
+
+			        this.resources.remove( res );
+			        this.resources.add( replacement );
+		        },
+		        () -> this.resources.add( Resource.fromFileParseResult( result ) )
+		    );
+
+		this.resources.add( new Resource( null, docUri, null, null, null ) );
+
+		if ( result.astRoot() instanceof BoxClass ) {
+			this.newables.add( Newable.fromFileParseResult( result ) );
+		}
+	}
+
 	private FileParseResult consumeOrGet( URI docUri ) {
 		if ( !this.parsedFiles.containsKey( docUri ) ) {
 			this.consumeFile( docUri );
@@ -224,6 +252,10 @@ public class ProjectContextProvider {
 	}
 
 	public FileParseResult consumeFile( URI docUri ) {
+		return consumeFile( docUri, true );
+	}
+
+	public FileParseResult consumeFile( URI docUri, boolean keep ) {
 		ParsingResult	result	= getLatestParsingResult( docUri );
 
 		BoxNode			root	= result.getRoot();

@@ -53,7 +53,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			capabilities.setCompletionProvider( completionOptions );
 
 			// removing this until we improve the parser
-			// scanWorkspaceFolders(params.getWorkspaceFolders());
+			scanWorkspaceFolders( params.getWorkspaceFolders() );
 
 			return new InitializeResult( capabilities );
 		} );
@@ -104,7 +104,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			    .forEach( ( clazzPath ) -> {
 				    try {
 
-					    provider.consumeFile( clazzPath.toUri() );
+					    provider.addToContext( clazzPath.toUri() );
 				    } catch ( Exception e ) {
 					    // TODO Auto-generated catch block
 					    e.printStackTrace();
