@@ -39,6 +39,7 @@ public class ComponentCompletionRule implements IRule<CompletionFacts, List<Comp
 								item.setInsertTextFormat( InsertTextFormat.Snippet );
 								item.setInsertText( formatComponentInsert( existingPrompt, facts, componentDescriptor ) );
 								item.setDetail( formatComponentSignature( componentDescriptor ) );
+								item.setSortText( "a" );
 
 								return item;
 							} )

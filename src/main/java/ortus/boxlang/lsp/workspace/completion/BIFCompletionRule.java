@@ -15,7 +15,8 @@ public class BIFCompletionRule implements IRule<CompletionFacts, List<Completion
 
 	@Override
 	public boolean when( CompletionFacts facts ) {
-		return !facts.fileParseResult().isTemplate();
+		return !facts.fileParseResult().isTemplate()
+		    && !ContextChecker.isNewExpression( facts );
 	}
 
 	@Override
