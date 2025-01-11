@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.lsp4j.CodeLensOptions;
 import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
@@ -51,6 +52,8 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			CompletionOptions completionOptions = new CompletionOptions();
 			// completionOptions.
 			capabilities.setCompletionProvider( completionOptions );
+
+			capabilities.setCodeLensProvider( new CodeLensOptions( true ) );
 
 			// removing this until we improve the parser
 			// scanWorkspaceFolders(params.getWorkspaceFolders());

@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.eclipse.lsp4j.CodeLens;
+import org.eclipse.lsp4j.CodeLensParams;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.CompletionParams;
@@ -165,5 +167,38 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 			    .orElseGet( () -> new ArrayList<Either<SymbolInformation, DocumentSymbol>>() );
 		} );
 	}
+
+	/**
+	 * The code lens request is sent from the client to the server to compute
+	 * code lenses for a given text document.
+	 * <p>
+	 * Registration Options: {@link org.eclipse.lsp4j.CodeLensRegistrationOptions}
+	 */
+	@JsonRequest
+	@Override
+	public CompletableFuture<List<? extends CodeLens>> codeLens( CodeLensParams params ) {
+
+		return CompletableFuture.supplyAsync( () -> {
+			return ProjectContextProvider.getInstance()
+			    .getAvaialbeCodeLenses(
+			        LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
+			        params
+			    );
+		} );
+	}
+
+	// /**
+	// * The code lens resolve request is sent from the client to the server to
+	// * resolve the command for a given code lens item.
+	// */
+	// @JsonRequest( value = "codeLens/resolve", useSegment = false )
+	// @Override
+	// public CompletableFuture<CodeLens> resolveCodeLens( CodeLens unresolved ) {
+	// var lens = new CodeLens();
+	// lens.setRange( new Range( new Position( 5, 0 ), new Position( 5, 10 ) ) );
+	// lens.setCommand( new Command( "Run", "Run" ) );
+
+	// return CompletableFuture.supplyAsync( () -> lens );
+	// }
 
 }

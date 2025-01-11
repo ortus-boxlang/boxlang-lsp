@@ -14,6 +14,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.eclipse.lsp4j.CodeLens;
+import org.eclipse.lsp4j.CodeLensParams;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.Diagnostic;
@@ -34,12 +36,15 @@ import ortus.boxlang.compiler.ast.Issue;
 import ortus.boxlang.compiler.ast.Point;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
+import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
 import ortus.boxlang.compiler.javaboxpiler.JavaBoxpiler;
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlang.lsp.DocumentSymbolBoxNodeVisitor;
 import ortus.boxlang.lsp.LSPTools;
+import ortus.boxlang.lsp.workspace.codeLens.CodeLensFacts;
+import ortus.boxlang.lsp.workspace.codeLens.CodeLensRuleBook;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
 import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
 import ortus.boxlang.lsp.workspace.types.ParsedProperty;
@@ -77,6 +82,16 @@ public class ProjectContextProvider {
 
 		public boolean isClass() {
 			return uri.toString().endsWith( ".bx" );
+		}
+
+		public Optional<BoxFunctionDeclaration> getMainFunction() {
+			if ( astRoot == null ) {
+				return Optional.empty();
+			}
+
+			var funcs = astRoot.getDescendantsOfType( BoxFunctionDeclaration.class, ( n ) -> n.getName().equalsIgnoreCase( "main" ) );
+
+			return funcs.size() == 0 ? Optional.empty() : Optional.of( funcs.getLast() );
 		}
 	}
 
@@ -301,6 +316,12 @@ public class ProjectContextProvider {
 		// TODO add completions for in-scope symbols (properties, local variables,
 
 		return CompletionProviderRuleBook.execute( new CompletionFacts( res, params ) );
+	}
+
+	public List<CodeLens> getAvaialbeCodeLenses( URI docURI, CodeLensParams params ) {
+		FileParseResult res = consumeOrGet( docURI );
+
+		return CodeLensRuleBook.execute( new CodeLensFacts( res, params ) );
 	}
 
 	private List<ParsedProperty> parseProperties( BoxNode root ) {
