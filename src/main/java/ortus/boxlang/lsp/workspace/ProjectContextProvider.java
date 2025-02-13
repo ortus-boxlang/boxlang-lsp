@@ -147,6 +147,13 @@ public class ProjectContextProvider {
 		return instance;
 	}
 
+	public Map<String, Path> getMappings() {
+		Map<String, Path> mappings = new HashMap<>();
+		mappings.put( "mymapping", Path.of( "C:\\Users\\jacob\\Dev\\boxlang-vscode-demo\\test\\somethingElse" ) );
+
+		return mappings;
+	}
+
 	public void setShouldPublishDiagnostics( boolean shouldPublishDiagnostics ) {
 		if ( this.shouldPublishDiagnostics == shouldPublishDiagnostics ) {
 			return;
