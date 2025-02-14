@@ -14,8 +14,11 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.CodeLens;
 import org.eclipse.lsp4j.CodeLensParams;
+import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.Diagnostic;
@@ -31,6 +34,8 @@ import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 
+import com.google.gson.JsonObject;
+
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.Issue;
 import ortus.boxlang.compiler.ast.Point;
@@ -43,6 +48,8 @@ import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlang.lsp.DocumentSymbolBoxNodeVisitor;
 import ortus.boxlang.lsp.LSPTools;
+import ortus.boxlang.lsp.SourceCodeVisitor;
+import ortus.boxlang.lsp.SourceCodeVisitorService;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensFacts;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensRuleBook;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
@@ -74,7 +81,8 @@ public class ProjectContextProvider {
 	    BoxNode astRoot,
 	    List<Issue> issues,
 	    List<Either<SymbolInformation, DocumentSymbol>> outline,
-	    List<ParsedProperty> properties ) {
+	    List<ParsedProperty> properties,
+	    List<SourceCodeVisitor> visitors ) {
 
 		public boolean isTemplate() {
 			return uri.toString().endsWith( ".bxm" );
@@ -246,14 +254,15 @@ public class ProjectContextProvider {
 		FileParseResult	res;
 
 		if ( root == null ) {
-			res = new FileParseResult( docUri, null, result.getIssues(), null, null );
+			res = new FileParseResult( docUri, null, result.getIssues(), null, null, null );
 		} else {
 			res = new FileParseResult(
 			    docUri,
 			    root,
 			    result.getIssues(),
 			    generateOutline( docUri, root ),
-			    parseProperties( root ) );
+			    parseProperties( root ),
+			    SourceCodeVisitorService.getInstance().forceVisit( docUri.toString(), root ) );
 			generateOutline( docUri, root );
 
 			generateFunctionDefinitions( docUri, root );
@@ -408,9 +417,53 @@ public class ProjectContextProvider {
 			FunctionReturnDiagnosticVisitor returnDiagnosticVisitor = new FunctionReturnDiagnosticVisitor();
 			res.astRoot().accept( returnDiagnosticVisitor );
 			diagnostics.addAll( returnDiagnosticVisitor.getDiagnostics() );
+
+			List<SourceCodeVisitor> visitors = SourceCodeVisitorService.getInstance().visitAll( docURI.toString(), res.astRoot );
+
+			for ( SourceCodeVisitor visitor : visitors ) {
+				diagnostics.addAll( visitor.getDiagnostics() );
+			}
 		}
 
 		this.client.publishDiagnostics( diagnositcParams );
 	}
 
+	public List<Either<Command, CodeAction>> getAvailableCodeActions( URI convertDocumentURI, CodeActionParams params ) {
+		List<Either<Command, CodeAction>>	actions		= new ArrayList();
+
+		FileParseResult						parseResult	= consumeOrGet( convertDocumentURI );
+
+		if ( parseResult.visitors == null ) {
+			return List.of();
+		}
+
+		var visitors = parseResult.visitors.stream()
+		    .map( visitor -> visitor.getCodeActions() )
+		    .flatMap( list -> list.stream() )
+		    .collect( Collectors.toList() );
+
+		if ( params.getContext().getDiagnostics().size() != 0 ) {
+			visitors = visitors.stream().filter( codeAction -> {
+				for ( Diagnostic cad : codeAction.getDiagnostics() ) {
+					Map<String, Object>	cadData					= ( Map ) cad.getData();
+					String				codeActionDiagnosticId	= ( String ) cadData.get( "id" );
+
+					for ( Diagnostic d : params.getContext().getDiagnostics() ) {
+						JsonObject	data				= ( JsonObject ) d.getData();
+						String		clientDiagnosticId	= data.get( "id" ).getAsString();
+						if ( codeActionDiagnosticId.equals( clientDiagnosticId ) ) {
+							return true;
+						}
+					}
+				}
+
+				return false;
+			} )
+			    .collect( Collectors.toList() );
+		}
+
+		visitors.stream().forEach( action -> actions.add( Either.forRight( action ) ) );
+
+		return actions;
+	}
 }

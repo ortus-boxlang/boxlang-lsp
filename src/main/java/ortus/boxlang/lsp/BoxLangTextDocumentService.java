@@ -6,8 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.CodeLens;
 import org.eclipse.lsp4j.CodeLensParams;
+import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.CompletionParams;
@@ -25,6 +28,7 @@ import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentRegistrationOptions;
 import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.adapters.CodeActionResponseAdapter;
 import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter;
 import org.eclipse.lsp4j.adapters.LocationLinkListAdapter;
 import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter;
@@ -185,6 +189,19 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 			        params
 			    );
 		} );
+	}
+
+	@JsonRequest
+	@ResponseJsonAdapter( CodeActionResponseAdapter.class )
+	public CompletableFuture<List<Either<Command, CodeAction>>> codeAction( CodeActionParams params ) {
+		return CompletableFuture.supplyAsync( () -> {
+			return ProjectContextProvider.getInstance()
+			    .getAvailableCodeActions(
+			        LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
+			        params
+			    );
+		} );
+
 	}
 
 	// /**

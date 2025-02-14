@@ -54,6 +54,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			capabilities.setCompletionProvider( completionOptions );
 
 			capabilities.setCodeLensProvider( new CodeLensOptions( true ) );
+			capabilities.setCodeActionProvider( true );
 
 			// removing this until we improve the parser
 			// scanWorkspaceFolders(params.getWorkspaceFolders());
