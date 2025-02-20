@@ -16,10 +16,13 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageClientAware;
 
 import ortus.boxlang.runtime.BoxRuntime;
+import ortus.boxlang.runtime.logging.BoxLangLogger;
 import ortus.boxlang.runtime.types.Struct;
 import picocli.CommandLine;
 
 public class App {
+
+	public static BoxLangLogger logger;
 
 	public static void main( String[] args ) {
 		CLI cli = new CLI();
@@ -32,6 +35,7 @@ public class App {
 
 	public App() {
 		BoxRuntime.getInstance();
+		logger = BoxRuntime.getInstance().getLoggingService().getLogger( "lsp" );
 
 		BoxRuntime.getInstance().announce( "LSPRegisterVisitors", Struct.of( "sourceCodeVisitorService", SourceCodeVisitorService.getInstance() ) );
 	}

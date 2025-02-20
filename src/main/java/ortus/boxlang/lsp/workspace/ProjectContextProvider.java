@@ -31,6 +31,7 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
 import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 
@@ -58,17 +59,21 @@ import ortus.boxlang.lsp.workspace.types.ParsedProperty;
 import ortus.boxlang.lsp.workspace.visitors.DefinitionTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
 import ortus.boxlang.lsp.workspace.visitors.PropertyVisitor;
+import ortus.boxlang.runtime.BoxRuntime;
 
 public class ProjectContextProvider {
 
-	static ProjectContextProvider		instance;
-	private LanguageClient				client;
-	private Map<URI, FileParseResult>	parsedFiles					= new HashMap<URI, FileParseResult>();
-	private Map<URI, BoxNode>			astCache					= new HashMap<URI, BoxNode>();
-	private List<FunctionDefinition>	functionDefinitions			= new ArrayList<FunctionDefinition>();
-	private Map<URI, OpenDocument>		openDocuments				= new HashMap<URI, OpenDocument>();
+	static ProjectContextProvider			instance;
+	private List<WorkspaceFolder>			workspaceFolders			= new ArrayList();
+	private LanguageClient					client;
+	private Map<URI, FileParseResult>		parsedFiles					= new HashMap<URI, FileParseResult>();
+	private Map<URI, BoxNode>				astCache					= new HashMap<URI, BoxNode>();
+	private List<FunctionDefinition>		functionDefinitions			= new ArrayList<FunctionDefinition>();
+	private Map<URI, OpenDocument>			openDocuments				= new HashMap<URI, OpenDocument>();
+	private Map<String, List<Diagnostic>>	diagnostics					= new HashMap<String, List<Diagnostic>>();
+	private Map<String, List<CodeAction>>	codeActions					= new HashMap<String, List<CodeAction>>();
 
-	private boolean						shouldPublishDiagnostics	= false;
+	private boolean							shouldPublishDiagnostics	= false;
 
 	record OpenDocument(
 	    URI uri,
@@ -150,12 +155,38 @@ public class ProjectContextProvider {
 		return instance;
 	}
 
+	public List<Diagnostic> getFileDiagnostics( URI docURI ) {
+		if ( !this.diagnostics.containsKey( docURI.toString() ) ) {
+			analyzeSource( docURI );
+		}
+
+		return this.diagnostics.get( docURI.toString() );
+	}
+
+	public List<CodeAction> getFileCodeActions( URI docURI ) {
+		if ( !this.codeActions.containsKey( docURI.toString() ) ) {
+			analyzeSource( docURI );
+		}
+
+		return this.codeActions.get( docURI.toString() );
+	}
+
+	public List<WorkspaceFolder> getWorkspaceFolders() {
+		return this.workspaceFolders;
+	}
+
+	public void setWorkspaceFolders( List<WorkspaceFolder> folders ) {
+		this.workspaceFolders = folders;
+	}
+
 	public void setShouldPublishDiagnostics( boolean shouldPublishDiagnostics ) {
 		if ( this.shouldPublishDiagnostics == shouldPublishDiagnostics ) {
 			return;
 		}
 
 		this.shouldPublishDiagnostics = shouldPublishDiagnostics;
+
+		// TODO implement this differently
 
 		this.parsedFiles.keySet()
 		    .stream()
@@ -203,7 +234,9 @@ public class ProjectContextProvider {
 			}
 		}
 
+		this.clearFileCache( docUri );
 		this.consumeFile( docUri );
+		this.analyzeSource( docUri );
 	}
 
 	public void trackDocumentSave( URI docUri, String text ) {
@@ -220,19 +253,16 @@ public class ProjectContextProvider {
 
 		this.openDocuments.put( docUri, new OpenDocument( docUri, fileContent ) );
 
-		this.consumeFile( docUri );
+		// this.consumeFile( docUri );
 	}
 
 	public void trackDocumentOpen( URI docUri, String text ) {
 		this.openDocuments.put( docUri, new OpenDocument( docUri, text ) );
-
-		this.consumeFile( docUri );
+		// this.consumeFile( docUri );
 	}
 
 	public void trackDocumentClose( URI docUri ) {
 		this.openDocuments.remove( docUri );
-
-		this.consumeFile( docUri );
 	}
 
 	private ParsingResult getLatestParsingResult( URI docUri ) {
@@ -269,8 +299,6 @@ public class ProjectContextProvider {
 		}
 
 		this.parsedFiles.put( docUri, res );
-
-		publishDiagnostics( docUri );
 
 		return res;
 	}
@@ -381,6 +409,95 @@ public class ProjectContextProvider {
 		return visitor.getDefinitionTarget();
 	}
 
+	private void analyzeSource( URI docURI ) {
+		ParsingResult	result	= getLatestParsingResult( docURI );
+
+		BoxNode			root	= result.getRoot();
+
+		FileParseResult	res;
+
+		if ( root == null ) {
+			res = new FileParseResult( docURI, null, result.getIssues(), null, null, null );
+		} else {
+			res = new FileParseResult(
+			    docURI,
+			    root,
+			    result.getIssues(),
+			    generateOutline( docURI, root ),
+			    parseProperties( root ),
+			    SourceCodeVisitorService.getInstance().forceVisit( docURI.toString(), root ) );
+			generateOutline( docURI, root );
+
+			generateFunctionDefinitions( docURI, root );
+
+		}
+
+		generateDiagnostics( res );
+
+	}
+
+	public void publishFileDiagnostics( URI docURI ) {
+		if ( !this.diagnostics.containsKey( docURI.toString() ) ) {
+			return;
+		}
+
+		PublishDiagnosticsParams diagnositcParams = new PublishDiagnosticsParams();
+
+		diagnositcParams.setUri( docURI.toString() );
+		diagnositcParams.setDiagnostics( this.diagnostics.get( docURI.toString() ) );
+
+		BoxRuntime.getInstance().getLoggingService().getLogger( "lsp" ).debug( "Publishing {} diagnostics for {}",
+		    this.diagnostics.get( docURI.toString() ).size(), diagnositcParams.getUri() );
+
+		this.client.publishDiagnostics(
+		    diagnositcParams
+		);
+	}
+
+	private void clearFileCache( URI docURI ) {
+		this.diagnostics.remove( docURI.toString() );
+		this.codeActions.remove( docURI.toString() );
+	}
+
+	private List<Diagnostic> generateDiagnostics( FileParseResult parseResult ) {
+
+		List<Diagnostic>	fileDiagnostics	= new ArrayList<>();
+		List<CodeAction>	fileCodeActions	= new ArrayList<>();
+
+		this.diagnostics.put( parseResult.uri.toString(), fileDiagnostics );
+		this.codeActions.put( parseResult.uri.toString(), fileCodeActions );
+
+		fileDiagnostics.addAll( parseResult.issues().stream().map( ( issue ) -> {
+			Diagnostic diagnostic = new Diagnostic();
+
+			diagnostic.setSeverity( DiagnosticSeverity.Error );
+			diagnostic.setMessage( issue.getMessage() );
+
+			diagnostic.setRange( positionToRange( issue.getPosition() ) );
+
+			diagnostic.setMessage( issue.getMessage() );
+
+			return diagnostic;
+		} ).toList() );
+
+		if ( parseResult.astRoot() == null ) {
+			return fileDiagnostics;
+		}
+
+		FunctionReturnDiagnosticVisitor returnDiagnosticVisitor = new FunctionReturnDiagnosticVisitor();
+		parseResult.astRoot().accept( returnDiagnosticVisitor );
+		fileDiagnostics.addAll( returnDiagnosticVisitor.getDiagnostics() );
+
+		List<SourceCodeVisitor> visitors = SourceCodeVisitorService.getInstance().forceVisit( parseResult.uri.toString().toString(), parseResult.astRoot );
+
+		for ( SourceCodeVisitor visitor : visitors ) {
+			fileDiagnostics.addAll( visitor.getDiagnostics() );
+			fileCodeActions.addAll( visitor.getCodeActions() );
+		}
+
+		return fileDiagnostics;
+	}
+
 	private void publishDiagnostics( URI docURI ) {
 		if ( this.client == null ) {
 			return;
@@ -437,13 +554,8 @@ public class ProjectContextProvider {
 			return List.of();
 		}
 
-		var visitors = parseResult.visitors.stream()
-		    .map( visitor -> visitor.getCodeActions() )
-		    .flatMap( list -> list.stream() )
-		    .collect( Collectors.toList() );
-
 		if ( params.getContext().getDiagnostics().size() != 0 ) {
-			visitors = visitors.stream().filter( codeAction -> {
+			this.getFileCodeActions( convertDocumentURI ).stream().filter( codeAction -> {
 				for ( Diagnostic cad : codeAction.getDiagnostics() ) {
 					Map<String, Object>	cadData					= ( Map ) cad.getData();
 					String				codeActionDiagnosticId	= ( String ) cadData.get( "id" );
@@ -459,11 +571,13 @@ public class ProjectContextProvider {
 
 				return false;
 			} )
-			    .collect( Collectors.toList() );
+			    .forEach( action -> actions.add( Either.forRight( action ) ) );
 		}
 
-		visitors.stream().forEach( action -> actions.add( Either.forRight( action ) ) );
-
 		return actions;
+	}
+
+	public List<Diagnostic> getDiagnostics( URI docURI ) {
+		return this.diagnostics.get( docURI.toString() );
 	}
 }
