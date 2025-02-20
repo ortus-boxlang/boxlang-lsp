@@ -38,12 +38,12 @@ dependencies {
 	// Until BoxLang is published to Maven Central
 	// Look for it in the local build directory
 	// You must run `./gradle build -x test` in the BoxLang project
-	compileOnly files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '-all.jar' )
-    compileOnly files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '-all.jar' )
+	compileOnly files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '.jar' )
+    compileOnly files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
 
     // Testing Dependencies
-	testImplementation files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '-all.jar' )
-	testImplementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '-all.jar' )
+	testImplementation files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '.jar' )
+	testImplementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
     testImplementation "org.junit.jupiter:junit-jupiter:5.+"
 	testImplementation "org.mockito:mockito-core:5.+"
 	testImplementation "com.google.truth:truth:1.+"
@@ -150,12 +150,12 @@ spotless {
 
 /**
  * Custom task that creates a build/module folders
- * - Copies the build/libs/BoxLangModuleTemplate-1.0.0-all.jar to build/module/libs/BoxLangModuleTemplate-1.0.0-all.jar
+ * - Copies the build/libs/BoxLangModuleTemplate-1.0.0.jar to build/module/libs/BoxLangModuleTemplate-1.0.0.jar
  * - Copies the src/main/bx/** to build/module/ folder.
  */
 task createModuleStructure(type: Copy) {
     from( 'build/libs' ) {
-		include "${project.name}-${version}-all.jar"
+		include "${project.name}-${version}.jar"
         into 'libs'
     }
     from( 'src/main/bx' ) {
@@ -205,7 +205,7 @@ test {
 
 /**
  * TEMPORARY until we publish to maven
- * Task to download the latest jar from https://ortus-temp.s3.amazonaws.com/jericho/libs/boxlang-1.0.0-all.jar
+ * Task to download the latest jar from https://ortus-temp.s3.amazonaws.com/jericho/libs/boxlang-1.0.0.jar
  */
 task downloadBoxLang( type: Download ) {
 	// Create the destination directory
@@ -213,9 +213,9 @@ task downloadBoxLang( type: Download ) {
 		file( "src/test/resources/libs" ).mkdirs()
 	}
     // Configure the URL of the file to download
-    src "https://downloads.ortussolutions.com/ortussolutions/boxlang/${boxlangVersion}/boxlang-${boxlangVersion}-all.jar"
+    src "https://downloads.ortussolutions.com/ortussolutions/boxlang/${boxlangVersion}/boxlang-${boxlangVersion}.jar"
     // Specify the destination directory for the downloaded file
-    dest "src/test/resources/libs/boxlang-${boxlangVersion}-all.jar"
+    dest "src/test/resources/libs/boxlang-${boxlangVersion}.jar"
     overwrite true
     onlyIfModified false
 }
