@@ -155,7 +155,7 @@ spotless {
  */
 task createModuleStructure(type: Copy) {
     from( 'build/libs' ) {
-		include "${project.name}-${version}.jar"
+		include "${project.name}-${version}-all.jar"
         into 'libs'
     }
     from( 'src/main/bx' ) {

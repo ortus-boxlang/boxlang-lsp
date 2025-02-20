@@ -10,6 +10,7 @@ import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.ServerCapabilities;
+import org.eclipse.lsp4j.SetTraceParams;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification;
@@ -68,8 +69,13 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 
 	@Override
 	public void exit() {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException( "Unimplemented method 'exit'" );
+		App.logger.info( "Received exit command - exiting" );
+		System.exit( 0 );
+	}
+
+	@Override
+	public void setTrace( SetTraceParams params ) {
+		App.logger.info( "Received setTrace command" );
 	}
 
 	@Override
