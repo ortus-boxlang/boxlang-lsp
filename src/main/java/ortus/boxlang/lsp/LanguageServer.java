@@ -1,7 +1,10 @@
 package ortus.boxlang.lsp;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.eclipse.lsp4j.CodeActionKind;
+import org.eclipse.lsp4j.CodeActionOptions;
 import org.eclipse.lsp4j.CodeLensOptions;
 import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.DiagnosticRegistrationOptions;
@@ -49,11 +52,13 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			capabilities.setCompletionProvider( completionOptions );
 			capabilities.setDiagnosticProvider( new DiagnosticRegistrationOptions( true, true ) );
 			capabilities.setCodeLensProvider( new CodeLensOptions( true ) );
-			capabilities.setCodeActionProvider( true );
+			capabilities.setCodeActionProvider( new CodeActionOptions( List.of(
+			    CodeActionKind.QuickFix,
+			    CodeActionKind.SourceFixAll,
+			    CodeActionKind.RefactorRewrite
+			) ) );
 
 			ProjectContextProvider.getInstance().setWorkspaceFolders( params.getWorkspaceFolders() );
-
-			// scanWorkspaceFolders( params.getWorkspaceFolders() );
 
 			return new InitializeResult( capabilities );
 		} );
@@ -73,7 +78,6 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 		System.exit( 0 );
 	}
 
-	@Override
 	public void setTrace( SetTraceParams params ) {
 		App.logger.info( "Received setTrace command" );
 	}
