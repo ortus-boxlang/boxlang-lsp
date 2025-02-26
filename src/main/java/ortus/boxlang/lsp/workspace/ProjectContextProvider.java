@@ -44,7 +44,6 @@ import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
-import ortus.boxlang.compiler.javaboxpiler.JavaBoxpiler;
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlang.lsp.DocumentSymbolBoxNodeVisitor;
@@ -199,7 +198,13 @@ public class ProjectContextProvider {
 	}
 
 	public List<? extends TextEdit> formatDocument( URI docUri ) {
-		ParsingResult			res						= this.getLatestParsingResult( docUri );
+		ParsingResult res;
+		try {
+			res = this.getLatestParsingResult( docUri );
+		} catch ( IOException e ) {
+			e.printStackTrace();
+			return new ArrayList<>();
+		}
 
 		List<TextEdit>			edits					= new ArrayList<TextEdit>();
 
@@ -265,27 +270,34 @@ public class ProjectContextProvider {
 		this.openDocuments.remove( docUri );
 	}
 
-	private ParsingResult getLatestParsingResult( URI docUri ) {
+	private ParsingResult getLatestParsingResult( URI docUri ) throws IOException {
+		Parser parser = new Parser();
 		if ( this.openDocuments.containsKey( docUri ) ) {
-			return JavaBoxpiler.getInstance().parse(
+			return parser.parse(
 			    this.openDocuments.get( docUri ).latestContent(),
 			    Parser.detectFile( new File( docUri ) ),
-			    Parser.getFileExtension( docUri.toString() ).orElseGet( () -> "bxs" ).equals( "bx" ) );
+			    Parser.getFileExtension( docUri.toString() ).orElseGet( () -> "bxs" ).matches( "cfc|bx" ) );
 		}
 
-		return JavaBoxpiler.getInstance().parse( Paths.get( docUri ).toFile() );
+		return parser.parse( Paths.get( docUri ).toFile() );
 	}
 
 	public FileParseResult consumeFile( URI docUri ) {
-		ParsingResult	result	= getLatestParsingResult( docUri );
+		ParsingResult result = null;
+		try {
+			result = getLatestParsingResult( docUri );
+		} catch ( IOException e ) {
+			e.printStackTrace();
+		}
 
-		BoxNode			root	= result.getRoot();
+		FileParseResult res;
 
-		FileParseResult	res;
-
-		if ( root == null ) {
+		if ( result == null ) {
+			res = new FileParseResult( docUri, null, new ArrayList(), null, null, null );
+		} else if ( result.getRoot() == null ) {
 			res = new FileParseResult( docUri, null, result.getIssues(), null, null, null );
 		} else {
+			BoxNode root = result.getRoot();
 			res = new FileParseResult(
 			    docUri,
 			    root,
@@ -410,15 +422,24 @@ public class ProjectContextProvider {
 	}
 
 	private void analyzeSource( URI docURI ) {
-		ParsingResult	result	= getLatestParsingResult( docURI );
+		ParsingResult result = null;
 
-		BoxNode			root	= result.getRoot();
+		try {
+			result = getLatestParsingResult( docURI );
+		} catch ( IOException e ) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
-		FileParseResult	res;
+		FileParseResult res;
 
-		if ( root == null ) {
+		if ( result == null ) {
+			res = new FileParseResult( docURI, null, new ArrayList<>(), null, null, null );
+
+		} else if ( result.getRoot() == null ) {
 			res = new FileParseResult( docURI, null, result.getIssues(), null, null, null );
 		} else {
+			BoxNode root = result.getRoot();
 			res = new FileParseResult(
 			    docURI,
 			    root,
