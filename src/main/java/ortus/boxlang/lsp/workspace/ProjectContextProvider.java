@@ -63,10 +63,9 @@ import ortus.boxlang.runtime.BoxRuntime;
 public class ProjectContextProvider {
 
 	static ProjectContextProvider			instance;
-	private List<WorkspaceFolder>			workspaceFolders			= new ArrayList();
+	private List<WorkspaceFolder>			workspaceFolders			= new ArrayList<WorkspaceFolder>();
 	private LanguageClient					client;
 	private Map<URI, FileParseResult>		parsedFiles					= new HashMap<URI, FileParseResult>();
-	private Map<URI, BoxNode>				astCache					= new HashMap<URI, BoxNode>();
 	private List<FunctionDefinition>		functionDefinitions			= new ArrayList<FunctionDefinition>();
 	private Map<URI, OpenDocument>			openDocuments				= new HashMap<URI, OpenDocument>();
 	private Map<String, List<Diagnostic>>	diagnostics					= new HashMap<String, List<Diagnostic>>();
@@ -324,14 +323,14 @@ public class ProjectContextProvider {
 	public List<Location> findMatchingFunctionDeclerations( URI docURI, String functionName ) {
 		return this.functionDefinitions.stream()
 		    .filter( ( fn ) -> fn.getFunctionName().equals( functionName ) && docURI.equals( fn.getFileURI() ) )
-		    .map( FunctionDefinition::toLocation )
+		    .map( FunctionDefinition::getLocation )
 		    .toList();
 	}
 
 	public List<Location> findMatchingFunctionDeclerations( String functionName ) {
 		return this.functionDefinitions.stream()
 		    .filter( ( fn ) -> fn.getFunctionName().equals( functionName ) )
-		    .map( FunctionDefinition::toLocation )
+		    .map( FunctionDefinition::getLocation )
 		    .toList();
 	}
 
