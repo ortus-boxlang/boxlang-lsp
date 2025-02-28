@@ -57,6 +57,7 @@ public class SourceCodeVisitorService {
 
 					    return visitor;
 				    } catch ( Exception e ) {
+					    App.logger.error( "Error running SourceCodeVisitor", e );
 					    return null;
 				    }
 			    } )
