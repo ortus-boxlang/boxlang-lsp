@@ -40,6 +40,10 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 			ProjectContextProvider					provider	= ProjectContextProvider.getInstance();
 			List<WorkspaceDocumentDiagnosticReport>	docReports	= new ArrayList<>();
 
+			if ( provider.getWorkspaceFolders() == null || provider.getWorkspaceFolders().isEmpty() ) {
+				return new WorkspaceDiagnosticReport();
+			}
+
 			try {
 				Files
 				    .walk( Path.of( new URI( provider.getWorkspaceFolders().getFirst().getUri() ) ) )
