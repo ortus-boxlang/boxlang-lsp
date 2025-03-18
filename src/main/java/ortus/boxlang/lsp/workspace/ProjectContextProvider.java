@@ -581,8 +581,13 @@ public class ProjectContextProvider {
 					String				codeActionDiagnosticId	= ( String ) cadData.get( "id" );
 
 					for ( Diagnostic d : params.getContext().getDiagnostics() ) {
-						JsonObject	data				= ( JsonObject ) d.getData();
-						String		clientDiagnosticId	= data.get( "id" ).getAsString();
+						JsonObject data = ( JsonObject ) d.getData();
+
+						if ( data == null ) {
+							return false;
+						}
+
+						String clientDiagnosticId = data.get( "id" ).getAsString();
 						if ( codeActionDiagnosticId.equals( clientDiagnosticId ) ) {
 							return true;
 						}

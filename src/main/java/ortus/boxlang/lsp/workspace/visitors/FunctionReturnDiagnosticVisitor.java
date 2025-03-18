@@ -8,6 +8,9 @@ import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
 import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.compiler.ast.expression.BoxClosure;
+import ortus.boxlang.compiler.ast.expression.BoxLambda;
+import ortus.boxlang.compiler.ast.expression.BoxNull;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxReturn;
 import ortus.boxlang.compiler.ast.statement.BoxType;
@@ -94,16 +97,29 @@ public class FunctionReturnDiagnosticVisitor extends VoidBoxVisitor {
 	}
 
 	private Diagnostic checkVoidTriesToReturnValue( BoxReturn node ) {
-		if ( ! ( this.funcStack.get( this.funcStack.size() - 1 ).getType().getType() == BoxType.Void
-		    && node.getExpression() != null ) ) {
+		@SuppressWarnings( "unchecked" )
+		BoxNode funcRef = node.getFirstNodeOfTypes( BoxFunctionDeclaration.class, BoxClosure.class, BoxLambda.class );
+
+		if ( funcRef == null
+		    || funcRef instanceof BoxClosure
+		    || funcRef instanceof BoxLambda ) {
 			return null;
 		}
 
-		return new Diagnostic(
-		    ProjectContextProvider.positionToRange( node.getPosition() ),
-		    "A void function may not return a value",
-		    DiagnosticSeverity.Error,
-		    "boxlang" );
+		BoxFunctionDeclaration	func		= ( BoxFunctionDeclaration ) funcRef;
+
+		BoxType					returnType	= func.getType().getType();
+		BoxNode					returnExpr	= node.getExpression();
+
+		if ( returnType == BoxType.Void && ! ( returnExpr instanceof BoxNull ) ) {
+			return new Diagnostic(
+			    ProjectContextProvider.positionToRange( node.getPosition() ),
+			    "A void function may not return a value",
+			    DiagnosticSeverity.Error,
+			    "boxlang" );
+		}
+
+		return null;
 	}
 
 	private void visitChildren( BoxNode node ) {
