@@ -37,6 +37,7 @@ public class App {
 		BoxRuntime.getInstance();
 		logger = BoxRuntime.getInstance().getLoggingService().getLogger( "lsp" );
 
+		MemoryThresholdMonitor.startMemoryManagement();
 		BoxRuntime.getInstance().announce( "LSPRegisterVisitors", Struct.of( "sourceCodeVisitorService", SourceCodeVisitorService.getInstance() ) );
 	}
 

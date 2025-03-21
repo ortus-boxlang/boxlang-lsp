@@ -52,11 +52,16 @@ public class DefinitionTargetVisitor extends VoidBoxVisitor {
 	}
 
 	private boolean containsPosition( BoxNode node ) {
-		ortus.boxlang.compiler.ast.Position	nodePos			= node.getPosition();
-		int									boxStartLine	= nodePos.getStart().getLine();
-		int									boxStartCol		= nodePos.getStart().getColumn();
-		int									boxEndLine		= nodePos.getEnd().getLine();
-		int									boxEndCol		= nodePos.getEnd().getColumn();
+		ortus.boxlang.compiler.ast.Position nodePos = node.getPosition();
+
+		if ( nodePos == null ) {
+			return false;
+		}
+
+		int	boxStartLine	= nodePos.getStart().getLine();
+		int	boxStartCol		= nodePos.getStart().getColumn();
+		int	boxEndLine		= nodePos.getEnd().getLine();
+		int	boxEndCol		= nodePos.getEnd().getColumn();
 
 		if ( node instanceof BoxFunctionInvocation bfi ) {
 			boxEndLine	= boxStartLine;

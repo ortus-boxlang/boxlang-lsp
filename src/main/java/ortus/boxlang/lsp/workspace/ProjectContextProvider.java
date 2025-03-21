@@ -267,6 +267,7 @@ public class ProjectContextProvider {
 
 	public void trackDocumentClose( URI docUri ) {
 		this.openDocuments.remove( docUri );
+		this.parsedFiles.remove( docUri );
 	}
 
 	private ParsingResult getLatestParsingResult( URI docUri ) throws IOException {
