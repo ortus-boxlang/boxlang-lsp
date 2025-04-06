@@ -1,6 +1,8 @@
 package ortus.boxlang.lsp.workspace;
 
+import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
@@ -284,6 +286,11 @@ public class ProjectContextProvider {
 
 	public FileParseResult consumeFile( URI docUri ) {
 		ParsingResult result = null;
+
+		if ( isJavaBytecode( new File( docUri ) ) ) {
+			return new FileParseResult( docUri, null, new ArrayList(), null, null, null );
+		}
+
 		try {
 			result = getLatestParsingResult( docUri );
 		} catch ( IOException e ) {
@@ -605,5 +612,19 @@ public class ProjectContextProvider {
 
 	public List<Diagnostic> getDiagnostics( URI docURI ) {
 		return this.diagnostics.get( docURI.toString() );
+	}
+
+	public boolean isJavaBytecode( File sourceFile ) {
+		try ( FileInputStream fis = new FileInputStream( sourceFile );
+		    DataInputStream dis = new DataInputStream( fis ) ) {
+			// File may be empty! At least 4 bytes are needed to read an int
+			if ( dis.available() < 4 ) {
+				return false;
+			}
+			// Are we the Java Magic number?
+			return dis.readInt() == 0xCAFEBABE;
+		} catch ( IOException e ) {
+			throw new RuntimeException( "Failed to read file", e );
+		}
 	}
 }
