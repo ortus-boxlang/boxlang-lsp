@@ -47,9 +47,23 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 			try {
 				Files
 				    .walk( Path.of( new URI( provider.getWorkspaceFolders().getFirst().getUri() ) ) )
-				    .filter( Files::isRegularFile )
-				    .filter( ( path ) -> StringUtils.endsWithAny( path.toString(), ".bx", ".bxs", ".bxm", ".cfc", ".cfs",
-				        ".cfm" ) )
+				    .filter( path -> {
+					    try {
+						    return Files.isRegularFile( path )
+						        && StringUtils.endsWithAny(
+						            path.toString(),
+						            ".bx",
+						            ".bxs",
+						            ".bxm",
+						            ".cfc",
+						            ".cfs",
+						            ".cfm"
+						        );
+					    } catch ( Exception e ) {
+						    App.logger.debug( String.format( "Unable to walk file {}", path ), e );
+						    return false;
+					    }
+				    } )
 				    .forEach( ( clazzPath ) -> {
 					    try {
 						    WorkspaceFullDocumentDiagnosticReport fullReport = new WorkspaceFullDocumentDiagnosticReport();
