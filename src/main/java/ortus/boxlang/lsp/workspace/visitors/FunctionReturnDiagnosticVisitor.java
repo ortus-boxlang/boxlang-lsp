@@ -111,15 +111,19 @@ public class FunctionReturnDiagnosticVisitor extends VoidBoxVisitor {
 		BoxType					returnType	= func.getType().getType();
 		BoxNode					returnExpr	= node.getExpression();
 
-		if ( returnType == BoxType.Void && ! ( returnExpr instanceof BoxNull ) ) {
-			return new Diagnostic(
-			    ProjectContextProvider.positionToRange( node.getPosition() ),
-			    "A void function may not return a value",
-			    DiagnosticSeverity.Error,
-			    "boxlang" );
+		if ( returnType != BoxType.Void ) {
+			return null;
 		}
 
-		return null;
+		if ( returnExpr == null || returnExpr instanceof BoxNull ) {
+			return null;
+		}
+
+		return new Diagnostic(
+		    ProjectContextProvider.positionToRange( node.getPosition() ),
+		    "A void function may not return a value",
+		    DiagnosticSeverity.Error,
+		    "boxlang" );
 	}
 
 	private void visitChildren( BoxNode node ) {

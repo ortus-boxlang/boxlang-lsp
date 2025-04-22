@@ -78,6 +78,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 		System.exit( 0 );
 	}
 
+	@Override
 	public void setTrace( SetTraceParams params ) {
 		App.logger.info( "Received setTrace command" );
 	}
