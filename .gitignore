@@ -14,3 +14,4 @@ src/test/resources/libs/*
 !src/test/resources/libs/.gitkeep
 BOXLANG_HOME/*
 bin
+.boxlang
