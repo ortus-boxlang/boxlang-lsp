@@ -1,3 +1,5 @@
+import java.text.SimpleDateFormat
+
 // https://docs.gradle.org/current/userguide/building_java_projects.html#sec:java_packaging
 plugins {
     id 'java'
@@ -18,9 +20,19 @@ plugins {
  */
 sourceCompatibility = jdkVersion
 targetCompatibility = jdkVersion
+
 ext {
 	buildID = System.getenv( 'BUILD_ID' ) ?: '0'
 	branch = System.getenv( 'BRANCH' ) ?: 'development'
+	builtOn = new SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" ).format( new Date() )
+	gitCommitHash = {
+		def stdout = new ByteArrayOutputStream()
+		exec {
+			commandLine 'git', 'rev-parse', 'HEAD'
+			standardOutput = stdout
+		}
+		return stdout.toString().trim()
+	}.call()
 }
 if ( branch == 'development' ) {
     // If the branch is 'development', ensure the version ends with '-snapshot'
@@ -38,11 +50,11 @@ dependencies {
 	// Until BoxLang is published to Maven Central
 	// Look for it in the local build directory
 	// You must run `./gradle build -x test` in the BoxLang project
-	compileOnly files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '.jar' )
+	// compileOnly files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '.jar' )
     compileOnly files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
 
     // Testing Dependencies
-	testImplementation files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '.jar' )
+	// testImplementation files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '.jar' )
 	testImplementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
     testImplementation "org.junit.jupiter:junit-jupiter:5.+"
 	testImplementation "org.mockito:mockito-core:5.+"
@@ -167,6 +179,9 @@ task createModuleStructure(type: Copy) {
 		} else {
 			filter{ line -> line.replaceAll( '@build.number@', project.buildID ) }
 		}
+
+		filter{ line -> line.replaceAll( '@build.builtOn@', project.builtOn ) }
+		filter{ line -> line.replaceAll( '@build.commit@', project.gitCommitHash ) }
     }
     from( '.' ) {
         include 'box.json'

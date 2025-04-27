@@ -9,16 +9,32 @@
             "name": "Run LSP",
             "request": "launch",
             "mainClass": "ortus.boxlang.runtime.BoxRunner",
-            "projectName": "boxlang-lsp",
+            "projectName": "bx-lsp-boxlang-lsp",
             "env": {
-                "BOXLANG_RUNTIME_MODULESDIRECTORY": "C:\\Users\\jacob\\Dev\\boxlang-lsp\\build\\module"
+                "BOXLANG_RUNTIME_MODULESDIRECTORY": "/Users/jacob/dev/ortus-boxlang/boxlang-lsp/build"
             },
             "args": [
                 "--bx-config",
-                "C:\\Users\\jacob\\Dev\\boxlang-lsp\\boxlang.json",
+                "/Users/jacob/dev/ortus-boxlang/boxlang-lsp/boxlang.json",
                 "module:bx-lsp",
                 "--debug-server-port",
                 "7777"
+            ]
+        },
+        {
+            "type": "java",
+            "name": "Run LSP Version",
+            "request": "launch",
+            "mainClass": "ortus.boxlang.runtime.BoxRunner",
+            "projectName": "bx-lsp-boxlang-lsp",
+            "env": {
+                "BOXLANG_RUNTIME_MODULESDIRECTORY": "/Users/jacob/dev/ortus-boxlang/boxlang-lsp/build"
+            },
+            "args": [
+                "--bx-config",
+                "/Users/jacob/dev/ortus-boxlang/boxlang-lsp/boxlang.json",
+                "module:bx-lsp",
+                "version"
             ]
         }
     ]
