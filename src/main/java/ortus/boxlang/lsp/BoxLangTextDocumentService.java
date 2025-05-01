@@ -56,7 +56,7 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion( CompletionParams position ) {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			return Either.forLeft( ProjectContextProvider.getInstance()
-			    .getAvaialbeCompletions( LSPTools.convertDocumentURI( position.getTextDocument().getUri() ),
+			    .getAvailableCompletions( LSPTools.convertDocumentURI( position.getTextDocument().getUri() ),
 			        position ) );
 		} );
 	}
@@ -205,7 +205,7 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			return ProjectContextProvider.getInstance()
-			    .getAvaialbeCodeLenses(
+			    .getAvailableCodeLenses(
 			        LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
 			        params
 			    );

@@ -364,9 +364,8 @@ public class ProjectContextProvider {
 		    .orElseGet( () -> new ArrayList<Location>() );
 	}
 
-	public List<CompletionItem> getAvaialbeCompletions( URI docURI, CompletionParams params ) {
+	public List<CompletionItem> getAvailableCompletions( URI docURI, CompletionParams params ) {
 		FileParseResult res = consumeOrGet( docURI );
-
 		// TODO if you are in a cfscript component within a template script completions
 		// TODO if you are in a cfset return script completions
 		// TODO add completions for in-scope symbols (properties, local variables,
@@ -374,7 +373,7 @@ public class ProjectContextProvider {
 		return CompletionProviderRuleBook.execute( new CompletionFacts( res, params ) );
 	}
 
-	public List<CodeLens> getAvaialbeCodeLenses( URI docURI, CodeLensParams params ) {
+	public List<CodeLens> getAvailableCodeLenses( URI docURI, CodeLensParams params ) {
 		FileParseResult res = consumeOrGet( docURI );
 
 		return CodeLensRuleBook.execute( new CodeLensFacts( res, params ) );

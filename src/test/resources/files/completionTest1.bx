@@ -1,0 +1,11 @@
+class {
+
+	function foo() {
+		return "bar";
+	}
+
+	function baz() {
+		return this.
+	}
+
+}
