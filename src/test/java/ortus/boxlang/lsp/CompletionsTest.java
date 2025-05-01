@@ -41,7 +41,13 @@ public class CompletionsTest {
 		Path					p			= projectRoot.resolve( "src/test/resources/files/completionTest1.bx" );
 		File					f			= p.toFile();
 		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
-		List<CompletionItem> completionItems = pcp.getAvailableCompletions( f.toURI(), new CompletionParams() );
+
+		CompletionParams		completionParams	= new CompletionParams();
+		TextDocumentIdentifier	td					= new TextDocumentIdentifier( p.toUri().toString() );
+		completionParams.setPosition( new Position( 7, 13 ) );
+		completionParams.setTextDocument( td );
+
+		List<CompletionItem> completionItems = pcp.getAvailableCompletions( f.toURI(), completionParams );
 		assertFalse( completionItems.isEmpty(), "Completion items should not be empty." );
 	}
 
