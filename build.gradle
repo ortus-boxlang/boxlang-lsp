@@ -58,7 +58,7 @@ dependencies {
 	// testImplementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
     testImplementation "io.boxlang:boxlang:1.0.1"
     // Align all JUnit dependencies to the same version to avoid compatibility issues
-    testImplementation "org.junit.jupiter:junit-jupiter:5.13.2"
+    testImplementation "org.junit.jupiter:junit-jupiter:5.13.3"
 	testImplementation "org.mockito:mockito-core:5.+"
 	testImplementation "com.google.truth:truth:1.+"
 
