@@ -99,6 +99,10 @@ public class ProjectContextProvider {
 			return uri.toString().endsWith( ".bx" );
 		}
 
+		public boolean isCF() {
+			return uri.toString().endsWith( ".cfc" ) || uri.toString().endsWith( ".cfm" ) || uri.toString().endsWith( ".cfml" );
+		}
+
 		public Optional<BoxFunctionDeclaration> getMainFunction() {
 			if ( astRoot == null ) {
 				return Optional.empty();
@@ -521,9 +525,11 @@ public class ProjectContextProvider {
 		parseResult.astRoot().accept( unusedVariableDiagnosticVisitor );
 		fileDiagnostics.addAll( unusedVariableDiagnosticVisitor.getDiagnostics() );
 
-		UnscopedVariableDiagnosticVisitor unscopedVariableDiagnosticVisitor = new UnscopedVariableDiagnosticVisitor();
-		parseResult.astRoot().accept( unscopedVariableDiagnosticVisitor );
-		fileDiagnostics.addAll( unscopedVariableDiagnosticVisitor.getDiagnostics() );
+		if ( parseResult.isCF() ) {
+			UnscopedVariableDiagnosticVisitor unscopedVariableDiagnosticVisitor = new UnscopedVariableDiagnosticVisitor();
+			parseResult.astRoot().accept( unscopedVariableDiagnosticVisitor );
+			fileDiagnostics.addAll( unscopedVariableDiagnosticVisitor.getDiagnostics() );
+		}
 
 		List<SourceCodeVisitor> visitors = SourceCodeVisitorService.getInstance().forceVisit( parseResult.uri.toString().toString(), parseResult.astRoot );
 

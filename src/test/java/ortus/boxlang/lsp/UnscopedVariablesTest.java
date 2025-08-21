@@ -58,7 +58,6 @@ public class UnscopedVariablesTest {
 		assertThat( unscopedVariable.getSeverity() ).isEqualTo( DiagnosticSeverity.Warning );
 	}
 
-	// TODO do not warn for variables defined in properties
 	@Test
 	void testDoNotWarnForProperties() {
 		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
@@ -79,7 +78,6 @@ public class UnscopedVariablesTest {
 		assertThat( unscopedVariable ).isNull();
 	}
 
-	// TODO should only get a warning for the first assignment in the function
 	@Test
 	void testDoNotWarnMultipleTimesWithinFunction() {
 		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
@@ -99,7 +97,24 @@ public class UnscopedVariablesTest {
 		assertThat( c ).isEqualTo( 1 );
 	}
 
-	// TODO do not warn for boxlang files
+	@Test
+	void testDoNotIncludeBoxLang() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		// Get the project root directory
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		// Resolve the file path relative to the project root directory
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unscopedVariable.bx" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
+		assertNotNull( diagnostics, "Diagnostics should not be null." );
+
+		long c = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "] is not scoped." ) )
+		    .count();
+
+		assertThat( c ).isEqualTo( 0 );
+	}
 	// TODO do not warn for variables defined in psuedo constructor using variables scope
 	// TODO do not warn for assignments to variables that have already been scoped
 }
