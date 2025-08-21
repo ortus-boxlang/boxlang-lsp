@@ -8,6 +8,8 @@ component {
     public function thing(){
         var x = 4;
         foo = "test";
+
+        x = 5;
     }
 
     public function checkProperty(){
@@ -23,5 +25,20 @@ component {
         inVariables = "test";
         inVariablesNoScope = "test";
         inVariablesArrayAccess = "test";
+    }
+
+    public function checkMultipleShouldWarn(){
+        shouldWarnOnce = "test";
+        shouldWarnOnce = "test";
+        shouldWarnOnce = "test";
+    }
+
+    public function checkWasVard(){
+        var hasBeenVard = "test";
+        hasBeenVard = "new value";
+    }
+
+    public function checkWasVardByArgument( someArg ){
+        someArg = "new value";
     }
 }

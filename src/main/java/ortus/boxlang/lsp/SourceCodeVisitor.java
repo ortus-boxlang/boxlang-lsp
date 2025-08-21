@@ -6,6 +6,7 @@ import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.Diagnostic;
 
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
+import ortus.boxlang.lsp.workspace.ProjectContextProvider.FileParseResult;
 
 public abstract class SourceCodeVisitor extends VoidBoxVisitor {
 
@@ -13,6 +14,10 @@ public abstract class SourceCodeVisitor extends VoidBoxVisitor {
 
 	public void setFilePath( String filePath ) {
 		this.filePath = filePath;
+	}
+
+	public boolean canVisit( FileParseResult parseResult ) {
+		return true;
 	}
 
 	public abstract List<Diagnostic> getDiagnostics();

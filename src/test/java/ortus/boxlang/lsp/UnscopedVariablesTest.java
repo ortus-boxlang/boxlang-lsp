@@ -27,7 +27,9 @@ import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.junit.jupiter.api.Test;
@@ -138,5 +140,68 @@ public class UnscopedVariablesTest {
 		assertThat( c ).isEqualTo( 0 );
 	}
 
-	// TODO do not warn for assignments to variables that have already been scoped
+	@Test
+	void testShouldGenerateCodeActions() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		// Get the project root directory
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		// Resolve the file path relative to the project root directory
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unscopedVariable.cfc" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+		List<CodeAction> codeActions = pcp.getFileCodeActions( f.toURI() );
+		assertNotNull( codeActions, "Code actions should not be null." );
+
+		List<CodeAction> relevantActions = codeActions.stream()
+		    .filter( d -> {
+			    return d.getTitle().contains( "Add var keyword to" );
+		    } )
+		    .collect( Collectors.toList() );
+
+		assertThat( relevantActions.size() ).isEqualTo( 4 );
+	}
+
+	@Test
+	void testShouldNotWarnForScopedVariables() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		// Get the project root directory
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		// Resolve the file path relative to the project root directory
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unscopedVariable.cfc" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
+		assertNotNull( diagnostics, "Diagnostics should not be null." );
+
+		long c = diagnostics.stream()
+		    .filter( d -> {
+			    return d.getMessage().contains( "Variable [hasBeenVard" )
+			        && d.getMessage().contains( "] is not scoped." );
+		    } )
+		    .count();
+
+		assertThat( c ).isEqualTo( 0 );
+	}
+
+	@Test
+	void testShouldNotWarnForArguments() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		// Get the project root directory
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		// Resolve the file path relative to the project root directory
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unscopedVariable.cfc" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
+		assertNotNull( diagnostics, "Diagnostics should not be null." );
+
+		long c = diagnostics.stream()
+		    .filter( d -> {
+			    return d.getMessage().contains( "Variable [someArg" )
+			        && d.getMessage().contains( "] is not scoped." );
+		    } )
+		    .count();
+
+		assertThat( c ).isEqualTo( 0 );
+	}
 }

@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.lsp.workspace.visitors.UnscopedVariableDiagnosticVisitor;
 
 public class SourceCodeVisitorService {
 
@@ -17,6 +18,8 @@ public class SourceCodeVisitorService {
 
 	static {
 		instance = new SourceCodeVisitorService();
+
+		instance.addVisitor( UnscopedVariableDiagnosticVisitor.class );
 	}
 
 	private SourceCodeVisitorService() {

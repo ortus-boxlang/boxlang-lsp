@@ -23,9 +23,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
+import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.Diagnostic;
+import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.WorkspaceEdit;
 
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.expression.BoxArrayAccess;
@@ -34,36 +40,53 @@ import ortus.boxlang.compiler.ast.expression.BoxAssignmentModifier;
 import ortus.boxlang.compiler.ast.expression.BoxDotAccess;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
+import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
-import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
+import ortus.boxlang.lsp.SourceCodeVisitor;
 import ortus.boxlang.lsp.workspace.BLASTTools;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.ProjectContextProvider.FileParseResult;
 
 /**
  * Visitor for detecting unscoped variables.
  * 
  * This is meant for cfc and cfm files as BoxLang puts things into the local scope first.
  */
-public class UnscopedVariableDiagnosticVisitor extends VoidBoxVisitor {
+public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 
 	private List<Diagnostic>							diagnostics			= new ArrayList<Diagnostic>();
 	private Set<String>									properties			= new HashSet<String>();
 	private Map<BoxFunctionDeclaration, Set<String>>	functionDiagnostics	= new HashMap<>();
+	private Map<BoxFunctionDeclaration, Set<String>>	functionVard		= new HashMap<>();
+	private Map<Diagnostic, BoxNode>					diagnosticNodes		= new WeakHashMap<>();
 
 	public List<Diagnostic> getDiagnostics() {
 		return this.diagnostics.stream()
-		    .filter( d -> !properties.contains( ( ( String ) d.getData() ).toLowerCase() ) )
+		    .filter( d -> !properties.contains( ( ( String ) ( ( Map ) d.getData() ).get( "variableName" ) ).toLowerCase() ) )
 		    .collect( Collectors.toList() );
+	}
+
+	public boolean canVisit( FileParseResult parseResult ) {
+		return parseResult.isCF();
+	}
+
+	@Override
+	public List<CodeAction> getCodeActions() {
+		return this.diagnostics.stream()
+		    .map( d -> this.createCodeAction( d ) )
+		    .toList();
 	}
 
 	public void visit( BoxProperty node ) {
 		properties.add( BLASTTools.getPropertyName( node ).toLowerCase() );
 	}
 
-	// public void visit( BoxExpressionStatement boxExpres ) {
-	// int i = 0;
-	// }
+	public void visit( BoxArgumentDeclaration node ) {
+		BoxFunctionDeclaration function = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+		functionVard.computeIfAbsent( function, k -> new HashSet<>() )
+		    .add( node.getName().toLowerCase() );
+	}
 
 	public void visit( BoxAssignment node ) {
 
@@ -79,11 +102,19 @@ public class UnscopedVariableDiagnosticVisitor extends VoidBoxVisitor {
 			return;
 		}
 
+		var name = node.getLeft().getSourceText();
+
+		functionVard.computeIfAbsent( function, k -> new HashSet<>() );
+
 		if ( isVarScoped( node ) ) {
+			functionVard.get( function )
+			    .add( name.toLowerCase() );
 			return;
 		}
 
-		var name = node.getLeft().getSourceText();
+		if ( functionVard.get( function ).contains( name.toLowerCase() ) ) {
+			return;
+		}
 
 		if ( functionDiagnostics.containsKey( function ) && functionDiagnostics.get( function ).contains( name.toLowerCase() ) ) {
 			return;
@@ -99,7 +130,9 @@ public class UnscopedVariableDiagnosticVisitor extends VoidBoxVisitor {
 		    org.eclipse.lsp4j.DiagnosticSeverity.Warning,
 		    "boxlang"
 		);
-		d.setData( name );
+		d.setData( Map.of( "variableName", name, "id", UUID.randomUUID().toString() ) );
+		diagnosticNodes.put( d, node );
+
 		diagnostics.add( d );
 
 		functionDiagnostics.computeIfAbsent( function, k -> new HashSet<>() )
@@ -132,9 +165,23 @@ public class UnscopedVariableDiagnosticVisitor extends VoidBoxVisitor {
 		}
 	}
 
-	private void visitChildren( BoxNode node ) {
-		for ( BoxNode child : node.getChildren() ) {
-			child.accept( this );
-		}
+	private CodeAction createCodeAction( Diagnostic diagnostic ) {
+		BoxNode			node			= diagnosticNodes.get( diagnostic );
+		TextEdit		edit			= new TextEdit(
+		    ProjectContextProvider.positionToRange( node.getPosition() ),
+		    node.getSourceText().replaceAll( "^", "var " ) );
+
+		WorkspaceEdit	workspaceEdit	= new WorkspaceEdit( new HashMap<>() );
+
+		workspaceEdit.getChanges().put( this.filePath, new ArrayList<>() );
+		workspaceEdit.getChanges().get( this.filePath ).add( edit );
+
+		CodeAction action = new CodeAction( "Add var keyword to " + node.getSourceText() );
+		action.setEdit( workspaceEdit );
+		action.setKind( CodeActionKind.QuickFix );
+		action.setDiagnostics( new ArrayList<>() );
+		action.getDiagnostics().add( diagnostic );
+
+		return action;
 	}
 }
