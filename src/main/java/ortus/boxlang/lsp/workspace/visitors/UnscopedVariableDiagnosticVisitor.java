@@ -27,9 +27,13 @@ import java.util.stream.Collectors;
 
 import org.eclipse.lsp4j.Diagnostic;
 
+import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.compiler.ast.expression.BoxArrayAccess;
 import ortus.boxlang.compiler.ast.expression.BoxAssignment;
 import ortus.boxlang.compiler.ast.expression.BoxAssignmentModifier;
+import ortus.boxlang.compiler.ast.expression.BoxDotAccess;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
+import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
@@ -57,7 +61,20 @@ public class UnscopedVariableDiagnosticVisitor extends VoidBoxVisitor {
 		properties.add( BLASTTools.getPropertyName( node ).toLowerCase() );
 	}
 
+	// public void visit( BoxExpressionStatement boxExpres ) {
+	// int i = 0;
+	// }
+
 	public void visit( BoxAssignment node ) {
+
+		var function = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+
+		// we are in a script or psuedo constructor
+		if ( function == null ) {
+			trackAssignmentInPsuedoConstructor( node );
+			return;
+		}
+
 		if ( ! ( node.getLeft() instanceof BoxIdentifier ) ) {
 			return;
 		}
@@ -66,13 +83,9 @@ public class UnscopedVariableDiagnosticVisitor extends VoidBoxVisitor {
 			return;
 		}
 
-		var	name		= node.getLeft().getSourceText();
+		var name = node.getLeft().getSourceText();
 
-		var	function	= node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
-
-		if ( function == null
-		    || ( functionDiagnostics.containsKey( function )
-		        && functionDiagnostics.get( function ).contains( name.toLowerCase() ) ) ) {
+		if ( functionDiagnostics.containsKey( function ) && functionDiagnostics.get( function ).contains( name.toLowerCase() ) ) {
 			return;
 		}
 
@@ -101,5 +114,27 @@ public class UnscopedVariableDiagnosticVisitor extends VoidBoxVisitor {
 		}
 
 		return false;
+	}
+
+	private void trackAssignmentInPsuedoConstructor( BoxAssignment node ) {
+		if ( node.getLeft() instanceof BoxDotAccess bda ) {
+			var access = bda.getAccess();
+
+			if ( access instanceof BoxIdentifier accessIdentifier ) {
+				properties.add( ( ( String ) accessIdentifier.getSourceText() ).toLowerCase() );
+			}
+		} else if ( node.getLeft() instanceof BoxIdentifier id ) {
+			properties.add( ( ( String ) id.getSourceText() ).toLowerCase() );
+		} else if ( node.getLeft() instanceof BoxArrayAccess arrayAccess ) {
+			if ( arrayAccess.getAccess() instanceof BoxStringLiteral accessIdentifier ) {
+				properties.add( ( ( String ) accessIdentifier.getAsSimpleValue() ).toLowerCase() );
+			}
+		}
+	}
+
+	private void visitChildren( BoxNode node ) {
+		for ( BoxNode child : node.getChildren() ) {
+			child.accept( this );
+		}
 	}
 }

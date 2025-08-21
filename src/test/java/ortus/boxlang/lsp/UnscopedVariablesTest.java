@@ -115,6 +115,28 @@ public class UnscopedVariablesTest {
 
 		assertThat( c ).isEqualTo( 0 );
 	}
-	// TODO do not warn for variables defined in psuedo constructor using variables scope
+
+	@Test
+	void testDoNotWarnForVariablesInPsuedoConstructor() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		// Get the project root directory
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		// Resolve the file path relative to the project root directory
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unscopedVariable.cfc" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
+		assertNotNull( diagnostics, "Diagnostics should not be null." );
+
+		long c = diagnostics.stream()
+		    .filter( d -> {
+			    return d.getMessage().contains( "Variable [inVariables" )
+			        && d.getMessage().contains( "] is not scoped." );
+		    } )
+		    .count();
+
+		assertThat( c ).isEqualTo( 0 );
+	}
+
 	// TODO do not warn for assignments to variables that have already been scoped
 }
