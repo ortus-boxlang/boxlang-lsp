@@ -60,6 +60,7 @@ import ortus.boxlang.lsp.workspace.types.ParsedProperty;
 import ortus.boxlang.lsp.workspace.visitors.DefinitionTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
 import ortus.boxlang.lsp.workspace.visitors.PropertyVisitor;
+import ortus.boxlang.lsp.workspace.visitors.UnscopedVariableDiagnosticVisitor;
 import ortus.boxlang.lsp.workspace.visitors.UnusedVariableDiagnosticVisitor;
 import ortus.boxlang.runtime.BoxRuntime;
 
@@ -519,6 +520,10 @@ public class ProjectContextProvider {
 		UnusedVariableDiagnosticVisitor unusedVariableDiagnosticVisitor = new UnusedVariableDiagnosticVisitor();
 		parseResult.astRoot().accept( unusedVariableDiagnosticVisitor );
 		fileDiagnostics.addAll( unusedVariableDiagnosticVisitor.getDiagnostics() );
+
+		UnscopedVariableDiagnosticVisitor unscopedVariableDiagnosticVisitor = new UnscopedVariableDiagnosticVisitor();
+		parseResult.astRoot().accept( unscopedVariableDiagnosticVisitor );
+		fileDiagnostics.addAll( unscopedVariableDiagnosticVisitor.getDiagnostics() );
 
 		List<SourceCodeVisitor> visitors = SourceCodeVisitorService.getInstance().forceVisit( parseResult.uri.toString().toString(), parseResult.astRoot );
 
