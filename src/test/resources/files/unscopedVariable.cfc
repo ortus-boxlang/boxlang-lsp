@@ -40,5 +40,16 @@ component {
 
     public function checkWasVardByArgument( someArg ){
         someArg = "new value";
+        var what = someArg + 2;
+    }
+
+    public function test( theUnusedArg ){
+        var theUnusedVar = "test";
+
+        // var x = theUnusedVar;
+    
+        // x.ucase();
+
+       
     }
 }

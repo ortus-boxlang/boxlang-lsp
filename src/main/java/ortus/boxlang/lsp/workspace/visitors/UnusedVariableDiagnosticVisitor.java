@@ -2,154 +2,113 @@ package ortus.boxlang.lsp.workspace.visitors;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
+import org.eclipse.lsp4j.DiagnosticTag;
 
 import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.compiler.ast.expression.BoxArrayAccess;
 import ortus.boxlang.compiler.ast.expression.BoxAssignment;
-import ortus.boxlang.compiler.ast.expression.BoxComparisonOperation;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
-import ortus.boxlang.compiler.ast.expression.BoxUnaryOperation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
-import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
+import ortus.boxlang.lsp.SourceCodeVisitor;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
-public class UnusedVariableDiagnosticVisitor extends VoidBoxVisitor {
+public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 
-	private List<Diagnostic> diagnostics = new ArrayList<Diagnostic>();
+	private Map<BoxFunctionDeclaration, Set<BoxNode>>	assignedVars	= new HashMap<>();
+	private Map<BoxFunctionDeclaration, Set<String>>	usedVars		= new HashMap<>();
 
 	public List<Diagnostic> getDiagnostics() {
-		return this.diagnostics;
-	}
 
-	public void visit( BoxFunctionDeclaration node ) {
-		// TODO: mark any code after a top-level BoxReturnStatement as unreachable
-		var fvc = new FunctionVariablesCollector( node );
-		new FunctionVariablesTracker( fvc ).track( node );
-		this.diagnostics = fvc.varUsage.values().stream()
-		    .filter( tv -> !tv.used )
-		    .map( tv -> {
-			    return new Diagnostic(
-			        ProjectContextProvider.positionToRange( tv.node.getPosition() ),
-			        "Variable [" + tv.name + "] is declared but never used.",
-			        DiagnosticSeverity.Warning,
+		return assignedVars.entrySet().stream()
+		    .flatMap( entry -> {
+			    return entry.getValue().stream()
+			        .filter(
+			            item -> !usedVars.containsKey( entry.getKey() ) || !usedVars.get( entry.getKey() ).contains( getNameFromNode( item ).toLowerCase() ) );
+		    } )
+		    .map( varNode -> {
+			    var diagnostic = new Diagnostic(
+			        ProjectContextProvider.positionToRange( varNode.getPosition() ),
+			        "Variable [" + getNameFromNode( varNode ) + "] is declared but never used.",
+			        DiagnosticSeverity.Hint,
 			        "boxlang"
 			    );
-		    } ).collect( Collectors.toList() );
+
+			    diagnostic.setTags( List.of( DiagnosticTag.Unnecessary ) );
+
+			    return diagnostic;
+		    } )
+		    .collect( Collectors.toList() );
 	}
 
-	private class TrackedVariable {
-
-		public String	name;
-		public boolean	used;
-		public BoxNode	node;
-
-		public TrackedVariable( String name, boolean used, BoxNode node ) {
-			this.name	= name;
-			this.used	= used;
-			this.node	= node;
-		}
-
-		public TrackedVariable markUsed() {
-			this.used = true;
-			return this;
-		}
+	public List<CodeAction> getCodeActions() {
+		return new ArrayList<CodeAction>();
 	}
 
-	private class FunctionVariablesCollector extends VoidBoxVisitor {
-
-		private BoxFunctionDeclaration		func;
-		public Map<String, TrackedVariable>	varUsage	= new HashMap<>();
-
-		public FunctionVariablesCollector( BoxFunctionDeclaration func ) {
-			this.func = func;
-			this.visit();
+	private String getNameFromNode( BoxNode node ) {
+		if ( node instanceof BoxIdentifier ) {
+			return ( ( BoxIdentifier ) node ).getName();
+		} else if ( node instanceof BoxArgumentDeclaration ) {
+			return ( ( BoxArgumentDeclaration ) node ).getName();
 		}
-
-		public void visit() {
-			for ( BoxArgumentDeclaration arg : this.func.getArgs() ) {
-				arg.accept( this );
-			}
-
-			for ( BoxNode child : this.func.getChildren() ) {
-				child.accept( this );
-			}
-		}
-
-		public void visit( BoxArgumentDeclaration node ) {
-			this.varUsage.put( node.getName(), new TrackedVariable( node.getName(), false, node ) );
-		}
-
-		public void visit( BoxAssignment node ) {
-			if ( node.getLeft() instanceof BoxIdentifier id ) {
-				this.varUsage.put( id.getName(), new TrackedVariable( id.getName(), false, node ) );
-			}
-		}
-
-		public void visit( BoxComparisonOperation node ) {
-			if ( node.getLeft() instanceof BoxIdentifier id ) {
-				this.varUsage.put( id.getName(), new TrackedVariable( id.getName(), false, node ) );
-			}
-			if ( node.getRight() instanceof BoxIdentifier id ) {
-				this.varUsage.put( id.getName(), new TrackedVariable( id.getName(), false, node ) );
-			}
-		}
+		return null;
 	}
 
-	private class FunctionVariablesTracker extends VoidBoxVisitor {
+	public void visit( BoxArgumentDeclaration node ) {
+		BoxFunctionDeclaration func = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
 
-		private FunctionVariablesCollector fvc;
+		assignedVars.computeIfAbsent( func, k -> new HashSet<>() ).add( node );
+	}
 
-		public FunctionVariablesTracker( FunctionVariablesCollector fvc ) {
-			this.fvc = fvc;
+	public void visit( BoxIdentifier node ) {
+		BoxFunctionDeclaration func = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+
+		if ( this.isBeingAssignedTo( node ) ) {
+			assignedVars.computeIfAbsent( func, k -> new HashSet<>() ).add( node );
+			return;
 		}
 
-		public void track( BoxFunctionDeclaration node ) {
-			for ( BoxArgumentDeclaration arg : node.getArgs() ) {
-				arg.accept( this );
-			}
+		usedVars.computeIfAbsent( func, k -> new HashSet<>() ).add( node.getName().toLowerCase() );
+	}
 
-			for ( BoxNode child : node.getChildren() ) {
-				child.accept( this );
-			}
+	private boolean isBeingAssignedTo( BoxIdentifier node ) {
+		BoxAssignment assignment = ( BoxAssignment ) node.getFirstAncestorOfType( BoxAssignment.class );
 
+		if ( assignment != null && node.getAncestors().contains( assignment.getRight() ) ) {
+			return false;
 		}
 
-		public void visit( BoxArgumentDeclaration node ) {
-			Optional.ofNullable( node.getValue() ).ifPresent( v -> {
-				if ( v instanceof BoxIdentifier id ) {
-					this.fvc.varUsage.get( id.getName() ).markUsed();
-				}
-			} );
+		BoxArrayAccess arrayAccess = ( BoxArrayAccess ) node.getFirstAncestorOfType( BoxArrayAccess.class );
+
+		if ( arrayAccess != null
+		    && ( node.getAncestors().contains( arrayAccess.getAccess() )
+		        || node == arrayAccess.getAccess() ) ) {
+			return false;
 		}
 
-		public void visit( BoxAssignment node ) {
-			if ( node.getRight() instanceof BoxIdentifier id ) {
-				this.fvc.varUsage.get( id.getName() ).markUsed();
-			}
+		if ( assignment != null
+		    && ( node.getAncestors().contains( assignment.getLeft() )
+		        || assignment.getLeft() == node ) ) {
+			return true;
 		}
 
-		public void visit( BoxComparisonOperation node ) {
-			if ( node.getLeft() instanceof BoxIdentifier id ) {
-				this.fvc.varUsage.get( id.getName() ).markUsed();
-			}
-			if ( node.getRight() instanceof BoxIdentifier id ) {
-				this.fvc.varUsage.get( id.getName() ).markUsed();
-			}
+		if ( node.getFirstAncestorOfType( BoxArgumentDeclaration.class ) != null ) {
+			return true;
 		}
 
-		public void visit( BoxUnaryOperation node ) {
-			if ( node.getExpr() instanceof BoxIdentifier id ) {
-				this.fvc.varUsage.get( id.getName() ).markUsed();
-			}
-		}
+		// TODO what about thing[ usedVariable ] = 4? That should count as a use of usedVariable but it is to the left
+		// check if the identifier is part of an array access
 
+		return false;
 	}
 
 }

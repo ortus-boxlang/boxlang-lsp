@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.lsp.workspace.visitors.UnscopedVariableDiagnosticVisitor;
+import ortus.boxlang.lsp.workspace.visitors.UnusedVariableDiagnosticVisitor;
 
 public class SourceCodeVisitorService {
 
@@ -20,6 +21,7 @@ public class SourceCodeVisitorService {
 		instance = new SourceCodeVisitorService();
 
 		instance.addVisitor( UnscopedVariableDiagnosticVisitor.class );
+		instance.addVisitor( UnusedVariableDiagnosticVisitor.class );
 	}
 
 	private SourceCodeVisitorService() {
