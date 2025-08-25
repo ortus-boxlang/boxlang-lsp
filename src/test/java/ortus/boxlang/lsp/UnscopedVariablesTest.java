@@ -158,7 +158,7 @@ public class UnscopedVariablesTest {
 		    } )
 		    .collect( Collectors.toList() );
 
-		assertThat( relevantActions.size() ).isEqualTo( 4 );
+		assertThat( relevantActions.size() ).isEqualTo( 3 );
 	}
 
 	@Test

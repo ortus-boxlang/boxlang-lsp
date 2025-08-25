@@ -45,8 +45,8 @@ import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.lsp.SourceCodeVisitor;
 import ortus.boxlang.lsp.workspace.BLASTTools;
+import ortus.boxlang.lsp.workspace.FileParseResult;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
-import ortus.boxlang.lsp.workspace.ProjectContextProvider.FileParseResult;
 
 /**
  * Visitor for detecting unscoped variables.

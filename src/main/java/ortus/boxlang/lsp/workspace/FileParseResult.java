@@ -1,8 +1,6 @@
 package ortus.boxlang.lsp.workspace;
 
-import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.net.URI;
@@ -40,13 +38,13 @@ public class FileParseResult {
 	private URI												uri;
 	private boolean											isOpen				= false;
 	private String											source				= null;
-	private WeakReference<ParsingResult>					parseResultRef;
-	private List<Issue>										issues;
-	private List<Diagnostic>								diagnostics;
-	private List<CodeAction>								codeActions;
-	private List<Either<SymbolInformation, DocumentSymbol>>	outline;
-	private List<ParsedProperty>							properties;
-	private List<SourceCodeVisitor>							visitors;
+	private WeakReference<ParsingResult>					parseResultRef		= new WeakReference<ParsingResult>( null );
+	private List<Issue>										issues				= new ArrayList<Issue>();
+	private List<Diagnostic>								diagnostics			= new ArrayList<Diagnostic>();
+	private List<CodeAction>								codeActions			= new ArrayList<CodeAction>();
+	private List<Either<SymbolInformation, DocumentSymbol>>	outline				= new ArrayList<Either<SymbolInformation, DocumentSymbol>>();
+	private List<ParsedProperty>							properties			= new ArrayList<ParsedProperty>();
+	private List<SourceCodeVisitor>							visitors			= new ArrayList<SourceCodeVisitor>();
 	private List<FunctionDefinition>						functionDefinitions	= new ArrayList<FunctionDefinition>();
 
 	public static FileParseResult fromFileSystem( URI uri ) {
@@ -141,10 +139,10 @@ public class FileParseResult {
 	private Optional<ParsingResult> findParsingResult() {
 
 		if ( parseResultRef.get() == null ) {
-			parseResultRef.refersTo( parseSource() );
+			parseResultRef = new WeakReference<>( parseSource() );
 		}
 
-		return Optional.of( parseResultRef.get() );
+		return Optional.ofNullable( parseResultRef.get() );
 	}
 
 	private ParsingResult parseSource() {
@@ -162,20 +160,6 @@ public class FileParseResult {
 		} catch ( Exception e ) {
 			App.logger.error( "Unable to parse " + this.uri, e );
 			return null;
-		}
-	}
-
-	private boolean isJavaBytecode( File sourceFile ) {
-		try ( FileInputStream fis = new FileInputStream( sourceFile );
-		    DataInputStream dis = new DataInputStream( fis ) ) {
-			// File may be empty! At least 4 bytes are needed to read an int
-			if ( dis.available() < 4 ) {
-				return false;
-			}
-			// Are we the Java Magic number?
-			return dis.readInt() == 0xCAFEBABE;
-		} catch ( IOException e ) {
-			throw new RuntimeException( "Failed to read file", e );
 		}
 	}
 
@@ -221,7 +205,7 @@ public class FileParseResult {
 	}
 
 	private void fullyParse() {
-		parseSource();
+		parseResultRef = new WeakReference<>( parseSource() );
 
 		findAstRoot().ifPresent( root -> {
 			properties			= parseProperties( root );

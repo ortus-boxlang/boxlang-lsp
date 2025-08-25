@@ -194,16 +194,9 @@ public class ProjectContextProvider {
 		    .map( ( res ) -> res.getOutline() );
 	}
 
-	public List<Location> findMatchingFunctionDeclerations( URI docURI, String functionName ) {
+	public List<Location> findMatchingFunctionDeclarations( URI docURI, String functionName ) {
 		return this.functionDefinitions.stream()
 		    .filter( ( fn ) -> fn.getFunctionName().equals( functionName ) && docURI.equals( fn.getFileURI() ) )
-		    .map( FunctionDefinition::getLocation )
-		    .toList();
-	}
-
-	public List<Location> findMatchingFunctionDeclerations( String functionName ) {
-		return this.functionDefinitions.stream()
-		    .filter( ( fn ) -> fn.getFunctionName().equals( functionName ) )
 		    .map( FunctionDefinition::getLocation )
 		    .toList();
 	}
@@ -216,7 +209,7 @@ public class ProjectContextProvider {
 				    // same file
 				    // global - should this be found? or what should we show?
 				    // parent class
-				    return findMatchingFunctionDeclerations( docURI, fnUse.getName() );
+				    return findMatchingFunctionDeclarations( docURI, fnUse.getName() );
 			    } else if ( node instanceof BoxMethodInvocation methodUse ) {
 				    // should only be able to find function definitions in these locations
 				    // the type being accessed
