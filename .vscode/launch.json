@@ -9,7 +9,7 @@
             "name": "Run LSP",
             "request": "launch",
             "mainClass": "ortus.boxlang.runtime.BoxRunner",
-            "projectName": "bx-lsp-boxlang-lsp",
+            "projectName": "boxlang-lsp",
             "env": {
                 "BOXLANG_RUNTIME_MODULESDIRECTORY": "/Users/jacob/dev/ortus-boxlang/boxlang-lsp/build"
             },
