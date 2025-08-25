@@ -11,11 +11,11 @@
             "mainClass": "ortus.boxlang.runtime.BoxRunner",
             "projectName": "boxlang-lsp",
             "env": {
+                "BOXLANG_HOME": "${workspaceFolder}/.boxlang_home",
+                "xBOXLANG_CONFIG": "boxlang.json",
                 "BOXLANG_RUNTIME_MODULESDIRECTORY": "/Users/jacob/dev/ortus-boxlang/boxlang-lsp/build"
             },
             "args": [
-                "--bx-config",
-                "/Users/jacob/dev/ortus-boxlang/boxlang-lsp/boxlang.json",
                 "module:bx-lsp",
                 "--debug-server-port",
                 "7777"
