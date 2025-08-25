@@ -1,11 +1,11 @@
 package ortus.boxlang.lsp.workspace.visitors;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
 import org.eclipse.lsp4j.CodeAction;
@@ -24,8 +24,8 @@ import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
 public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 
-	private Map<BoxFunctionDeclaration, Set<BoxNode>>	assignedVars	= new HashMap<>();
-	private Map<BoxFunctionDeclaration, Set<String>>	usedVars		= new HashMap<>();
+	private Map<BoxFunctionDeclaration, Set<BoxNode>>	assignedVars	= new WeakHashMap<>();
+	private Map<BoxFunctionDeclaration, Set<String>>	usedVars		= new WeakHashMap<>();
 
 	public List<Diagnostic> getDiagnostics() {
 

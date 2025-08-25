@@ -8,8 +8,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 
-import org.apache.commons.lang3.StringUtils;
 import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.WorkspaceDiagnosticParams;
@@ -44,41 +44,36 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 				return new WorkspaceDiagnosticReport();
 			}
 
-			try {
-				Files
-				    .walk( Path.of( new URI( provider.getWorkspaceFolders().getFirst().getUri() ) ) )
-				    .filter( path -> {
-					    try {
-						    return Files.isRegularFile( path )
-						        && StringUtils.endsWithAny(
-						            path.toString(),
-						            ".bx",
-						            ".bxs",
-						            ".bxm",
-						            ".cfc",
-						            ".cfs",
-						            ".cfm"
-						        );
-					    } catch ( Exception e ) {
-						    App.logger.debug( String.format( "Unable to walk file {}", path ), e );
-						    return false;
-					    }
-				    } )
-				    .forEach( ( clazzPath ) -> {
-					    try {
-						    WorkspaceFullDocumentDiagnosticReport fullReport = new WorkspaceFullDocumentDiagnosticReport();
-						    fullReport.setItems( provider.getFileDiagnostics( clazzPath.toUri() ) );
-						    fullReport.setUri( clazzPath.toUri().toString() );
-						    docReports.add( new WorkspaceDocumentDiagnosticReport( fullReport ) );
+			ForkJoinPool pool = new ForkJoinPool( 4 );
 
-					    } catch ( Exception e ) {
-						    // TODO Auto-generated catch block
-						    e.printStackTrace();
-					    }
-				    } );
-			} catch ( IOException | URISyntaxException e ) {
-				// TODO Auto-generated catch block
+			try {
+				pool.submit( () -> {
+					try {
+						Files
+						    .walk( Path.of( new URI( provider.getWorkspaceFolders().getFirst().getUri() ) ) )
+						    .parallel()
+						    .filter( LSPTools::canWalkFile )
+						    .forEach( ( clazzPath ) -> {
+							    try {
+								    WorkspaceFullDocumentDiagnosticReport fullReport = new WorkspaceFullDocumentDiagnosticReport();
+								    fullReport.setItems( provider.getFileDiagnostics( clazzPath.toUri() ) );
+								    fullReport.setUri( clazzPath.toUri().toString() );
+								    docReports.add( new WorkspaceDocumentDiagnosticReport( fullReport ) );
+
+							    } catch ( Exception e ) {
+								    // TODO Auto-generated catch block
+								    e.printStackTrace();
+							    }
+						    } );
+					} catch ( IOException | URISyntaxException e ) {
+						e.printStackTrace();
+					}
+				} ).get();
+			} catch ( Exception e ) {
 				e.printStackTrace();
+			} finally {
+				pool.shutdown();
+				pool.close();
 			}
 
 			cancelToken.checkCanceled();

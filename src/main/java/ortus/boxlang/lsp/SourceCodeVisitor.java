@@ -6,7 +6,7 @@ import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.Diagnostic;
 
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
-import ortus.boxlang.lsp.workspace.ProjectContextProvider.FileParseResult;
+import ortus.boxlang.lsp.workspace.FileParseResult;
 
 public abstract class SourceCodeVisitor extends VoidBoxVisitor {
 

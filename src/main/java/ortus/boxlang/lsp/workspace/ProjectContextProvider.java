@@ -1,20 +1,14 @@
 package ortus.boxlang.lsp.workspace;
 
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionParams;
@@ -24,7 +18,6 @@ import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.Diagnostic;
-import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.Position;
@@ -40,103 +33,26 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import com.google.gson.JsonObject;
 
 import ortus.boxlang.compiler.ast.BoxNode;
-import ortus.boxlang.compiler.ast.Issue;
 import ortus.boxlang.compiler.ast.Point;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
-import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
-import ortus.boxlang.compiler.parser.Parser;
-import ortus.boxlang.compiler.parser.ParsingResult;
-import ortus.boxlang.lsp.DocumentSymbolBoxNodeVisitor;
-import ortus.boxlang.lsp.LSPTools;
-import ortus.boxlang.lsp.SourceCodeVisitor;
-import ortus.boxlang.lsp.SourceCodeVisitorService;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensFacts;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensRuleBook;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
 import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
-import ortus.boxlang.lsp.workspace.types.ParsedProperty;
 import ortus.boxlang.lsp.workspace.visitors.DefinitionTargetVisitor;
-import ortus.boxlang.lsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
-import ortus.boxlang.lsp.workspace.visitors.PropertyVisitor;
-import ortus.boxlang.runtime.BoxRuntime;
 
 public class ProjectContextProvider {
 
-	static ProjectContextProvider			instance;
-	private List<WorkspaceFolder>			workspaceFolders			= new ArrayList<WorkspaceFolder>();
-	private LanguageClient					client;
-	private Map<URI, FileParseResult>		parsedFiles					= new HashMap<URI, FileParseResult>();
-	private List<FunctionDefinition>		functionDefinitions			= new ArrayList<FunctionDefinition>();
-	private Map<URI, OpenDocument>			openDocuments				= new HashMap<URI, OpenDocument>();
-	private Map<String, List<Diagnostic>>	diagnostics					= new HashMap<String, List<Diagnostic>>();
-	private Map<String, List<CodeAction>>	codeActions					= new HashMap<String, List<CodeAction>>();
+	static ProjectContextProvider		instance;
+	private List<WorkspaceFolder>		workspaceFolders			= new ArrayList<WorkspaceFolder>();
+	private LanguageClient				client;
+	private Map<URI, FileParseResult>	parsedFiles					= new HashMap<URI, FileParseResult>();
+	private Map<URI, FileParseResult>	openDocuments				= new HashMap<URI, FileParseResult>();
+	private List<FunctionDefinition>	functionDefinitions			= new ArrayList<FunctionDefinition>();
 
-	private boolean							shouldPublishDiagnostics	= false;
-
-	record OpenDocument(
-	    URI uri,
-	    String latestContent ) {
-
-	}
-
-	public record FileParseResult(
-	    URI uri,
-	    BoxNode astRoot,
-	    List<Issue> issues,
-	    List<Either<SymbolInformation, DocumentSymbol>> outline,
-	    List<ParsedProperty> properties,
-	    List<SourceCodeVisitor> visitors ) {
-
-		public boolean isTemplate() {
-			return uri.toString().endsWith( ".bxm" );
-		}
-
-		public boolean isClass() {
-			return uri.toString().endsWith( ".bx" );
-		}
-
-		public boolean isCF() {
-			return uri.toString().endsWith( ".cfc" ) || uri.toString().endsWith( ".cfm" ) || uri.toString().endsWith( ".cfml" );
-		}
-
-		public Optional<BoxFunctionDeclaration> getMainFunction() {
-			if ( astRoot == null ) {
-				return Optional.empty();
-			}
-
-			var funcs = astRoot.getDescendantsOfType( BoxFunctionDeclaration.class, ( n ) -> n.getName().equalsIgnoreCase( "main" ) );
-
-			return funcs.size() == 0 ? Optional.empty() : Optional.of( funcs.getLast() );
-		}
-	}
-
-	public static String readLine( String docURI, int lineNumber ) {
-		return readLine( LSPTools.convertDocumentURI( docURI ), lineNumber );
-	}
-
-	public static String readLine( URI docURI, int lineNumber ) {
-		ProjectContextProvider	instance	= getInstance();
-		Stream<String>			lineStream	= Stream.ofNullable( null );
-
-		if ( instance.openDocuments.containsKey( docURI ) ) {
-			OpenDocument doc = instance.openDocuments.get( docURI );
-			lineStream = List.of( doc.latestContent.split( "\n" ) )
-			    .stream();
-		} else if ( instance.parsedFiles.containsKey( docURI ) && instance.parsedFiles.get( docURI ).astRoot() != null ) {
-			lineStream = List.of( instance.parsedFiles.get( docURI ).astRoot().getSourceText().split( "\n" ) ).stream();
-		} else {
-			try {
-				lineStream = Files.lines( Path.of( docURI ) );
-			} catch ( IOException e ) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-
-		return lineStream.skip( lineNumber ).findFirst().get();
-	}
+	private boolean						shouldPublishDiagnostics	= false;
 
 	public static ortus.boxlang.compiler.ast.Position toBLPosition( Position lspPosition ) {
 		Point								start	= new Point( lspPosition.getLine(), lspPosition.getCharacter() );
@@ -160,19 +76,15 @@ public class ProjectContextProvider {
 	}
 
 	public List<Diagnostic> getFileDiagnostics( URI docURI ) {
-		if ( !this.diagnostics.containsKey( docURI.toString() ) ) {
-			analyzeSource( docURI );
-		}
-
-		return this.diagnostics.get( docURI.toString() );
+		return getLatestFileParseResult( docURI )
+		    .map( ( res ) -> res.getDiagnostics() )
+		    .orElseGet( () -> new ArrayList<Diagnostic>() );
 	}
 
 	public List<CodeAction> getFileCodeActions( URI docURI ) {
-		if ( !this.codeActions.containsKey( docURI.toString() ) ) {
-			analyzeSource( docURI );
-		}
-
-		return this.codeActions.get( docURI.toString() );
+		return getLatestFileParseResult( docURI )
+		    .map( ( res ) -> res.getCodeActions() )
+		    .orElseGet( () -> new ArrayList<CodeAction>() );
 	}
 
 	public List<WorkspaceFolder> getWorkspaceFolders() {
@@ -203,50 +115,40 @@ public class ProjectContextProvider {
 	}
 
 	public List<? extends TextEdit> formatDocument( URI docUri ) {
-		ParsingResult res;
-		try {
-			res = this.getLatestParsingResult( docUri );
-		} catch ( IOException e ) {
-			e.printStackTrace();
-			return new ArrayList<>();
-		}
+		return this.getLatestFileParseResult( docUri )
+		    .flatMap( fpr -> fpr.findAstRoot() )
+		    .map( astRoot -> {
+			    List<TextEdit>		edits					= new ArrayList<TextEdit>();
 
-		List<TextEdit>			edits					= new ArrayList<TextEdit>();
+			    PrettyPrintBoxVisitor prettyPrintBoxVisitor	= new PrettyPrintBoxVisitor();
 
-		PrettyPrintBoxVisitor	prettyPrintBoxVisitor	= new PrettyPrintBoxVisitor();
+			    astRoot.accept( prettyPrintBoxVisitor );
 
-		res.getRoot().accept( prettyPrintBoxVisitor );
+			    if ( astRoot != null ) {
+				    Range range = positionToRange( astRoot.getPosition() );
+				    range.getStart().setLine( 0 );
+				    range.getStart().setCharacter( 0 );
+				    range.getEnd().setLine( range.getEnd().getLine() + 1 );
+				    edits.add( new TextEdit( range,
+				        prettyPrintBoxVisitor.getOutput() ) );
+			    }
 
-		if ( res.getRoot() != null ) {
-			Range range = positionToRange( res.getRoot().getPosition() );
-			range.getStart().setLine( 0 );
-			range.getStart().setCharacter( 0 );
-			range.getEnd().setLine( range.getEnd().getLine() + 1 );
-			edits.add( new TextEdit( range,
-			    prettyPrintBoxVisitor.getOutput() ) );
-		}
+			    return edits;
+		    } ).orElse( new ArrayList<>() );
 
-		return edits;
-	}
-
-	private FileParseResult consumeOrGet( URI docUri ) {
-		if ( !this.parsedFiles.containsKey( docUri ) ) {
-			this.consumeFile( docUri );
-		}
-
-		return this.parsedFiles.get( docUri );
 	}
 
 	public void trackDocumentChange( URI docUri, List<TextDocumentContentChangeEvent> changes ) {
-		for ( TextDocumentContentChangeEvent change : changes ) {
-			if ( change.getRange() == null ) {
-				this.openDocuments.put( docUri, new OpenDocument( docUri, change.getText() ) );
-			}
+
+		if ( openDocuments.containsKey( docUri ) ) {
+			this.openDocuments.remove( docUri );
 		}
 
-		this.clearFileCache( docUri );
-		this.consumeFile( docUri );
-		this.analyzeSource( docUri );
+		for ( TextDocumentContentChangeEvent change : changes ) {
+			if ( change.getRange() == null ) {
+				this.openDocuments.put( docUri, FileParseResult.fromSourceString( docUri, change.getText() ) );
+			}
+		}
 	}
 
 	public void trackDocumentSave( URI docUri, String text ) {
@@ -261,14 +163,11 @@ public class ProjectContextProvider {
 			}
 		}
 
-		this.openDocuments.put( docUri, new OpenDocument( docUri, fileContent ) );
-
-		// this.consumeFile( docUri );
+		this.openDocuments.put( docUri, FileParseResult.fromSourceString( docUri, fileContent ) );
 	}
 
 	public void trackDocumentOpen( URI docUri, String text ) {
-		this.openDocuments.put( docUri, new OpenDocument( docUri, text ) );
-		// this.consumeFile( docUri );
+		this.openDocuments.put( docUri, FileParseResult.fromSourceString( docUri, text ) );
 	}
 
 	public void trackDocumentClose( URI docUri ) {
@@ -276,60 +175,23 @@ public class ProjectContextProvider {
 		this.parsedFiles.remove( docUri );
 	}
 
-	private ParsingResult getLatestParsingResult( URI docUri ) throws IOException {
-		Parser parser = new Parser();
+	private Optional<FileParseResult> getLatestFileParseResult( URI docUri ) {
 		if ( this.openDocuments.containsKey( docUri ) ) {
-			return parser.parse(
-			    this.openDocuments.get( docUri ).latestContent(),
-			    Parser.detectFile( new File( docUri ) ),
-			    Parser.getFileExtension( docUri.toString() ).orElseGet( () -> "bxs" ).matches( "cfc|bx" ) );
+			return Optional.of( this.openDocuments.get( docUri ) );
 		}
 
-		return parser.parse( Paths.get( docUri ).toFile() );
-	}
-
-	public FileParseResult consumeFile( URI docUri ) {
-		ParsingResult result = null;
-
-		if ( isJavaBytecode( new File( docUri ) ) ) {
-			return new FileParseResult( docUri, null, new ArrayList(), null, null, null );
+		if ( this.parsedFiles.containsKey( docUri ) ) {
+			return Optional.of( this.parsedFiles.get( docUri ) );
 		}
 
-		try {
-			result = getLatestParsingResult( docUri );
-		} catch ( IOException e ) {
-			e.printStackTrace();
-		}
+		FileParseResult result = FileParseResult.fromFileSystem( docUri );
 
-		FileParseResult res;
-
-		if ( result == null ) {
-			res = new FileParseResult( docUri, null, new ArrayList(), null, null, null );
-		} else if ( result.getRoot() == null ) {
-			res = new FileParseResult( docUri, null, result.getIssues(), null, null, null );
-		} else {
-			BoxNode root = result.getRoot();
-			res = new FileParseResult(
-			    docUri,
-			    root,
-			    result.getIssues(),
-			    generateOutline( docUri, root ),
-			    parseProperties( root ),
-			    SourceCodeVisitorService.getInstance().forceVisit( docUri.toString(), root ) );
-			generateOutline( docUri, root );
-
-			generateFunctionDefinitions( docUri, root );
-		}
-
-		this.parsedFiles.put( docUri, res );
-
-		return res;
+		return Optional.of( result );
 	}
 
 	public Optional<List<Either<SymbolInformation, DocumentSymbol>>> getDocumentSymbols( URI docURI ) {
-		return Optional.ofNullable( this.parsedFiles.get( docURI ) )
-		    .or( () -> Optional.of( this.consumeFile( docURI ) ) )
-		    .map( ( res ) -> res.outline );
+		return getLatestFileParseResult( docURI )
+		    .map( ( res ) -> res.getOutline() );
 	}
 
 	public List<Location> findMatchingFunctionDeclerations( URI docURI, String functionName ) {
@@ -369,58 +231,28 @@ public class ProjectContextProvider {
 	}
 
 	public List<CompletionItem> getAvailableCompletions( URI docURI, CompletionParams params ) {
-		FileParseResult res = consumeOrGet( docURI );
 		// TODO if you are in a cfscript component within a template script completions
 		// TODO if you are in a cfset return script completions
 		// TODO add completions for in-scope symbols (properties, local variables,
 
-		return CompletionProviderRuleBook.execute( new CompletionFacts( res, params ) );
+		return getLatestFileParseResult( docURI ).map( ( res ) -> {
+			return CompletionProviderRuleBook.execute( new CompletionFacts( res, params ) );
+		} ).orElseGet( () -> new ArrayList<CompletionItem>() );
 	}
 
 	public List<CodeLens> getAvailableCodeLenses( URI docURI, CodeLensParams params ) {
-		FileParseResult res = consumeOrGet( docURI );
-
-		return CodeLensRuleBook.execute( new CodeLensFacts( res, params ) );
-	}
-
-	private List<ParsedProperty> parseProperties( BoxNode root ) {
-		PropertyVisitor visitor = new PropertyVisitor();
-
-		root.accept( visitor );
-
-		return visitor.getProperties();
-	}
-
-	private List<Either<SymbolInformation, DocumentSymbol>> generateOutline( URI textDocument, BoxNode root ) {
-		DocumentSymbolBoxNodeVisitor visitor = new DocumentSymbolBoxNodeVisitor();
-
-		visitor.setFilePath( Paths.get( textDocument ) );
-		root.accept( visitor );
-
-		return visitor.getDocumentSymbols();
-	}
-
-	private void generateFunctionDefinitions( URI textDocument, BoxNode root ) {
-		FunctionDefinitionVisitor visitor = new FunctionDefinitionVisitor();
-
-		visitor.setFileURI( textDocument );
-		root.accept( visitor );
-
-		this.functionDefinitions = this.functionDefinitions.stream().filter( ( fnDef ) -> {
-			return !fnDef.getFileURI().equals( textDocument );
-		} )
-		    .collect( Collectors.toList() );
-
-		this.functionDefinitions.addAll( visitor.getFunctionDefinitions() );
+		return getLatestFileParseResult( docURI ).map( ( res ) -> {
+			return CodeLensRuleBook.execute( new CodeLensFacts( res, params ) );
+		} ).orElseGet( () -> new ArrayList<CodeLens>() );
 	}
 
 	public Optional<BoxNode> findDefinitionTarget( URI docURI, Position position ) {
-		return Optional.ofNullable( this.parsedFiles.get( docURI ) )
-		    .or( () -> Optional.of( this.consumeFile( docURI ) ) )
-		    .map( ( res ) -> res.astRoot() )
+		return getLatestFileParseResult( docURI )
+		    .flatMap( fpr -> fpr.findAstRoot() )
 		    .map( ( rootNode ) -> {
 			    return searchForCursorTarget( rootNode, position );
 		    } );
+
 	}
 
 	private BoxNode searchForCursorTarget( BoxNode root, Position position ) {
@@ -431,174 +263,29 @@ public class ProjectContextProvider {
 		return visitor.getDefinitionTarget();
 	}
 
-	private void analyzeSource( URI docURI ) {
-		ParsingResult result = null;
-
-		try {
-			result = getLatestParsingResult( docURI );
-		} catch ( IOException e ) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		FileParseResult res;
-
-		if ( result == null ) {
-			res = new FileParseResult( docURI, null, new ArrayList<>(), null, null, null );
-
-		} else if ( result.getRoot() == null ) {
-			res = new FileParseResult( docURI, null, result.getIssues(), null, null, null );
-		} else {
-			BoxNode root = result.getRoot();
-			res = new FileParseResult(
-			    docURI,
-			    root,
-			    result.getIssues(),
-			    generateOutline( docURI, root ),
-			    parseProperties( root ),
-			    SourceCodeVisitorService.getInstance().forceVisit( docURI.toString(), root ) );
-			generateOutline( docURI, root );
-
-			generateFunctionDefinitions( docURI, root );
-
-		}
-
-		generateDiagnostics( res );
-
-	}
-
-	public void publishFileDiagnostics( URI docURI ) {
-		if ( !this.diagnostics.containsKey( docURI.toString() ) ) {
-			return;
-		}
-
-		PublishDiagnosticsParams diagnositcParams = new PublishDiagnosticsParams();
-
-		diagnositcParams.setUri( docURI.toString() );
-		diagnositcParams.setDiagnostics( this.diagnostics.get( docURI.toString() ) );
-
-		BoxRuntime.getInstance().getLoggingService().getLogger( "lsp" ).debug( "Publishing {} diagnostics for {}",
-		    this.diagnostics.get( docURI.toString() ).size(), diagnositcParams.getUri() );
-
-		this.client.publishDiagnostics(
-		    diagnositcParams
-		);
-	}
-
-	private void clearFileCache( URI docURI ) {
-		this.diagnostics.remove( docURI.toString() );
-		this.codeActions.remove( docURI.toString() );
-	}
-
-	private List<Diagnostic> generateDiagnostics( FileParseResult parseResult ) {
-
-		List<Diagnostic>	fileDiagnostics	= new ArrayList<>();
-		List<CodeAction>	fileCodeActions	= new ArrayList<>();
-
-		this.diagnostics.put( parseResult.uri.toString(), fileDiagnostics );
-		this.codeActions.put( parseResult.uri.toString(), fileCodeActions );
-
-		fileDiagnostics.addAll( parseResult.issues().stream().map( ( issue ) -> {
-			Diagnostic diagnostic = new Diagnostic();
-
-			diagnostic.setSeverity( DiagnosticSeverity.Error );
-			diagnostic.setMessage( issue.getMessage() );
-
-			diagnostic.setRange( positionToRange( issue.getPosition() ) );
-
-			diagnostic.setMessage( issue.getMessage() );
-
-			return diagnostic;
-		} ).toList() );
-
-		if ( parseResult.astRoot() == null ) {
-			return fileDiagnostics;
-		}
-
-		FunctionReturnDiagnosticVisitor returnDiagnosticVisitor = new FunctionReturnDiagnosticVisitor();
-		parseResult.astRoot().accept( returnDiagnosticVisitor );
-		fileDiagnostics.addAll( returnDiagnosticVisitor.getDiagnostics() );
-
-		// UnusedVariableDiagnosticVisitor unusedVariableDiagnosticVisitor = new UnusedVariableDiagnosticVisitor();
-		// parseResult.astRoot().accept( unusedVariableDiagnosticVisitor );
-		// fileDiagnostics.addAll( unusedVariableDiagnosticVisitor.getDiagnostics() );
-
-		// if ( parseResult.isCF() ) {
-		// UnscopedVariableDiagnosticVisitor unscopedVariableDiagnosticVisitor = new UnscopedVariableDiagnosticVisitor();
-		// parseResult.astRoot().accept( unscopedVariableDiagnosticVisitor );
-		// fileDiagnostics.addAll( unscopedVariableDiagnosticVisitor.getDiagnostics() );
-		// }
-
-		List<SourceCodeVisitor> visitors = SourceCodeVisitorService.getInstance().forceVisit( parseResult.uri.toString().toString(),
-		    parseResult.astRoot );
-
-		for ( SourceCodeVisitor visitor : visitors ) {
-			if ( !visitor.canVisit( parseResult ) ) {
-				continue;
-			}
-
-			fileDiagnostics.addAll( visitor.getDiagnostics() );
-			fileCodeActions.addAll( visitor.getCodeActions() );
-		}
-
-		return fileDiagnostics;
-	}
-
 	private void publishDiagnostics( URI docURI ) {
 		if ( this.client == null ) {
 			return;
 		}
 
-		FileParseResult				res					= this.parsedFiles.get( docURI );
+		PublishDiagnosticsParams diagnosticParams = new PublishDiagnosticsParams();
+		diagnosticParams.setUri( docURI.toString() );
+		List<Diagnostic> diagnostics = getLatestFileParseResult( docURI )
+		    .map( res -> res.getDiagnostics() )
+		    .orElseGet( () -> new ArrayList<Diagnostic>() );
 
-		PublishDiagnosticsParams	diagnositcParams	= new PublishDiagnosticsParams();
-
-		diagnositcParams.setUri( docURI.toString() );
-
-		List<Diagnostic> diagnostics = new ArrayList<Diagnostic>();
-		diagnositcParams.setDiagnostics( diagnostics );
+		diagnosticParams.setDiagnostics( diagnostics );
 
 		if ( !this.shouldPublishDiagnostics ) {
-			this.client.publishDiagnostics( diagnositcParams );
+			this.client.publishDiagnostics( diagnosticParams );
 			return;
 		}
 
-		diagnostics.addAll( res.issues().stream().map( ( issue ) -> {
-			Diagnostic diagnostic = new Diagnostic();
-
-			diagnostic.setSeverity( DiagnosticSeverity.Error );
-			diagnostic.setMessage( issue.getMessage() );
-
-			diagnostic.setRange( positionToRange( issue.getPosition() ) );
-
-			diagnostic.setMessage( issue.getMessage() );
-
-			return diagnostic;
-		} ).toList() );
-
-		if ( res.astRoot() != null ) {
-			FunctionReturnDiagnosticVisitor returnDiagnosticVisitor = new FunctionReturnDiagnosticVisitor();
-			res.astRoot().accept( returnDiagnosticVisitor );
-			diagnostics.addAll( returnDiagnosticVisitor.getDiagnostics() );
-
-			List<SourceCodeVisitor> visitors = SourceCodeVisitorService.getInstance().visitAll( docURI.toString(), res.astRoot );
-
-			for ( SourceCodeVisitor visitor : visitors ) {
-				diagnostics.addAll( visitor.getDiagnostics() );
-			}
-		}
-
-		this.client.publishDiagnostics( diagnositcParams );
+		this.client.publishDiagnostics( diagnosticParams );
 	}
 
 	public List<Either<Command, CodeAction>> getAvailableCodeActions( URI convertDocumentURI, CodeActionParams params ) {
-		List<Either<Command, CodeAction>>	actions		= new ArrayList();
-
-		FileParseResult						parseResult	= consumeOrGet( convertDocumentURI );
-
-		if ( parseResult.visitors == null ) {
-			return List.of();
-		}
+		List<Either<Command, CodeAction>> actions = new ArrayList<>();
 
 		if ( params.getContext().getDiagnostics().size() != 0 ) {
 			this.getFileCodeActions( convertDocumentURI ).stream().filter( codeAction -> {
@@ -626,23 +313,5 @@ public class ProjectContextProvider {
 		}
 
 		return actions;
-	}
-
-	public List<Diagnostic> getDiagnostics( URI docURI ) {
-		return this.diagnostics.get( docURI.toString() );
-	}
-
-	public boolean isJavaBytecode( File sourceFile ) {
-		try ( FileInputStream fis = new FileInputStream( sourceFile );
-		    DataInputStream dis = new DataInputStream( fis ) ) {
-			// File may be empty! At least 4 bytes are needed to read an int
-			if ( dis.available() < 4 ) {
-				return false;
-			}
-			// Are we the Java Magic number?
-			return dis.readInt() == 0xCAFEBABE;
-		} catch ( IOException e ) {
-			throw new RuntimeException( "Failed to read file", e );
-		}
 	}
 }

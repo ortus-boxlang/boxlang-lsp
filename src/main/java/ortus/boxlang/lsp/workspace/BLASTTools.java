@@ -1,16 +1,12 @@
 package ortus.boxlang.lsp.workspace;
 
-import javax.swing.text.Position;
+import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.Range;
 
-import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.runtime.dynamic.casters.StringCaster;
 
 public class BLASTTools {
-
-	public static BoxNode findNodeAtPosition( BoxNode node, Position position ) {
-		return null;
-	}
 
 	/**
 	 * Get the name of a BoxProperty.
@@ -27,5 +23,11 @@ public class BLASTTools {
 		}
 
 		return null;
+	}
+
+	public static Range positionToRange( ortus.boxlang.compiler.ast.Position pos ) {
+		return new Range(
+		    new Position( pos.getStart().getLine() - 1, pos.getStart().getColumn() ),
+		    new Position( pos.getEnd().getLine() - 1, pos.getEnd().getColumn() ) );
 	}
 }

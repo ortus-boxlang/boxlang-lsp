@@ -15,3 +15,4 @@ src/test/resources/libs/*
 BOXLANG_HOME/*
 bin
 .boxlang
+.boxlang_home/
