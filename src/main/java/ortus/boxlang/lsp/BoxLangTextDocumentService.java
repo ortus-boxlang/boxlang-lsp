@@ -6,8 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.CodeLens;
 import org.eclipse.lsp4j.CodeLensParams;
+import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.CompletionParams;
@@ -16,17 +19,23 @@ import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
+import org.eclipse.lsp4j.DocumentDiagnosticParams;
+import org.eclipse.lsp4j.DocumentDiagnosticReport;
 import org.eclipse.lsp4j.DocumentFormattingParams;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.DocumentSymbolCapabilities;
 import org.eclipse.lsp4j.DocumentSymbolParams;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
+import org.eclipse.lsp4j.RelatedFullDocumentDiagnosticReport;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentRegistrationOptions;
 import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.adapters.CodeActionResponseAdapter;
+import org.eclipse.lsp4j.adapters.DocumentDiagnosticReportTypeAdapter;
 import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter;
 import org.eclipse.lsp4j.adapters.LocationLinkListAdapter;
+import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
 import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
@@ -45,9 +54,9 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 
 	@JsonRequest
 	public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion( CompletionParams position ) {
-		return CompletableFuture.supplyAsync( () -> {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			return Either.forLeft( ProjectContextProvider.getInstance()
-			    .getAvaialbeCompletions( LSPTools.convertDocumentURI( position.getTextDocument().getUri() ),
+			    .getAvailableCompletions( LSPTools.convertDocumentURI( position.getTextDocument().getUri() ),
 			        position ) );
 		} );
 	}
@@ -57,8 +66,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 		ProjectContextProvider.getInstance().trackDocumentOpen(
 		    LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
 		    params.getTextDocument().getText() );
-		System.out.println( "The file was opened" );
-		System.out.println( params.getTextDocument().getUri() );
+		App.logger.debug( "The file was opened" );
+		App.logger.debug( params.getTextDocument().getUri() );
 	}
 
 	@Override
@@ -74,8 +83,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	public void didClose( DidCloseTextDocumentParams params ) {
 		ProjectContextProvider.getInstance()
 		    .trackDocumentClose( LSPTools.convertDocumentURI( params.getTextDocument().getUri() ) );
-		System.out.println( "The file was closed" );
-		System.out.println( params.getTextDocument().getUri() );
+		App.logger.debug( "The file was closed" );
+		App.logger.debug( params.getTextDocument().getUri() );
 		// throw new UnsupportedOperationException("Unimplemented method 'didClose'");
 	}
 
@@ -84,10 +93,26 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 		ProjectContextProvider.getInstance().trackDocumentSave(
 		    LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
 		    params.getText() );
-		System.out.println( "The file was saved" );
-		System.out.println( params.getTextDocument().getUri() );
+		App.logger.debug( "The file was saved" );
+		App.logger.debug( params.getTextDocument().getUri() );
 		// TODO Auto-generated method stub
 		// throw new UnsupportedOperationException("Unimplemented method 'didSave'");
+	}
+
+	@ResponseJsonAdapter( DocumentDiagnosticReportTypeAdapter.class )
+	public CompletableFuture<DocumentDiagnosticReport> diagnostic( DocumentDiagnosticParams params ) {
+
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
+			URI									docURI	= LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
+			RelatedFullDocumentDiagnosticReport	rep		= new RelatedFullDocumentDiagnosticReport(
+			    ProjectContextProvider.getInstance().getFileDiagnostics( docURI ) );
+			DocumentDiagnosticReport			ddr		= new DocumentDiagnosticReport( rep );
+
+			cancelToken.checkCanceled();
+
+			return ddr;
+
+		} );
 	}
 
 	/**
@@ -99,7 +124,7 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	 */
 	@JsonRequest
 	public CompletableFuture<List<? extends TextEdit>> formatting( DocumentFormattingParams params ) {
-		return CompletableFuture.supplyAsync( () -> {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			return ProjectContextProvider.getInstance()
 			    .formatDocument( LSPTools.convertDocumentURI( params.getTextDocument().getUri() ) );
 		} );
@@ -119,7 +144,7 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 		try {
 			URI docURI = new URI( params.getTextDocument().getUri() );
 
-			return CompletableFuture.supplyAsync( () -> {
+			return CompletableFutures.computeAsync( ( cancelToken ) -> {
 				return Either
 				    .forLeft( ProjectContextProvider.getInstance().findDefinitionPossibiltiies( docURI,
 				        params.getPosition() ) );
@@ -160,7 +185,7 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	public CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> documentSymbol(
 	    DocumentSymbolParams params ) {
 
-		return CompletableFuture.supplyAsync( () -> {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 
 			return ProjectContextProvider.getInstance()
 			    .getDocumentSymbols( URI.create( params.getTextDocument().getUri() ) )
@@ -178,27 +203,30 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	@Override
 	public CompletableFuture<List<? extends CodeLens>> codeLens( CodeLensParams params ) {
 
-		return CompletableFuture.supplyAsync( () -> {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			return ProjectContextProvider.getInstance()
-			    .getAvaialbeCodeLenses(
+			    .getAvailableCodeLenses(
 			        LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
 			        params
 			    );
 		} );
 	}
 
-	// /**
-	// * The code lens resolve request is sent from the client to the server to
-	// * resolve the command for a given code lens item.
-	// */
-	// @JsonRequest( value = "codeLens/resolve", useSegment = false )
-	// @Override
-	// public CompletableFuture<CodeLens> resolveCodeLens( CodeLens unresolved ) {
-	// var lens = new CodeLens();
-	// lens.setRange( new Range( new Position( 5, 0 ), new Position( 5, 10 ) ) );
-	// lens.setCommand( new Command( "Run", "Run" ) );
+	@JsonRequest
+	@ResponseJsonAdapter( CodeActionResponseAdapter.class )
+	public CompletableFuture<List<Either<Command, CodeAction>>> codeAction( CodeActionParams params ) {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
+			var result = ProjectContextProvider.getInstance()
+			    .getAvailableCodeActions(
+			        LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
+			        params
+			    );
 
-	// return CompletableFuture.supplyAsync( () -> lens );
-	// }
+			cancelToken.checkCanceled();
+
+			return result;
+		} );
+
+	}
 
 }

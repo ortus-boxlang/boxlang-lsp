@@ -31,9 +31,7 @@ public class FunctionDefinitionVisitor extends VoidBoxVisitor {
 	private URI fileURI;
 
 	public void visit( BoxFunctionDeclaration node ) {
-		FunctionDefinition func = new FunctionDefinition();
-		func.setFileURI( fileURI );
-		func.setASTNode( node );
+		FunctionDefinition func = FunctionDefinition.fromASTNode( fileURI, node );
 		this.functionDefinitions.add( func );
 		visitChildren( node );
 	}

@@ -11,37 +11,44 @@ import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 
 public class FunctionDefinition {
 
-	private URI						fileURI;
-	private BoxFunctionDeclaration	ASTNode;
+	private URI			fileURI;
+	private Location	location;
+	private String		name;
+
+	public static FunctionDefinition fromASTNode( URI fileURI, BoxFunctionDeclaration ASTNode ) {
+		FunctionDefinition newDef = new FunctionDefinition();
+
+		newDef.location	= FunctionDefinition.toLocation( fileURI, ASTNode );
+		newDef.name		= ASTNode.getName();
+		newDef.fileURI	= fileURI;
+
+		return newDef;
+	}
+
+	public Location getLocation() {
+		return this.location;
+	}
 
 	public String getFunctionName() {
-		return ASTNode.getName();
+		return this.name;
 	}
 
 	public URI getFileURI() {
-		return fileURI;
+		return this.fileURI;
 	}
 
 	public void setFileURI( URI fileURI ) {
 		this.fileURI = fileURI;
 	}
 
-	public BoxFunctionDeclaration getASTNode() {
-		return ASTNode;
-	}
-
-	public void setASTNode( BoxFunctionDeclaration aSTNode ) {
-		ASTNode = aSTNode;
-	}
-
-	public static Location toLocation( FunctionDefinition fn ) {
+	private static Location toLocation( URI fileURI, BoxFunctionDeclaration ASTNode ) {
 		Location							loc		= new Location();
 
-		ortus.boxlang.compiler.ast.Position	pos		= fn.getASTNode().getPosition();
+		ortus.boxlang.compiler.ast.Position	pos		= ASTNode.getPosition();
 		Point								start	= pos.getStart();
 		Point								end		= pos.getEnd();
 
-		loc.setUri( fn.getFileURI().toString() );
+		loc.setUri( fileURI.toString() );
 		loc.setRange( new Range(
 		    new Position( start.getLine() - 1, start.getColumn() ),
 		    new Position( end.getLine() - 1, end.getColumn() + 1 ) ) );

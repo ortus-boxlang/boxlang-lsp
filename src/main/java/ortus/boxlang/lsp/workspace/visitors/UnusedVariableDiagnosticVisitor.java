@@ -1,0 +1,114 @@
+package ortus.boxlang.lsp.workspace.visitors;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.stream.Collectors;
+
+import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.Diagnostic;
+import org.eclipse.lsp4j.DiagnosticSeverity;
+import org.eclipse.lsp4j.DiagnosticTag;
+
+import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.compiler.ast.expression.BoxArrayAccess;
+import ortus.boxlang.compiler.ast.expression.BoxAssignment;
+import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
+import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
+import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
+import ortus.boxlang.lsp.SourceCodeVisitor;
+import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+
+public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
+
+	private Map<BoxFunctionDeclaration, Set<BoxNode>>	assignedVars	= new WeakHashMap<>();
+	private Map<BoxFunctionDeclaration, Set<String>>	usedVars		= new WeakHashMap<>();
+
+	public List<Diagnostic> getDiagnostics() {
+
+		return assignedVars.entrySet().stream()
+		    .flatMap( entry -> {
+			    return entry.getValue().stream()
+			        .filter(
+			            item -> !usedVars.containsKey( entry.getKey() ) || !usedVars.get( entry.getKey() ).contains( getNameFromNode( item ).toLowerCase() ) );
+		    } )
+		    .map( varNode -> {
+			    var diagnostic = new Diagnostic(
+			        ProjectContextProvider.positionToRange( varNode.getPosition() ),
+			        "Variable [" + getNameFromNode( varNode ) + "] is declared but never used.",
+			        DiagnosticSeverity.Hint,
+			        "boxlang"
+			    );
+
+			    diagnostic.setTags( List.of( DiagnosticTag.Unnecessary ) );
+
+			    return diagnostic;
+		    } )
+		    .collect( Collectors.toList() );
+	}
+
+	public List<CodeAction> getCodeActions() {
+		return new ArrayList<CodeAction>();
+	}
+
+	private String getNameFromNode( BoxNode node ) {
+		if ( node instanceof BoxIdentifier ) {
+			return ( ( BoxIdentifier ) node ).getName();
+		} else if ( node instanceof BoxArgumentDeclaration ) {
+			return ( ( BoxArgumentDeclaration ) node ).getName();
+		}
+		return null;
+	}
+
+	public void visit( BoxArgumentDeclaration node ) {
+		BoxFunctionDeclaration func = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+
+		assignedVars.computeIfAbsent( func, k -> new HashSet<>() ).add( node );
+	}
+
+	public void visit( BoxIdentifier node ) {
+		BoxFunctionDeclaration func = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+
+		if ( this.isBeingAssignedTo( node ) ) {
+			assignedVars.computeIfAbsent( func, k -> new HashSet<>() ).add( node );
+			return;
+		}
+
+		usedVars.computeIfAbsent( func, k -> new HashSet<>() ).add( node.getName().toLowerCase() );
+	}
+
+	private boolean isBeingAssignedTo( BoxIdentifier node ) {
+		BoxAssignment assignment = ( BoxAssignment ) node.getFirstAncestorOfType( BoxAssignment.class );
+
+		if ( assignment != null && node.getAncestors().contains( assignment.getRight() ) ) {
+			return false;
+		}
+
+		BoxArrayAccess arrayAccess = ( BoxArrayAccess ) node.getFirstAncestorOfType( BoxArrayAccess.class );
+
+		if ( arrayAccess != null
+		    && ( node.getAncestors().contains( arrayAccess.getAccess() )
+		        || node == arrayAccess.getAccess() ) ) {
+			return false;
+		}
+
+		if ( assignment != null
+		    && ( node.getAncestors().contains( assignment.getLeft() )
+		        || assignment.getLeft() == node ) ) {
+			return true;
+		}
+
+		if ( node.getFirstAncestorOfType( BoxArgumentDeclaration.class ) != null ) {
+			return true;
+		}
+
+		// TODO what about thing[ usedVariable ] = 4? That should count as a use of usedVariable but it is to the left
+		// check if the identifier is part of an array access
+
+		return false;
+	}
+
+}

@@ -10,3 +10,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 * Coverted LSP to be a BoxLang module
+* BLIDE-96 Added version info

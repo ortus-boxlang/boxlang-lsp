@@ -1,23 +1,21 @@
 package ortus.boxlang.lsp;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.commons.lang3.StringUtils;
+import org.eclipse.lsp4j.CodeActionKind;
+import org.eclipse.lsp4j.CodeActionOptions;
 import org.eclipse.lsp4j.CodeLensOptions;
 import org.eclipse.lsp4j.CompletionOptions;
+import org.eclipse.lsp4j.DiagnosticRegistrationOptions;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.ServerCapabilities;
+import org.eclipse.lsp4j.SetTraceParams;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
-import org.eclipse.lsp4j.WorkspaceFolder;
+import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
 import org.eclipse.lsp4j.jsonrpc.services.JsonNotification;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageClientAware;
@@ -41,23 +39,27 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 
 	@Override
 	public CompletableFuture<InitializeResult> initialize( InitializeParams params ) {
-		return CompletableFuture.supplyAsync( () -> {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			ServerCapabilities capabilities = new ServerCapabilities();
 
 			capabilities.setTextDocumentSync( TextDocumentSyncKind.Full );
 			capabilities.setDocumentSymbolProvider( true );
-			capabilities.setDocumentFormattingProvider( true );
+			// capabilities.setDocumentFormattingProvider( true );
 			// capabilities.setReferencesProvider(true);
 			capabilities.setDefinitionProvider( true );
 			CompletionOptions completionOptions = new CompletionOptions();
 			completionOptions.setTriggerCharacters( List.of( "." ) );
 			// completionOptions.
 			capabilities.setCompletionProvider( completionOptions );
-
+			capabilities.setDiagnosticProvider( new DiagnosticRegistrationOptions( true, true ) );
 			capabilities.setCodeLensProvider( new CodeLensOptions( true ) );
+			capabilities.setCodeActionProvider( new CodeActionOptions( List.of(
+			    CodeActionKind.QuickFix,
+			    CodeActionKind.SourceFixAll,
+			    CodeActionKind.RefactorRewrite
+			) ) );
 
-			// removing this until we improve the parser
-			scanWorkspaceFolders( params.getWorkspaceFolders() );
+			ProjectContextProvider.getInstance().setWorkspaceFolders( params.getWorkspaceFolders() );
 
 			return new InitializeResult( capabilities );
 		} );
@@ -65,14 +67,21 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 
 	@Override
 	public CompletableFuture<Object> shutdown() {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException( "Unimplemented method 'shutdown'" );
+		return CompletableFutures.computeAsync( ( cancelChecker ) -> {
+			App.logger.info( "Received shutdown command - shutting down now" );
+			return null;
+		} );
 	}
 
 	@Override
 	public void exit() {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException( "Unimplemented method 'exit'" );
+		App.logger.info( "Received exit command - exiting" );
+		System.exit( 0 );
+	}
+
+	@Override
+	public void setTrace( SetTraceParams params ) {
+		App.logger.info( "Received setTrace command" );
 	}
 
 	@Override
@@ -95,29 +104,6 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 		client.showMessage( new MessageParams( MessageType.Info, "Connected to the BoxLang Language Server!" ) );
 		// TODO Auto-generated method stub
 		// throw new UnsupportedOperationException("Unimplemented method 'connect'");
-	}
-
-	private void scanWorkspaceFolders( List<WorkspaceFolder> folders ) {
-		ProjectContextProvider provider = ProjectContextProvider.getInstance();
-		try {
-			Files
-			    .walk( Path.of( new URI( folders.get( 0 ).getUri() ) ) )
-			    .filter( Files::isRegularFile )
-			    .filter( ( path ) -> StringUtils.endsWithAny( path.toString(), ".bx", ".bxs", ".bxm", ".cfc", ".cfs",
-			        ".cfm" ) )
-			    .forEach( ( clazzPath ) -> {
-				    try {
-
-					    provider.addToContext( clazzPath.toUri() );
-				    } catch ( Exception e ) {
-					    // TODO Auto-generated catch block
-					    e.printStackTrace();
-				    }
-			    } );
-		} catch ( IOException | URISyntaxException e ) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}
 
 }

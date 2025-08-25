@@ -6,6 +6,7 @@ package ortus.boxlang.lsp;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutionException;
@@ -16,9 +17,13 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageClientAware;
 
 import ortus.boxlang.runtime.BoxRuntime;
+import ortus.boxlang.runtime.logging.BoxLangLogger;
+import ortus.boxlang.runtime.types.Struct;
 import picocli.CommandLine;
 
 public class App {
+
+	public static BoxLangLogger logger;
 
 	public static void main( String[] args ) {
 		CLI cli = new CLI();
@@ -31,6 +36,10 @@ public class App {
 
 	public App() {
 		BoxRuntime.getInstance();
+		logger = BoxRuntime.getInstance().getLoggingService().getLogger( "lsp" );
+
+		MemoryThresholdMonitor.startMemoryManagement();
+		BoxRuntime.getInstance().announce( "LSPRegisterVisitors", Struct.of( "sourceCodeVisitorService", SourceCodeVisitorService.getInstance() ) );
 	}
 
 	private void runLSP( InputStream in, OutputStream out ) {
@@ -64,10 +73,14 @@ public class App {
 
 	private void runUsingDebugServer( int port ) {
 		System.out.println( "Starting debug server on port " + port );
-		try ( ServerSocket socket = new ServerSocket( port ) ) {
+		try ( ServerSocket socket = new ServerSocket( port, 50, InetAddress.getByName( "127.0.0.1" ) ) ) {
 			if ( port == 0 ) {
 				System.out.println( String.format( "Listening on port: %s", socket.getLocalPort() ) );
 			}
+
+			logger.info( String.format( "Listening on port: %s", socket.getLocalPort() ) );
+			logger.info( String.format( "Bound on: %s", socket.getInetAddress() ) );
+
 			while ( true ) {
 				System.out.println( "waiting for a connection" );
 				Socket connectionSocket = socket.accept();

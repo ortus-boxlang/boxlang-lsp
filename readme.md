@@ -1,4 +1,4 @@
-# ⚡︎ BoxLang Module: @MODULE_NAME@
+# ⚡︎ BoxLang Module: bx-lsp
 
 This is a BoxLang module that implements [Microsoft's Language Server Protocol](https://microsoft.github.io/language-server-protocol/). You most likely will not want to install this module directly. This modules is used by IDE's that also implement the LSP in order to provide a rich editing experience.
 

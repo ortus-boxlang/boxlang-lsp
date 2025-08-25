@@ -8,6 +8,9 @@ import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
 import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.compiler.ast.expression.BoxClosure;
+import ortus.boxlang.compiler.ast.expression.BoxLambda;
+import ortus.boxlang.compiler.ast.expression.BoxNull;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxReturn;
 import ortus.boxlang.compiler.ast.statement.BoxType;
@@ -66,6 +69,10 @@ public class FunctionReturnDiagnosticVisitor extends VoidBoxVisitor {
 		BoxType		declaredReturnType	= this.funcStack.get( this.funcStack.size() - 1 ).getType().getType();
 		BoxLangType	returnValueType		= ExpressionTypeResolver.determineType( node.getExpression() );
 
+		if ( node.getPosition() == null ) {
+			return null;
+		}
+
 		if ( declaredReturnType == BoxType.String
 		    && ( returnValueType == BoxLangType.STRING || returnValueType == BoxLangType.ANY ) ) {
 			return null;
@@ -90,8 +97,25 @@ public class FunctionReturnDiagnosticVisitor extends VoidBoxVisitor {
 	}
 
 	private Diagnostic checkVoidTriesToReturnValue( BoxReturn node ) {
-		if ( ! ( this.funcStack.get( this.funcStack.size() - 1 ).getType().getType() == BoxType.Void
-		    && node.getExpression() != null ) ) {
+		@SuppressWarnings( "unchecked" )
+		BoxNode funcRef = node.getFirstNodeOfTypes( BoxFunctionDeclaration.class, BoxClosure.class, BoxLambda.class );
+
+		if ( funcRef == null
+		    || funcRef instanceof BoxClosure
+		    || funcRef instanceof BoxLambda ) {
+			return null;
+		}
+
+		BoxFunctionDeclaration	func		= ( BoxFunctionDeclaration ) funcRef;
+
+		BoxType					returnType	= func.getType().getType();
+		BoxNode					returnExpr	= node.getExpression();
+
+		if ( returnType != BoxType.Void ) {
+			return null;
+		}
+
+		if ( returnExpr == null || returnExpr instanceof BoxNull ) {
 			return null;
 		}
 

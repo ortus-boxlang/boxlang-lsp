@@ -1,0 +1,37 @@
+class {
+
+    public function test(){
+        var theUnusedVar = "test";
+    }
+
+    public function test2(){
+        var usedVar = "test";
+
+        usedVar.toUpperCase();
+    }
+
+    public function test3(){
+        var usedByX = "test";
+
+        var x = usedByX;
+    
+        x.ucase();
+    }
+
+    public function test4( theUnusedArg ){
+        
+    }
+
+    public function test5( theUsedArg ){
+        theUsedArg.toUpperCase();
+    }
+
+    public function test6(){
+        var theStruct = {};
+        var theKey = "test";
+
+        theStruct[theKey] = "value";
+
+        return theStruct;
+    }
+}
