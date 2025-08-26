@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ortus.boxlang.compiler.ast.expression.BoxArgument;
-import ortus.boxlang.lsp.workspace.ProjectContextProvider.FileParseResult;
+import ortus.boxlang.lsp.workspace.FileParseResult;
 
 public record Newable(
     Long resourceId,
@@ -26,7 +26,7 @@ public record Newable(
 	private static Newable fromFileParseResult( Long id, FileParseResult result ) {
 		return new Newable(
 		    id,
-		    nameFromURI( result.uri() ),
+		    nameFromURI( result.getURI() ),
 		    new ArrayList<>()
 		);
 	}

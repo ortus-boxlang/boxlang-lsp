@@ -3,6 +3,7 @@ package ortus.boxlang.lsp.workspace;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -73,6 +74,10 @@ public class ProjectContextProvider {
 		}
 
 		return instance;
+	}
+
+	public Map<String, Path> getMappings() {
+		return new HashMap<>();
 	}
 
 	public List<Diagnostic> getFileDiagnostics( URI docURI ) {

@@ -11,7 +11,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 
-import ortus.boxlang.lsp.workspace.ProjectContextProvider.FileParseResult;
+import ortus.boxlang.lsp.workspace.FileParseResult;
 
 public record Resource(
     Long id,
@@ -36,9 +36,9 @@ public record Resource(
 		Long	size			= 0l;
 
 		try {
-			lastModified	= Files.getLastModifiedTime( Path.of( result.uri() ) ).toInstant();
-			size			= Files.size( Path.of( result.uri() ) );
-			hash			= getMD5( result.uri() );
+			lastModified	= Files.getLastModifiedTime( Path.of( result.getURI() ) ).toInstant();
+			size			= Files.size( Path.of( result.getURI() ) );
+			hash			= getMD5( result.getURI() );
 		} catch ( IOException e ) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -46,7 +46,7 @@ public record Resource(
 
 		return new Resource(
 		    id,
-		    result.uri(),
+		    result.getURI(),
 		    lastModified,
 		    hash,
 		    size

@@ -15,6 +15,7 @@ import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.InsertTextFormat;
 
+import ortus.boxlang.lsp.workspace.FileParseResult;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.rules.IRule;
 
@@ -30,8 +31,8 @@ public class NewCompletionRule implements IRule<CompletionFacts, List<Completion
 
 	@Override
 	public void then( CompletionFacts facts, List<CompletionItem> result ) {
-		var existingPrompt = ProjectContextProvider.readLine( facts.completionParams().getTextDocument().getUri(),
-		    facts.completionParams().getPosition().getLine() );
+		FileParseResult	fileParseResult	= facts.fileParseResult();
+		var				existingPrompt	= fileParseResult.readLine( facts.completionParams().getPosition().getLine() );
 
 		existingPrompt = existingPrompt.substring( 0, facts.completionParams().getPosition().getCharacter() );
 
@@ -50,24 +51,24 @@ public class NewCompletionRule implements IRule<CompletionFacts, List<Completion
 			options.addAll( getMappingCompletionItems() );
 		}
 
-		if ( !afterNewPrompt.contains( "." ) ) {
-			options.addAll(
-			    ProjectContextProvider.getInstance().newables.stream().map( ( newable ) -> {
+		// if ( !afterNewPrompt.contains( "." ) ) {
+		// options.addAll(
+		// ProjectContextProvider.getInstance().newables.stream().map( ( newable ) -> {
 
-				    CompletionItem item = new CompletionItem();
-				    item.setLabel( newable.name() );
-				    item.setKind( CompletionItemKind.Constructor );
-				    item.setInsertTextFormat( InsertTextFormat.Snippet );
-				    item.setInsertText( newable.name() + "()" );
-				    item.setDetail( "class " + newable.name() );
+		// CompletionItem item = new CompletionItem();
+		// item.setLabel( newable.name() );
+		// item.setKind( CompletionItemKind.Constructor );
+		// item.setInsertTextFormat( InsertTextFormat.Snippet );
+		// item.setInsertText( newable.name() + "()" );
+		// item.setDetail( "class " + newable.name() );
 
-				    return item;
-			    } )
-			        .collect( Collectors.toList() )
-			);
-		}
+		// return item;
+		// } )
+		// .collect( Collectors.toList() )
+		// );
+		// }
 
-		options.addAll( getDirectoryCompletions( chooseDirToFindCompletions( Path.of( facts.fileParseResult().uri() ), afterNewPrompt ) )
+		options.addAll( getDirectoryCompletions( chooseDirToFindCompletions( Path.of( facts.fileParseResult().getURI() ), afterNewPrompt ) )
 		    .stream()
 		    .map( NewCompletionRule::completionItemFromPath ).collect( Collectors.toList() ) );
 

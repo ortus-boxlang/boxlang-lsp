@@ -1,0 +1,5 @@
+class {
+    void function theMethod() {
+        var x = new 
+    }
+}
