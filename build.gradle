@@ -1,10 +1,12 @@
+import java.text.SimpleDateFormat
+
 // https://docs.gradle.org/current/userguide/building_java_projects.html#sec:java_packaging
 plugins {
     id 'java'
     // For source code formatting
-    id "com.diffplug.spotless" version "6.25.0"
+    id "com.diffplug.spotless" version "7.1.0"
 	// https://github.com/harbby/gradle-serviceloader
-    id "com.github.harbby.gradle.serviceloader" version "1.1.8"
+    id "com.github.harbby.gradle.serviceloader" version "1.1.9"
 	// For building shadow jars with jdk 17 ONLY
     //id 'com.github.johnrengelman.shadow' version '8.1.1'
     // For building shadow jars using JDK 21 +, they had to fork
@@ -18,9 +20,19 @@ plugins {
  */
 sourceCompatibility = jdkVersion
 targetCompatibility = jdkVersion
+
 ext {
 	buildID = System.getenv( 'BUILD_ID' ) ?: '0'
 	branch = System.getenv( 'BRANCH' ) ?: 'development'
+	builtOn = new SimpleDateFormat( "yyyy-MM-dd HH:mm:ss" ).format( new Date() )
+	gitCommitHash = {
+		def stdout = new ByteArrayOutputStream()
+		exec {
+			commandLine 'git', 'rev-parse', 'HEAD'
+			standardOutput = stdout
+		}
+		return stdout.toString().trim()
+	}.call()
 }
 if ( branch == 'development' ) {
     // If the branch is 'development', ensure the version ends with '-snapshot'
@@ -38,24 +50,29 @@ dependencies {
 	// Until BoxLang is published to Maven Central
 	// Look for it in the local build directory
 	// You must run `./gradle build -x test` in the BoxLang project
-	compileOnly files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '-all.jar' )
-    compileOnly files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '-all.jar' )
+	// compileOnly files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '.jar' )
+    compileOnly "io.boxlang:boxlang:1.3.0"
 
     // Testing Dependencies
-	testImplementation files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '-all.jar' )
-	testImplementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '-all.jar' )
-    testImplementation "org.junit.jupiter:junit-jupiter:5.+"
+	// testImplementation files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '.jar' )
+	// testImplementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
+    testImplementation "io.boxlang:boxlang:1.3.0"
+    // Align all JUnit dependencies to the same version to avoid compatibility issues
+    testImplementation "org.junit.jupiter:junit-jupiter:5.13.4"
 	testImplementation "org.mockito:mockito-core:5.+"
 	testImplementation "com.google.truth:truth:1.+"
+
+	// Explicitly declare the JUnit platform launcher (to avoid deprecation)
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 
 	// This dependency is used by the application.
     implementation "com.google.guava:guava:32.1.1-jre"
 
     // https://mvnrepository.com/artifact/org.eclipse.lsp4j/org.eclipse.lsp4j
-    implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:0.22.0"
+    implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:0.24.0"
 
-    // cli 
-    implementation 'info.picocli:picocli:4.7.5'
+    // cli
+    implementation 'info.picocli:picocli:4.7.7'
 }
 
 java {
@@ -150,7 +167,7 @@ spotless {
 
 /**
  * Custom task that creates a build/module folders
- * - Copies the build/libs/BoxLangModuleTemplate-1.0.0-all.jar to build/module/libs/BoxLangModuleTemplate-1.0.0-all.jar
+ * - Copies the build/libs/BoxLangModuleTemplate-1.0.0.jar to build/module/libs/BoxLangModuleTemplate-1.0.0.jar
  * - Copies the src/main/bx/** to build/module/ folder.
  */
 task createModuleStructure(type: Copy) {
@@ -167,6 +184,9 @@ task createModuleStructure(type: Copy) {
 		} else {
 			filter{ line -> line.replaceAll( '@build.number@', project.buildID ) }
 		}
+
+		filter{ line -> line.replaceAll( '@build.builtOn@', project.builtOn ) }
+		filter{ line -> line.replaceAll( '@build.commit@', project.gitCommitHash ) }
     }
     from( '.' ) {
         include 'box.json'
@@ -205,7 +225,7 @@ test {
 
 /**
  * TEMPORARY until we publish to maven
- * Task to download the latest jar from https://ortus-temp.s3.amazonaws.com/jericho/libs/boxlang-1.0.0-all.jar
+ * Task to download the latest jar from https://ortus-temp.s3.amazonaws.com/jericho/libs/boxlang-1.0.0.jar
  */
 task downloadBoxLang( type: Download ) {
 	// Create the destination directory
@@ -213,9 +233,9 @@ task downloadBoxLang( type: Download ) {
 		file( "src/test/resources/libs" ).mkdirs()
 	}
     // Configure the URL of the file to download
-    src "https://downloads.ortussolutions.com/ortussolutions/boxlang/${boxlangVersion}/boxlang-${boxlangVersion}-all.jar"
+    src "https://downloads.ortussolutions.com/ortussolutions/boxlang/${boxlangVersion}/boxlang-${boxlangVersion}.jar"
     // Specify the destination directory for the downloaded file
-    dest "src/test/resources/libs/boxlang-${boxlangVersion}-all.jar"
+    dest "src/test/resources/libs/boxlang-${boxlangVersion}.jar"
     overwrite true
     onlyIfModified false
 }

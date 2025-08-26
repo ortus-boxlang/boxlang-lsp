@@ -9,7 +9,6 @@ import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.InsertTextFormat;
 
-import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.rules.IRule;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.components.Attribute;
@@ -26,8 +25,7 @@ public class ComponentCompletionRule implements IRule<CompletionFacts, List<Comp
 	@Override
 	public void then( CompletionFacts facts, List<CompletionItem> result ) {
 		var	existingPrompt	= getExistingPrompt(
-		    ProjectContextProvider.readLine( facts.completionParams().getTextDocument().getUri(),
-		        facts.completionParams().getPosition().getLine() ),
+		    facts.fileParseResult().readLine( facts.completionParams().getPosition().getLine() - 1 ),
 		    facts.completionParams().getPosition().getCharacter() );
 		var	options			= Stream.of( BoxRuntime.getInstance().getComponentService().getComponentNames() ).map( ( name ) -> {
 								ComponentDescriptor	componentDescriptor	= BoxRuntime.getInstance().getComponentService()

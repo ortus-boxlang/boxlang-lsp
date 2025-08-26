@@ -1,0 +1,12 @@
+class {
+
+	function foo( num1, num2 = 2 ) {
+		var bar = "baz";
+		if ( num2 == 1 ) {
+			return "liu";
+		}
+		return "qux";
+		num1++;
+	}
+
+}
