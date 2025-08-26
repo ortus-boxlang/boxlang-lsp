@@ -13,7 +13,7 @@
             "env": {
                 "BOXLANG_HOME": "${workspaceFolder}/.boxlang_home",
                 "xBOXLANG_CONFIG": "boxlang.json",
-                "BOXLANG_RUNTIME_MODULESDIRECTORY": "/Users/jacob/dev/ortus-boxlang/boxlang-lsp/build"
+                "BOXLANG_MODULESDIRECTORY": "${workspaceFolder}/build"
             },
             "args": [
                 "module:bx-lsp",
