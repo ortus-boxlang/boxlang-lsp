@@ -67,6 +67,10 @@ public class FileParseResult {
 		return fpr;
 	}
 
+	public URI getURI() {
+		return uri;
+	}
+
 	public List<ParsedProperty> properties() {
 		return properties;
 	}

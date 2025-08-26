@@ -12,7 +12,9 @@ public class CompletionProviderRuleBook extends RuleCollection<CompletionFacts, 
 	private static CompletionProviderRuleBook instance = new CompletionProviderRuleBook();
 
 	static {
-		instance.addRule( new ComponentCompletionRule() )
+		instance
+		    .addRule( new NewCompletionRule() )
+		    .addRule( new ComponentCompletionRule() )
 		    .addRule( new BIFCompletionRule() )
 		    .addRule( new PropertyCompletionRule() );
 	}

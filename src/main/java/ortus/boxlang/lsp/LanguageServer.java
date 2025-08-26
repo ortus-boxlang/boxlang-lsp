@@ -48,6 +48,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			// capabilities.setReferencesProvider(true);
 			capabilities.setDefinitionProvider( true );
 			CompletionOptions completionOptions = new CompletionOptions();
+			completionOptions.setTriggerCharacters( List.of( "." ) );
 			// completionOptions.
 			capabilities.setCompletionProvider( completionOptions );
 			capabilities.setDiagnosticProvider( new DiagnosticRegistrationOptions( true, true ) );
