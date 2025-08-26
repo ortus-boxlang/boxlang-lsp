@@ -2,4 +2,8 @@ class {
     void function theMethod() {
         var x = new 
     }
+
+    void function otherMethod() {
+        var x = new sub.
+    }
 }
