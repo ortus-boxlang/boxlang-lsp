@@ -9,5 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+* Add var scoping check for CFML files
+* Add diagnostic for unused variables
+* Lots of additional tests
 * Coverted LSP to be a BoxLang module
 * BLIDE-96 Added version info
