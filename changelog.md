@@ -5,9 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-----
+* * *
 
 ## [Unreleased]
 
-* Coverted LSP to be a BoxLang module
-* BLIDE-96 Added version info
+## [1.1.0] - 2025-09-03
+
+- Add var scoping check for CFML files
+- Add diagnostic for unused variables
+- Lots of additional tests
+- Coverted LSP to be a BoxLang module
+- BLIDE-96 Added version info
+
+[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/1a1f359e5d1f2e330321218662a950a0a8321cb5...v1.1.0
