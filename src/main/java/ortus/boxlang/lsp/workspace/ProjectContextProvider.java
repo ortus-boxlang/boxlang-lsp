@@ -43,6 +43,8 @@ import ortus.boxlang.lsp.workspace.codeLens.CodeLensRuleBook;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
 import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
 import ortus.boxlang.lsp.workspace.visitors.DefinitionTargetVisitor;
+import ortus.boxlang.runtime.async.executors.ExecutorRecord;
+import ortus.boxlang.runtime.services.AsyncService;
 
 public class ProjectContextProvider {
 
@@ -107,12 +109,16 @@ public class ProjectContextProvider {
 
 		this.shouldPublishDiagnostics = shouldPublishDiagnostics;
 
-		// TODO implement this differently
+		// TODO: This needs to change to `BoxExecutor` once 1.6 is released
+		ExecutorRecord executor = AsyncService.chooseParallelExecutor( "LSP_publish", 0, true );
 
-		this.parsedFiles.keySet()
-		    .stream()
-		    .parallel()
-		    .forEach( ( uri ) -> publishDiagnostics( uri ) );
+		executor.submitAndGet( () -> {
+			this.parsedFiles.keySet()
+			    .stream()
+			    .parallel()
+			    .forEach( ( uri ) -> publishDiagnostics( uri ) );
+
+		} );
 	}
 
 	public void setLanguageClient( LanguageClient client ) {
