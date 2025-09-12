@@ -20,6 +20,8 @@ import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
 import org.eclipse.lsp4j.services.WorkspaceService;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.runtime.async.executors.ExecutorRecord;
+import ortus.boxlang.runtime.services.AsyncService;
 
 public class BoxLangWorkspaceService implements WorkspaceService {
 
@@ -47,7 +49,9 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 			ForkJoinPool pool = new ForkJoinPool( 4 );
 
 			try {
-				pool.submit( () -> {
+				// TODO: This needs to change to `BoxExecutor` once 1.6 is released
+				ExecutorRecord executor = AsyncService.chooseParallelExecutor( "LSP_diagnostic", 0, true );
+				executor.submitAndGet( () -> {
 					try {
 						Files
 						    .walk( Path.of( new URI( provider.getWorkspaceFolders().getFirst().getUri() ) ) )
@@ -65,10 +69,12 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 								    e.printStackTrace();
 							    }
 						    } );
+
 					} catch ( IOException | URISyntaxException e ) {
 						e.printStackTrace();
 					}
-				} ).get();
+
+				} );
 			} catch ( Exception e ) {
 				e.printStackTrace();
 			} finally {
