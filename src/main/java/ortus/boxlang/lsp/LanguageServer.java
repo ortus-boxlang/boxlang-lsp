@@ -16,7 +16,6 @@ import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.SetTraceParams;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
-import org.eclipse.lsp4j.jsonrpc.services.JsonNotification;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageClientAware;
 import org.eclipse.lsp4j.services.TextDocumentService;
@@ -29,13 +28,6 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 	private WorkspaceService		workspaceService		= new BoxLangWorkspaceService();
 	private TextDocumentService		textDocumentService		= new BoxLangTextDocumentService();
 	private ProjectContextProvider	projectContextProvider	= ProjectContextProvider.getInstance();
-
-	@JsonNotification( value = "boxlang/changesettings", useSegment = false )
-	public CompletableFuture<Void> changeSettings( ChangeSettingParams params ) {
-
-		projectContextProvider.setShouldPublishDiagnostics( params.enableExperimentalDiagnostics );
-		return CompletableFuture.completedFuture( null );
-	}
 
 	@Override
 	public CompletableFuture<InitializeResult> initialize( InitializeParams params ) {
@@ -51,7 +43,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			completionOptions.setTriggerCharacters( List.of( "." ) );
 			// completionOptions.
 			capabilities.setCompletionProvider( completionOptions );
-			capabilities.setDiagnosticProvider( new DiagnosticRegistrationOptions( true, true ) );
+			capabilities.setDiagnosticProvider( new DiagnosticRegistrationOptions( false, true ) );
 			capabilities.setCodeLensProvider( new CodeLensOptions( true ) );
 			capabilities.setCodeActionProvider( new CodeActionOptions( List.of(
 			    CodeActionKind.QuickFix,
@@ -99,6 +91,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 
 		// textDocumentService.setClient(client);
 		( ( BoxLangTextDocumentService ) textDocumentService ).setLanguageClient( client );
+		( ( BoxLangWorkspaceService ) workspaceService ).setLanguageClient( client );
 		projectContextProvider.setLanguageClient( client );
 
 		client.showMessage( new MessageParams( MessageType.Info, "Connected to the BoxLang Language Server!" ) );
