@@ -36,8 +36,6 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 
 			capabilities.setTextDocumentSync( TextDocumentSyncKind.Full );
 			capabilities.setDocumentSymbolProvider( true );
-			// capabilities.setDocumentFormattingProvider( true );
-			// capabilities.setReferencesProvider(true);
 			capabilities.setDefinitionProvider( true );
 			CompletionOptions completionOptions = new CompletionOptions();
 			completionOptions.setTriggerCharacters( List.of( "." ) );
@@ -89,14 +87,10 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 	@Override
 	public void connect( LanguageClient client ) {
 
-		// textDocumentService.setClient(client);
-		( ( BoxLangTextDocumentService ) textDocumentService ).setLanguageClient( client );
 		( ( BoxLangWorkspaceService ) workspaceService ).setLanguageClient( client );
 		projectContextProvider.setLanguageClient( client );
 
 		client.showMessage( new MessageParams( MessageType.Info, "Connected to the BoxLang Language Server!" ) );
-		// TODO Auto-generated method stub
-		// throw new UnsupportedOperationException("Unimplemented method 'connect'");
 	}
 
 }
