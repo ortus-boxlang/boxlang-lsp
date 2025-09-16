@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Change the way background processing works to prevent overwhelming the system
+- Add settings for the user to control how background processing happens
+- Add additional logging
+
 ## [1.1.0] - 2025-09-03
 
 - Add var scoping check for CFML files

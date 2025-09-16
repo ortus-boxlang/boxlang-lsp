@@ -39,18 +39,11 @@ import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
 import org.eclipse.lsp4j.jsonrpc.json.ResponseJsonAdapter;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
-import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
 public class BoxLangTextDocumentService implements TextDocumentService {
-
-	private LanguageClient client;
-
-	public void setLanguageClient( LanguageClient client ) {
-		this.client = client;
-	}
 
 	@JsonRequest
 	public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion( CompletionParams position ) {

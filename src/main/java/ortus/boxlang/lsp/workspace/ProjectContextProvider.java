@@ -2,6 +2,7 @@ package ortus.boxlang.lsp.workspace;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -10,6 +11,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionParams;
@@ -21,13 +24,18 @@ import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.Location;
+import org.eclipse.lsp4j.MessageParams;
+import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
 import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.WorkspaceDiagnosticReport;
+import org.eclipse.lsp4j.WorkspaceDocumentDiagnosticReport;
 import org.eclipse.lsp4j.WorkspaceFolder;
+import org.eclipse.lsp4j.WorkspaceFullDocumentDiagnosticReport;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 
@@ -38,11 +46,15 @@ import ortus.boxlang.compiler.ast.Point;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
 import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
+import ortus.boxlang.lsp.LSPTools;
+import ortus.boxlang.lsp.UserSettings;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensFacts;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensRuleBook;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
 import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
 import ortus.boxlang.lsp.workspace.visitors.DefinitionTargetVisitor;
+import ortus.boxlang.runtime.async.executors.ExecutorRecord;
+import ortus.boxlang.runtime.services.AsyncService;
 
 public class ProjectContextProvider {
 
@@ -52,6 +64,7 @@ public class ProjectContextProvider {
 	private Map<URI, FileParseResult>	parsedFiles					= new HashMap<URI, FileParseResult>();
 	private Map<URI, FileParseResult>	openDocuments				= new HashMap<URI, FileParseResult>();
 	private List<FunctionDefinition>	functionDefinitions			= new ArrayList<FunctionDefinition>();
+	private UserSettings				userSettings				= new UserSettings();
 
 	private boolean						shouldPublishDiagnostics	= false;
 
@@ -74,6 +87,75 @@ public class ProjectContextProvider {
 		}
 
 		return instance;
+	}
+
+	public void remove( URI docURI ) {
+		this.parsedFiles.remove( docURI );
+		this.openDocuments.remove( docURI );
+	}
+
+	public void setUserSettings( UserSettings settings ) {
+		this.userSettings = settings;
+	}
+
+	public CompletableFuture<WorkspaceDiagnosticReport> generateWorkspaceDiagnosticReport() {
+
+		return CompletableFuture.supplyAsync( () -> {
+			ProjectContextProvider					provider	= ProjectContextProvider.getInstance();
+			WorkspaceDiagnosticReport				report		= new WorkspaceDiagnosticReport();
+			List<WorkspaceDocumentDiagnosticReport>	docReports	= new ArrayList<>();
+			report.setItems( docReports );
+
+			if ( provider.getWorkspaceFolders() == null
+			    || provider.getWorkspaceFolders().isEmpty() ) {
+				return report;
+			}
+
+			if ( !this.userSettings.isEnableBackgroundParsing() ) {
+				this.client.logMessage( new MessageParams( MessageType.Info, "Background parsing is disabled, skipping workspace diagnostics." ) );
+				return report;
+			}
+
+			this.client.logMessage( new MessageParams( MessageType.Info, "Background parsing is enabled, gathering diagnostics." ) );
+			try {
+				// TODO: This needs to change to `BoxExecutor` once 1.6 is released
+				ExecutorRecord executor = AsyncService.chooseParallelExecutor( "LSP_diagnostic", 0, true );
+				executor.submitAndGet( () -> {
+					try {
+						Stream<Path> stream = Files
+						    .walk( Path.of( new URI( provider.getWorkspaceFolders().getFirst().getUri() ) ) );
+
+						if ( this.userSettings.isProcessDiagnosticsInParallel() ) {
+							stream.parallel();
+						}
+
+						stream
+						    .filter( LSPTools::canWalkFile )
+						    .forEach( ( clazzPath ) -> {
+							    try {
+								    WorkspaceFullDocumentDiagnosticReport fullReport = new WorkspaceFullDocumentDiagnosticReport();
+								    fullReport.setItems( provider.getFileDiagnostics( clazzPath.toUri() ) );
+								    fullReport.setUri( clazzPath.toUri().toString() );
+								    docReports.add( new WorkspaceDocumentDiagnosticReport( fullReport ) );
+							    } catch ( Exception e ) {
+								    // TODO Auto-generated catch block
+								    e.printStackTrace();
+							    }
+						    } );
+
+						stream.close();
+
+					} catch ( IOException | URISyntaxException e ) {
+						e.printStackTrace();
+					}
+
+				} );
+			} catch ( Exception e ) {
+				e.printStackTrace();
+			}
+
+			return report;
+		} );
 	}
 
 	public Map<String, Path> getMappings() {
@@ -107,12 +189,16 @@ public class ProjectContextProvider {
 
 		this.shouldPublishDiagnostics = shouldPublishDiagnostics;
 
-		// TODO implement this differently
+		// TODO: This needs to change to `BoxExecutor` once 1.6 is released
+		ExecutorRecord executor = AsyncService.chooseParallelExecutor( "LSP_publish", 0, true );
 
-		this.parsedFiles.keySet()
-		    .stream()
-		    .parallel()
-		    .forEach( ( uri ) -> publishDiagnostics( uri ) );
+		executor.submitAndGet( () -> {
+			this.parsedFiles.keySet()
+			    .stream()
+			    .parallel()
+			    .forEach( ( uri ) -> publishDiagnostics( uri ) );
+
+		} );
 	}
 
 	public void setLanguageClient( LanguageClient client ) {
