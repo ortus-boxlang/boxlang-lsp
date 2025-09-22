@@ -16,7 +16,6 @@ import org.eclipse.lsp4j.DiagnosticTag;
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.expression.BoxArrayAccess;
 import ortus.boxlang.compiler.ast.expression.BoxAssignment;
-import ortus.boxlang.compiler.ast.expression.BoxAssignmentModifier;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
@@ -74,15 +73,20 @@ public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 		BoxFunctionDeclaration func = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
 
 		if ( this.isBeingAssignedTo( node ) ) {
-			// Check if this is a declaration (var x = 5) or reassignment (x = 10)
-			BoxAssignment assignment = ( BoxAssignment ) node.getFirstAncestorOfType( BoxAssignment.class );
+			// Check if this variable name has already been assigned in this function
+			String varName = node.getName().toLowerCase();
+			Set<BoxNode> assignedInFunc = assignedVars.computeIfAbsent( func, k -> new HashSet<>() );
 			
-			if ( assignment != null && this.isVarScoped( assignment ) ) {
-				// This is a declaration (var x = 5), track as assignment
-				assignedVars.computeIfAbsent( func, k -> new HashSet<>() ).add( node );
+			// If we already have an assignment for this variable name, treat this as a use (reassignment)
+			boolean alreadyAssigned = assignedInFunc.stream()
+				.anyMatch( n -> varName.equals( getNameFromNode( n ).toLowerCase() ) );
+			
+			if ( alreadyAssigned ) {
+				// This is a reassignment, count it as a use
+				usedVars.computeIfAbsent( func, k -> new HashSet<>() ).add( varName );
 			} else {
-				// This is a reassignment (x = 10), track as use
-				usedVars.computeIfAbsent( func, k -> new HashSet<>() ).add( node.getName().toLowerCase() );
+				// This is the first assignment, track it as assigned
+				assignedInFunc.add( node );
 			}
 			return;
 		}
@@ -118,15 +122,6 @@ public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 		// TODO what about thing[ usedVariable ] = 4? That should count as a use of usedVariable but it is to the left
 		// check if the identifier is part of an array access
 
-		return false;
-	}
-
-	private boolean isVarScoped( BoxAssignment node ) {
-		for ( var modifier : node.getModifiers() ) {
-			if ( modifier == BoxAssignmentModifier.VAR ) {
-				return true;
-			}
-		}
 		return false;
 	}
 
