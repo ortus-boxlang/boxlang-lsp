@@ -54,9 +54,8 @@ public class ImportCompletionTest {
 		    .orElse( null );
 
 		assertThat( javaNetItem ).isNotNull();
-		assertThat( javaNetItem.getTextEdit() ).isNotNull();
-		assertThat( javaNetItem.getTextEdit().isLeft() ).isTrue();
-		assertThat( javaNetItem.getTextEdit().getLeft().getNewText() ).isEqualTo( "import java.net;" );
+		assertThat( javaNetItem.getInsertText() ).isNotNull();
+		assertThat( javaNetItem.getInsertText() ).isEqualTo( "java.net" );
 	}
 
 	@Test
@@ -108,19 +107,19 @@ public class ImportCompletionTest {
 
 		// Should find java.net.URI class among completions
 		boolean					hasURI			= completionItems.stream()
-		    .anyMatch( ci -> ci.getLabel().equals( "java.net.URI" ) );
+		    .anyMatch( ci -> ci.getLabel().equals( "URI" ) );
 
 		assertThat( hasURI ).isTrue();
 
 		// Verify it's marked as a Class
 		CompletionItem uriItem = completionItems.stream()
-		    .filter( ci -> ci.getLabel().equals( "java.net.URI" ) )
+		    .filter( ci -> ci.getLabel().equals( "URI" ) )
 		    .findFirst()
 		    .orElse( null );
 
 		assertThat( uriItem ).isNotNull();
 		assertThat( uriItem.getKind() ).isEqualTo( CompletionItemKind.Class );
-		assertThat( uriItem.getDetail() ).contains( "Java class" );
+		assertThat( uriItem.getLabelDetails().getDescription() ).contains( "java.net.URI" );
 	}
 
 	@Test
@@ -142,13 +141,13 @@ public class ImportCompletionTest {
 
 		// Should find java.net.URI class among completions when searching by simple name
 		boolean					hasURI			= completionItems.stream()
-		    .anyMatch( ci -> ci.getLabel().equals( "java.net.URI" ) );
+		    .anyMatch( ci -> ci.getLabel().equals( "URI" ) );
 
 		assertThat( hasURI ).isTrue();
 
 		// Should also find other URI-related classes
 		boolean hasOtherURIClass = completionItems.stream()
-		    .anyMatch( ci -> ci.getLabel().contains( "URI" ) && ci.getLabel().startsWith( "java." ) );
+		    .anyMatch( ci -> ci.getLabel().contains( "URI" ) && ci.getLabelDetails().getDescription().startsWith( "java." ) );
 
 		assertThat( hasOtherURIClass ).isTrue();
 	}
@@ -172,7 +171,7 @@ public class ImportCompletionTest {
 
 		// Should find java.util.List class among completions when searching by simple name
 		boolean					hasList			= completionItems.stream()
-		    .anyMatch( ci -> ci.getLabel().equals( "java.util.List" ) );
+		    .anyMatch( ci -> ci.getLabelDetails().getDescription().equals( "java.util.List" ) );
 
 		assertThat( hasList ).isTrue();
 	}

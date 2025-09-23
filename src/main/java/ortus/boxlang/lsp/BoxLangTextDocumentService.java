@@ -48,9 +48,14 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	@JsonRequest
 	public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion( CompletionParams position ) {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
-			return Either.forLeft( ProjectContextProvider.getInstance()
+
+			CompletionList completions = new CompletionList();
+			completions.setIsIncomplete( true );
+			completions.setItems( ProjectContextProvider.getInstance()
 			    .getAvailableCompletions( LSPTools.convertDocumentURI( position.getTextDocument().getUri() ),
 			        position ) );
+
+			return Either.forRight( completions );
 		} );
 	}
 

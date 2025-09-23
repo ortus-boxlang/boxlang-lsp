@@ -7,9 +7,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -19,6 +17,7 @@ import java.util.stream.Stream;
 
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
+import org.eclipse.lsp4j.CompletionItemLabelDetails;
 import org.eclipse.lsp4j.InsertTextFormat;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
@@ -53,6 +52,21 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 		// Get available JDK packages and classes based on the current prompt
 		options.addAll( getJdkCompletions( afterImportPrompt, line, existingPrompt ) );
 
+		CompletionItem a = new CompletionItem();
+		a.setLabel( "WHAT" );
+		a.setSortText( "0" );
+		// a.setInsertText( "WHAT" );
+		options.add( a );
+		TextEdit	te	= new TextEdit();
+		Range		r	= new Range();
+		r.setStart( new Position( line, character - 1 ) );
+		r.setEnd( new Position( line, character ) );
+
+		te.setRange( r );
+		te.setNewText( "xxxxx" );
+		a.setTextEdit( Either.forLeft( te ) );
+		a.setInsertTextFormat( InsertTextFormat.PlainText );
+
 		result.addAll( options );
 	}
 
@@ -69,9 +83,13 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 	}
 
 	private List<CompletionItem> getJdkCompletions( String prefix, int line, String existingPrompt ) {
-		List<CompletionItem>	completions	= new ArrayList<>();
-		Set<String>				packages	= new HashSet<>();
-		Set<String>				classes		= new HashSet<>();
+		List<CompletionItem>	completions			= new ArrayList<>();
+		Set<String>				packages			= new HashSet<>();
+		Set<String>				classes				= new HashSet<>();
+
+		boolean					hasDot				= prefix.contains( "." );
+		String					classSortPrefix		= hasDot ? "0" : "1"; // Packages before classes if prefix has dot
+		String					packageSortPrefix	= hasDot ? "1" : "0"; // Packages before classes if prefix has dot
 
 		try {
 			// Get all system modules
@@ -90,7 +108,9 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 			// Convert packages to completion items
 			for ( String packageName : packages ) {
 				if ( matchesPrefix( packageName, prefix ) ) {
-					CompletionItem item = createCompletionItem( packageName, "Java package", CompletionItemKind.Module, line, existingPrompt );
+					String			insertText	= !hasDot ? packageName : packageName.substring( packageName.lastIndexOf( '.' ) + 1 );
+					CompletionItem	item		= createCompletionItem( packageName, "Java package", packageName, insertText, CompletionItemKind.Module,
+					    existingPrompt, packageSortPrefix, line, existingPrompt.length() );
 					completions.add( item );
 				}
 			}
@@ -98,16 +118,16 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 			// Convert classes to completion items
 			for ( String className : classes ) {
 				if ( matchesPrefix( className, prefix ) ) {
-					String			simpleClassName	= className.substring( className.lastIndexOf( '.' ) + 1 );
-					String			detail			= "Java class from " + className.substring( 0, className.lastIndexOf( '.' ) );
+					String simpleClassName = className.substring( className.lastIndexOf( '.' ) + 1 );
 
-					CompletionItem	item			= createCompletionItem( className, detail, CompletionItemKind.Class, line, existingPrompt );
-
-					// For class name without package prefix search (e.g., "URI" -> "java.net.URI")
-					if ( !prefix.contains( "." ) && simpleClassName.toLowerCase().startsWith( prefix.toLowerCase() ) ) {
-						item.setFilterText( simpleClassName );
-						item.setSortText( "z" + simpleClassName ); // Sort classes after packages
+					if ( hasDot && className.replace( prefix, "" ).contains( "." ) ) {
+						continue;
 					}
+
+					String			insertText	= hasDot ? simpleClassName : className;
+
+					CompletionItem	item		= createCompletionItem( simpleClassName, className, className, insertText, CompletionItemKind.Class,
+					    existingPrompt, classSortPrefix, line, existingPrompt.length() );
 
 					completions.add( item );
 				}
@@ -140,18 +160,17 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 		return false;
 	}
 
-	private CompletionItem createCompletionItem( String fullName, String detail, CompletionItemKind kind, int line, String existingPrompt ) {
+	private CompletionItem createCompletionItem( String label, String detail, String filterText, String insertText, CompletionItemKind kind,
+	    String existingPrompt, String sortTextPrefix, int line, int character ) {
 		CompletionItem item = new CompletionItem();
-		item.setLabel( fullName );
+		item.setLabel( label );
 		item.setKind( kind );
-		item.setInsertTextFormat( InsertTextFormat.PlainText );
-		item.setDetail( detail );
-
-		// Create TextEdit to replace the entire import line
-		String		newText		= "import " + fullName + ";";
-		Range		range		= new Range( new Position( line, 0 ), new Position( line, existingPrompt.length() ) );
-		TextEdit	textEdit	= new TextEdit( range, newText );
-		item.setTextEdit( Either.forLeft( textEdit ) );
+		var details = new CompletionItemLabelDetails();
+		details.setDescription( detail );
+		item.setLabelDetails( details );
+		item.setInsertText( insertText );
+		item.setFilterText( filterText );
+		item.setSortText( sortTextPrefix + label );
 
 		return item;
 	}
@@ -225,8 +244,11 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 	}
 
 	private List<CompletionItem> getCommonJdkCompletions( String prefix, int line, String existingPrompt ) {
-		List<CompletionItem>	completions		= new ArrayList<>();
-		String[]				commonPackages	= {
+		List<CompletionItem>	completions			= new ArrayList<>();
+		boolean					hasDot				= prefix.contains( "." );
+		String					classSortPrefix		= hasDot ? "0" : "1"; // Packages before classes if prefix has dot
+		String					packageSortPrefix	= hasDot ? "1" : "0"; // Packages before classes if prefix has dot
+		String[]				commonPackages		= {
 		    "java.lang",
 		    "java.util",
 		    "java.util.concurrent",
@@ -249,7 +271,7 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 		    "javax.swing.event"
 		};
 
-		String[]				commonClasses	= {
+		String[]				commonClasses		= {
 		    "java.lang.String",
 		    "java.lang.Object",
 		    "java.lang.Integer",
@@ -280,7 +302,8 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 		// Add packages
 		for ( String packageName : commonPackages ) {
 			if ( matchesPrefix( packageName, prefix ) ) {
-				CompletionItem item = createCompletionItem( packageName, "Java package", CompletionItemKind.Module, line, existingPrompt );
+				CompletionItem item = createCompletionItem( packageName, "Java package", packageName, packageName, CompletionItemKind.Module,
+				    existingPrompt, packageSortPrefix, line, existingPrompt.length() );
 				completions.add( item );
 			}
 		}
@@ -291,13 +314,14 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 				String			simpleClassName	= className.substring( className.lastIndexOf( '.' ) + 1 );
 				String			detail			= "Java class from " + className.substring( 0, className.lastIndexOf( '.' ) );
 
-				CompletionItem	item			= createCompletionItem( className, detail, CompletionItemKind.Class, line, existingPrompt );
-
+				CompletionItem	item			= createCompletionItem( className, detail, className, simpleClassName, CompletionItemKind.Class,
+				    existingPrompt, classSortPrefix, line, existingPrompt.length() );
+				item.setFilterText( "aaa" + simpleClassName );
 				// For class name without package prefix search (e.g., "URI" -> "java.net.URI")
-				if ( !prefix.contains( "." ) && simpleClassName.toLowerCase().startsWith( prefix.toLowerCase() ) ) {
-					item.setFilterText( simpleClassName );
-					item.setSortText( "z" + simpleClassName ); // Sort classes after packages
-				}
+				// if ( !prefix.contains( "." ) && simpleClassName.toLowerCase().startsWith( prefix.toLowerCase() ) ) {
+				// item.setFilterText( simpleClassName );
+				// item.setSortText( "aa" + simpleClassName ); // Sort classes after packages
+				// }
 
 				completions.add( item );
 			}

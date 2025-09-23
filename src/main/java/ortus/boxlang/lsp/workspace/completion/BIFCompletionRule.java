@@ -16,7 +16,8 @@ public class BIFCompletionRule implements IRule<CompletionFacts, List<Completion
 	@Override
 	public boolean when( CompletionFacts facts ) {
 		return !facts.fileParseResult().isTemplate()
-		    && !ContextChecker.isNewExpression( facts );
+		    && !ContextChecker.isNewExpression( facts )
+		    && ContextChecker.isImportExpression( facts );
 	}
 
 	@Override
@@ -39,6 +40,7 @@ public class BIFCompletionRule implements IRule<CompletionFacts, List<Completion
 			item.setKind( CompletionItemKind.Function );
 			item.setInsertText( name );
 			item.setDetail( signature );
+			item.setSortText( "5" + name );
 
 			return item;
 		} ).toList();
