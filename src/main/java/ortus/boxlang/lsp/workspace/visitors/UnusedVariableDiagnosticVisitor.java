@@ -73,7 +73,21 @@ public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 		BoxFunctionDeclaration func = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
 
 		if ( this.isBeingAssignedTo( node ) ) {
-			assignedVars.computeIfAbsent( func, k -> new HashSet<>() ).add( node );
+			// Check if this variable name has already been assigned in this function
+			String varName = node.getName().toLowerCase();
+			Set<BoxNode> assignedInFunc = assignedVars.computeIfAbsent( func, k -> new HashSet<>() );
+			
+			// If we already have an assignment for this variable name, treat this as a use (reassignment)
+			boolean alreadyAssigned = assignedInFunc.stream()
+				.anyMatch( n -> varName.equals( getNameFromNode( n ).toLowerCase() ) );
+			
+			if ( alreadyAssigned ) {
+				// This is a reassignment, count it as a use
+				usedVars.computeIfAbsent( func, k -> new HashSet<>() ).add( varName );
+			} else {
+				// This is the first assignment, track it as assigned
+				assignedInFunc.add( node );
+			}
 			return;
 		}
 

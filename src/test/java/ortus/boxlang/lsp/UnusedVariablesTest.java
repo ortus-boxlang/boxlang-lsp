@@ -170,4 +170,49 @@ public class UnusedVariablesTest {
 		assertThat( theKey ).isNull();
 
 	}
+
+	@Test
+	void testShouldNotReportVariableUsedInReassignment() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		// Get the project root directory
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		// Resolve the file path relative to the project root directory
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unusedVariablesAssignmentTest.bx" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+
+		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
+		assertNotNull( diagnostics, "Diagnostics should not be null." );
+
+		// Variable x should NOT be reported as unused because it has a reassignment
+		Diagnostic xUnused = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "Variable [x] is declared but never used." ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( xUnused ).isNull();
+	}
+
+	@Test
+	void testManualExampleFromIssueDescription() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		// Get the project root directory
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		// Resolve the file path relative to the project root directory
+		Path					p			= projectRoot.resolve( "src/test/resources/files/manual-test-example.bx" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+
+		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
+		assertNotNull( diagnostics, "Diagnostics should not be null." );
+
+		// The variable x should NOT be reported as unused because it has a reassignment
+		// This test verifies the exact example from the issue description
+		Diagnostic xUnused = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "Variable [x] is declared but never used." ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( xUnused ).isNull();
+	}
 }

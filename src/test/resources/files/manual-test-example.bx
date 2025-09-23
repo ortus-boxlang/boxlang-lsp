@@ -1,0 +1,7 @@
+class {
+    function test(){
+        var x = 5;
+
+        x = 10;
+    }
+}
