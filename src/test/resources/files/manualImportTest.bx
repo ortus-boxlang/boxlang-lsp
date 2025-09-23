@@ -1,0 +1,16 @@
+import java.
+// This line above should trigger import completion when typing after "java."
+
+import java.net.URI;
+import java.util.List;
+
+class ExampleImportUsage {
+    function main() {
+        var uri = URI.create("http://localhost:1234/v1/chat/completions");
+        var list = List.of("item1", "item2", "item3");
+        return {
+            "uri": uri,
+            "list": list
+        };
+    }
+}

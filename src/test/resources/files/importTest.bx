@@ -1,0 +1,8 @@
+import java.net.URI;
+
+class {
+    function main() {
+        var uri = URI.create("http://localhost:1234/v1/chat/completions");
+        return uri;
+    }
+}
