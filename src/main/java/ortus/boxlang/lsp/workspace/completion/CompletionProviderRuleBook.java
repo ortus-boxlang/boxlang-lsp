@@ -13,6 +13,7 @@ public class CompletionProviderRuleBook extends RuleCollection<CompletionFacts, 
 
 	static {
 		instance
+		    .addRule( new ImportCompletionRule() )
 		    .addRule( new NewCompletionRule() )
 		    .addRule( new ComponentCompletionRule() )
 		    .addRule( new BIFCompletionRule() )
