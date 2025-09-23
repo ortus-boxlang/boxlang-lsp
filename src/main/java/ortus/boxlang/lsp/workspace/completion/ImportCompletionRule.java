@@ -20,6 +20,10 @@ import java.util.stream.Stream;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.InsertTextFormat;
+import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 import ortus.boxlang.lsp.workspace.FileParseResult;
 import ortus.boxlang.lsp.workspace.rules.IRule;
@@ -38,14 +42,16 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 	public void then( CompletionFacts facts, List<CompletionItem> result ) {
 		FileParseResult	fileParseResult	= facts.fileParseResult();
 		var				existingPrompt	= fileParseResult.readLine( facts.completionParams().getPosition().getLine() );
+		int				line			= facts.completionParams().getPosition().getLine();
+		int				character		= facts.completionParams().getPosition().getCharacter();
 
-		existingPrompt = existingPrompt.substring( 0, facts.completionParams().getPosition().getCharacter() );
+		existingPrompt = existingPrompt.substring( 0, character );
 
 		String					afterImportPrompt	= getAfterImportText( existingPrompt );
 		List<CompletionItem>	options				= new ArrayList<CompletionItem>();
 
-		// Get available JDK packages based on the current prompt
-		options.addAll( getJdkPackageCompletions( afterImportPrompt ) );
+		// Get available JDK packages and classes based on the current prompt
+		options.addAll( getJdkCompletions( afterImportPrompt, line, existingPrompt ) );
 
 		result.addAll( options );
 	}
@@ -62,9 +68,10 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 		return "";
 	}
 
-	private List<CompletionItem> getJdkPackageCompletions( String prefix ) {
+	private List<CompletionItem> getJdkCompletions( String prefix, int line, String existingPrompt ) {
 		List<CompletionItem>	completions	= new ArrayList<>();
 		Set<String>				packages	= new HashSet<>();
+		Set<String>				classes		= new HashSet<>();
 
 		try {
 			// Get all system modules
@@ -72,29 +79,81 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 				String moduleName = moduleRef.descriptor().name();
 				// Focus on common JDK modules
 				if ( moduleName.startsWith( "java." ) || moduleName.startsWith( "javax." ) ) {
-					packages.addAll( getPackagesFromModule( moduleRef, prefix ) );
+					Set<String> modulePackages = getPackagesFromModule( moduleRef, prefix );
+					packages.addAll( modulePackages );
+
+					// Get classes for relevant packages
+					classes.addAll( getClassesFromModule( moduleRef, prefix, modulePackages ) );
 				}
 			} );
 
 			// Convert packages to completion items
 			for ( String packageName : packages ) {
-				if ( prefix.isEmpty() || packageName.startsWith( prefix ) ) {
-					CompletionItem item = new CompletionItem();
-					item.setLabel( packageName );
-					item.setKind( CompletionItemKind.Module );
-					item.setInsertTextFormat( InsertTextFormat.PlainText );
-					item.setInsertText( packageName );
-					item.setDetail( "Java package" );
+				if ( matchesPrefix( packageName, prefix ) ) {
+					CompletionItem item = createCompletionItem( packageName, "Java package", CompletionItemKind.Module, line, existingPrompt );
+					completions.add( item );
+				}
+			}
+
+			// Convert classes to completion items
+			for ( String className : classes ) {
+				if ( matchesPrefix( className, prefix ) ) {
+					String			simpleClassName	= className.substring( className.lastIndexOf( '.' ) + 1 );
+					String			detail			= "Java class from " + className.substring( 0, className.lastIndexOf( '.' ) );
+
+					CompletionItem	item			= createCompletionItem( className, detail, CompletionItemKind.Class, line, existingPrompt );
+
+					// For class name without package prefix search (e.g., "URI" -> "java.net.URI")
+					if ( !prefix.contains( "." ) && simpleClassName.toLowerCase().startsWith( prefix.toLowerCase() ) ) {
+						item.setFilterText( simpleClassName );
+						item.setSortText( "z" + simpleClassName ); // Sort classes after packages
+					}
+
 					completions.add( item );
 				}
 			}
 
 		} catch ( Exception e ) {
-			// If module system approach fails, fall back to common JDK packages
-			completions.addAll( getCommonJdkPackages( prefix ) );
+			// If module system approach fails, fall back to common JDK packages and classes
+			completions.addAll( getCommonJdkCompletions( prefix, line, existingPrompt ) );
 		}
 
 		return completions;
+	}
+
+	private boolean matchesPrefix( String candidate, String prefix ) {
+		if ( prefix.isEmpty() ) {
+			return true;
+		}
+
+		// Direct prefix match
+		if ( candidate.toLowerCase().startsWith( prefix.toLowerCase() ) ) {
+			return true;
+		}
+
+		// For searches without dots, check if the class name matches
+		if ( !prefix.contains( "." ) && candidate.contains( "." ) ) {
+			String simpleClassName = candidate.substring( candidate.lastIndexOf( '.' ) + 1 );
+			return simpleClassName.toLowerCase().startsWith( prefix.toLowerCase() );
+		}
+
+		return false;
+	}
+
+	private CompletionItem createCompletionItem( String fullName, String detail, CompletionItemKind kind, int line, String existingPrompt ) {
+		CompletionItem item = new CompletionItem();
+		item.setLabel( fullName );
+		item.setKind( kind );
+		item.setInsertTextFormat( InsertTextFormat.PlainText );
+		item.setDetail( detail );
+
+		// Create TextEdit to replace the entire import line
+		String		newText		= "import " + fullName + ";";
+		Range		range		= new Range( new Position( line, 0 ), new Position( line, existingPrompt.length() ) );
+		TextEdit	textEdit	= new TextEdit( range, newText );
+		item.setTextEdit( Either.forLeft( textEdit ) );
+
+		return item;
 	}
 
 	private Set<String> getPackagesFromModule( ModuleReference moduleRef, String prefix ) {
@@ -111,7 +170,7 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 							    .map( path -> modulePath.relativize( path ).toString() )
 							    .filter( pathStr -> !pathStr.isEmpty() )
 							    .map( pathStr -> pathStr.replace( '/', '.' ) )
-							    .filter( packageName -> prefix.isEmpty() || packageName.startsWith( prefix ) )
+							    .filter( packageName -> prefix.isEmpty() || packageName.toLowerCase().startsWith( prefix.toLowerCase() ) )
 							    .forEach( packages::add );
 						}
 					}
@@ -124,7 +183,48 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 		return packages;
 	}
 
-	private List<CompletionItem> getCommonJdkPackages( String prefix ) {
+	private Set<String> getClassesFromModule( ModuleReference moduleRef, String prefix, Set<String> packages ) {
+		Set<String> classes = new HashSet<>();
+
+		try {
+			URI moduleUri = moduleRef.location().orElse( null );
+			if ( moduleUri != null && "jrt".equals( moduleUri.getScheme() ) ) {
+				try ( FileSystem fs = FileSystems.getFileSystem( URI.create( "jrt:/" ) ) ) {
+					Path modulePath = fs.getPath( "/modules/" + moduleRef.descriptor().name() );
+					if ( Files.exists( modulePath ) ) {
+						try ( Stream<Path> paths = Files.walk( modulePath ) ) {
+							paths.filter( Files::isRegularFile )
+							    .filter( path -> path.toString().endsWith( ".class" ) )
+							    .map( path -> modulePath.relativize( path ).toString() )
+							    .filter( pathStr -> !pathStr.contains( "$" ) ) // Skip inner classes
+							    .filter( pathStr -> !pathStr.contains( "module-info" ) )
+							    .map( pathStr -> pathStr.replace( '/', '.' ).replace( ".class", "" ) )
+							    .filter( className -> {
+								    // Only include classes from relevant packages or that match simple name search
+								    if ( prefix.contains( "." ) ) {
+									    return className.toLowerCase().startsWith( prefix.toLowerCase() );
+								    } else if ( !prefix.isEmpty() ) {
+									    String simpleClassName = className.substring( className.lastIndexOf( '.' ) + 1 );
+									    return simpleClassName.toLowerCase().startsWith( prefix.toLowerCase() );
+								    } else {
+									    // For empty prefix, only include classes from common packages
+									    return packages.stream().anyMatch( pkg -> className.startsWith( pkg + "." ) );
+								    }
+							    } )
+							    .limit( 50 ) // Limit to avoid too many results
+							    .forEach( classes::add );
+						}
+					}
+				}
+			}
+		} catch ( Exception e ) {
+			// Ignore errors and continue
+		}
+
+		return classes;
+	}
+
+	private List<CompletionItem> getCommonJdkCompletions( String prefix, int line, String existingPrompt ) {
 		List<CompletionItem>	completions		= new ArrayList<>();
 		String[]				commonPackages	= {
 		    "java.lang",
@@ -149,14 +249,56 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 		    "javax.swing.event"
 		};
 
+		String[]				commonClasses	= {
+		    "java.lang.String",
+		    "java.lang.Object",
+		    "java.lang.Integer",
+		    "java.lang.Long",
+		    "java.lang.Double",
+		    "java.lang.Boolean",
+		    "java.util.List",
+		    "java.util.Map",
+		    "java.util.Set",
+		    "java.util.ArrayList",
+		    "java.util.HashMap",
+		    "java.util.HashSet",
+		    "java.util.Date",
+		    "java.util.UUID",
+		    "java.net.URI",
+		    "java.net.URL",
+		    "java.nio.file.Path",
+		    "java.nio.file.Paths",
+		    "java.nio.file.Files",
+		    "java.time.LocalDate",
+		    "java.time.LocalDateTime",
+		    "java.time.Instant",
+		    "java.io.File",
+		    "java.io.InputStream",
+		    "java.io.OutputStream"
+		};
+
+		// Add packages
 		for ( String packageName : commonPackages ) {
-			if ( prefix.isEmpty() || packageName.startsWith( prefix ) ) {
-				CompletionItem item = new CompletionItem();
-				item.setLabel( packageName );
-				item.setKind( CompletionItemKind.Module );
-				item.setInsertTextFormat( InsertTextFormat.PlainText );
-				item.setInsertText( packageName );
-				item.setDetail( "Java package" );
+			if ( matchesPrefix( packageName, prefix ) ) {
+				CompletionItem item = createCompletionItem( packageName, "Java package", CompletionItemKind.Module, line, existingPrompt );
+				completions.add( item );
+			}
+		}
+
+		// Add classes
+		for ( String className : commonClasses ) {
+			if ( matchesPrefix( className, prefix ) ) {
+				String			simpleClassName	= className.substring( className.lastIndexOf( '.' ) + 1 );
+				String			detail			= "Java class from " + className.substring( 0, className.lastIndexOf( '.' ) );
+
+				CompletionItem	item			= createCompletionItem( className, detail, CompletionItemKind.Class, line, existingPrompt );
+
+				// For class name without package prefix search (e.g., "URI" -> "java.net.URI")
+				if ( !prefix.contains( "." ) && simpleClassName.toLowerCase().startsWith( prefix.toLowerCase() ) ) {
+					item.setFilterText( simpleClassName );
+					item.setSortText( "z" + simpleClassName ); // Sort classes after packages
+				}
+
 				completions.add( item );
 			}
 		}
