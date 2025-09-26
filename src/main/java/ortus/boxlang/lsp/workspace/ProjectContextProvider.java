@@ -24,8 +24,6 @@ import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.Location;
-import org.eclipse.lsp4j.MessageParams;
-import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
@@ -112,11 +110,9 @@ public class ProjectContextProvider {
 			}
 
 			if ( !this.userSettings.isEnableBackgroundParsing() ) {
-				this.client.logMessage( new MessageParams( MessageType.Info, "Background parsing is disabled, skipping workspace diagnostics." ) );
 				return report;
 			}
 
-			this.client.logMessage( new MessageParams( MessageType.Info, "Background parsing is enabled, gathering diagnostics." ) );
 			try {
 				// TODO: This needs to change to `BoxExecutor` once 1.6 is released
 				ExecutorRecord executor = AsyncService.chooseParallelExecutor( "LSP_diagnostic", 0, true );
