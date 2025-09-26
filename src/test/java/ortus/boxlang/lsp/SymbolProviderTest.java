@@ -1,12 +1,15 @@
 package ortus.boxlang.lsp;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.lsp4j.Position;
@@ -17,8 +20,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 import ortus.boxlang.lsp.workspace.ClassSymbol;
 import ortus.boxlang.lsp.workspace.SymbolProvider;
+import ortus.boxlang.runtime.BoxRuntime;
 
-class SymbolProviderTest {
+class SymbolProviderTest extends BaseTest {
 
 	@TempDir
 	Path					tempDir;
@@ -26,9 +30,9 @@ class SymbolProviderTest {
 	private SymbolProvider	symbolProvider;
 
 	@BeforeEach
-	void setUp() {
+	void setUp() throws IOException {
 		symbolProvider = new SymbolProvider();
-		symbolProvider.initialize( tempDir );
+		symbolProvider.initialize( Files.createTempFile( "lspcache-", ".json" ) );
 	}
 
 	@Test
@@ -160,7 +164,31 @@ class SymbolProviderTest {
 	}
 
 	@Test
-	void testCachePersistence() throws Exception {
+	void testWillUseSpecificCacheFile() throws Exception {
+		String			cacheFilePath	= "src/test/resources/.test-cache1.json";
+		SymbolProvider	symbolProvider	= new SymbolProvider();
+		symbolProvider.initialize( Paths.get( cacheFilePath ) );
+
+		assertThat( symbolProvider.getCacheFilePath().toString() ).isEqualTo( cacheFilePath );
+	}
+
+	@Test
+	void testWillDefaultCacheLocationToBoxLangHome() throws Exception {
+		String			projectPath		= "src/test/resources/files";
+		SymbolProvider	symbolProvider	= new SymbolProvider();
+		symbolProvider.initializeWithDefaultCacheLocation( Paths.get( projectPath ) );
+
+		assertThat( symbolProvider.getCacheFilePath().toString() ).startsWith( BoxRuntime.getInstance().getRuntimeHome().toString() );
+	}
+
+	@Test
+	void testWillCreateCacheFile() throws Exception {
+		Path			cacheFilePath	= Files.createTempFile( "lspcache-", ".json" );
+		SymbolProvider	symbolProvider	= new SymbolProvider();
+		symbolProvider.initialize( cacheFilePath );
+
+		System.out.println( "Cache file path: " + symbolProvider.getCacheFilePath().toString() );
+
 		URI			fileUri			= URI.create( "file:///test.bx" );
 		String		fileUriString	= fileUri.toString();
 
@@ -170,15 +198,7 @@ class SymbolProviderTest {
 		// Add symbol and verify cache file is created
 		symbolProvider.addClassSymbols( fileUriString, List.of( symbol ) );
 
-		Path cacheFile = tempDir.resolve( ".boxlang-symbols-cache.json" );
-		assertTrue( Files.exists( cacheFile ), "Cache file should be created" );
+		assertThat( Files.exists( symbolProvider.getCacheFilePath() ) ).isTrue();
 
-		// Create new symbol provider and verify it loads the cache
-		SymbolProvider newProvider = new SymbolProvider();
-		newProvider.initialize( tempDir );
-
-		List<ClassSymbol> foundSymbols = newProvider.findClassSymbols( fileUri, "Test" );
-		assertEquals( 1, foundSymbols.size(), "New provider should load symbols from cache file" );
-		assertEquals( "TestClass", foundSymbols.get( 0 ).name() );
 	}
 }

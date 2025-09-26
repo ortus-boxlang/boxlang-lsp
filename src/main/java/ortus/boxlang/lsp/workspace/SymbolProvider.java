@@ -1,20 +1,19 @@
 package ortus.boxlang.lsp.workspace;
 
-import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
-
-import org.eclipse.lsp4j.Range;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -29,6 +28,7 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
 import ortus.boxlang.lsp.App;
+import ortus.boxlang.runtime.BoxRuntime;
 
 /**
  * Provides symbol caching functionality for the language server.
@@ -64,14 +64,26 @@ public class SymbolProvider {
 		    .create();
 	}
 
+	public static Path getDefaultCacheFilePath( Path workspaceRoot ) {
+		return BoxRuntime.getInstance().getRuntimeHome().resolve( sha256( workspaceRoot.toString() ).substring( 0, 16 ) + ".json" );
+	}
+
+	public void initializeWithDefaultCacheLocation( Path workspaceRoot ) {
+		initialize( SymbolProvider.getDefaultCacheFilePath( workspaceRoot ) );
+	}
+
 	/**
 	 * Initialize the symbol provider with a workspace root path.
 	 * 
 	 * @param workspaceRoot The root path of the workspace where the cache file will be stored
 	 */
-	public void initialize( Path workspaceRoot ) {
-		this.cacheFilePath = workspaceRoot.resolve( CACHE_FILE_NAME );
+	public void initialize( Path cacheFilePath ) {
+		this.cacheFilePath = cacheFilePath;
 		loadCache();
+	}
+
+	public Path getCacheFilePath() {
+		return cacheFilePath;
 	}
 
 	/**
@@ -231,6 +243,20 @@ public class SymbolProvider {
 			if ( App.logger != null ) {
 				App.logger.error( "Failed to save symbol cache: " + e.getMessage(), e );
 			}
+		}
+	}
+
+	private static String sha256( String input ) {
+		try {
+			MessageDigest	digest		= MessageDigest.getInstance( "SHA-256" );
+			byte[]			hashBytes	= digest.digest( input.getBytes() );
+			StringBuilder	hexString	= new StringBuilder();
+			for ( byte b : hashBytes ) {
+				hexString.append( String.format( "%02x", b ) );
+			}
+			return hexString.toString();
+		} catch ( NoSuchAlgorithmException e ) {
+			throw new RuntimeException( e );
 		}
 	}
 }
