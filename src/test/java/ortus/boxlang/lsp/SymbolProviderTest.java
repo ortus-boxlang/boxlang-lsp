@@ -165,11 +165,11 @@ class SymbolProviderTest extends BaseTest {
 
 	@Test
 	void testWillUseSpecificCacheFile() throws Exception {
-		String			cacheFilePath	= "src/test/resources/.test-cache1.json";
+		Path			cacheFilePath	= Paths.get( "src/test/resources/.test-cache1.json" );
 		SymbolProvider	symbolProvider	= new SymbolProvider();
-		symbolProvider.initialize( Paths.get( cacheFilePath ) );
+		symbolProvider.initialize( cacheFilePath );
 
-		assertThat( symbolProvider.getCacheFilePath().toString() ).isEqualTo( cacheFilePath );
+		assertThat( symbolProvider.getCacheFilePath() ).isEqualTo( cacheFilePath );
 	}
 
 	@Test
