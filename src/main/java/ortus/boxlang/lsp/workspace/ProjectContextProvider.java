@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
 import org.eclipse.lsp4j.CodeAction;
@@ -33,7 +34,6 @@ import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceDiagnosticReport;
 import org.eclipse.lsp4j.WorkspaceDocumentDiagnosticReport;
 import org.eclipse.lsp4j.WorkspaceFolder;
-import org.eclipse.lsp4j.WorkspaceFullDocumentDiagnosticReport;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 
@@ -63,6 +63,8 @@ public class ProjectContextProvider {
 	private Map<URI, FileParseResult>	openDocuments				= new HashMap<URI, FileParseResult>();
 	private List<FunctionDefinition>	functionDefinitions			= new ArrayList<FunctionDefinition>();
 	private UserSettings				userSettings				= new UserSettings();
+	private long						WorkspaceDiagnosticReportId	= 1;
+	private List<DiagnosticReport>		cachedDiagnosticReports		= new CopyOnWriteArrayList<DiagnosticReport>();
 
 	private boolean						shouldPublishDiagnostics	= false;
 
@@ -87,6 +89,10 @@ public class ProjectContextProvider {
 		return instance;
 	}
 
+	public List<DiagnosticReport> getCachedDiagnosticReports() {
+		return cachedDiagnosticReports;
+	}
+
 	public void remove( URI docURI ) {
 		this.parsedFiles.remove( docURI );
 		this.openDocuments.remove( docURI );
@@ -96,9 +102,17 @@ public class ProjectContextProvider {
 		this.userSettings = settings;
 	}
 
-	public CompletableFuture<WorkspaceDiagnosticReport> generateWorkspaceDiagnosticReport() {
+	public UserSettings getUserSettings() {
+		return userSettings;
+	}
 
-		return CompletableFuture.supplyAsync( () -> {
+	public long getWorkspaceDiagnosticReportId() {
+		return WorkspaceDiagnosticReportId;
+	}
+
+	public void parseWorkspace() {
+		CompletableFuture.runAsync( () -> {
+			System.out.println( "Generating workspace diagnostic report" );
 			ProjectContextProvider					provider	= ProjectContextProvider.getInstance();
 			WorkspaceDiagnosticReport				report		= new WorkspaceDiagnosticReport();
 			List<WorkspaceDocumentDiagnosticReport>	docReports	= new ArrayList<>();
@@ -106,11 +120,11 @@ public class ProjectContextProvider {
 
 			if ( provider.getWorkspaceFolders() == null
 			    || provider.getWorkspaceFolders().isEmpty() ) {
-				return report;
+				return;
 			}
 
 			if ( !this.userSettings.isEnableBackgroundParsing() ) {
-				return report;
+				return;
 			}
 
 			try {
@@ -129,10 +143,18 @@ public class ProjectContextProvider {
 						    .filter( LSPTools::canWalkFile )
 						    .forEach( ( clazzPath ) -> {
 							    try {
-								    WorkspaceFullDocumentDiagnosticReport fullReport = new WorkspaceFullDocumentDiagnosticReport();
-								    fullReport.setItems( provider.getFileDiagnostics( clazzPath.toUri() ) );
-								    fullReport.setUri( clazzPath.toUri().toString() );
-								    docReports.add( new WorkspaceDocumentDiagnosticReport( fullReport ) );
+								    List<Diagnostic> diagnostics			= provider.getFileDiagnostics( clazzPath.toUri() );
+
+								    DiagnosticReport cachedFileDiagnostics	= this.cachedDiagnosticReports.stream()
+								        .filter( dr -> dr.getFileURI().toString().equals( clazzPath.toUri().toString() ) )
+								        .findFirst()
+								        .orElseGet( () -> {
+																				        DiagnosticReport newReport = new DiagnosticReport( clazzPath.toUri() );
+																				        this.cachedDiagnosticReports.add( newReport );
+																				        return newReport;
+																			        } );
+
+								    cachedFileDiagnostics.setDiagnostics( diagnostics );
 							    } catch ( Exception e ) {
 								    // TODO Auto-generated catch block
 								    e.printStackTrace();
@@ -149,9 +171,8 @@ public class ProjectContextProvider {
 			} catch ( Exception e ) {
 				e.printStackTrace();
 			}
-
-			return report;
 		} );
+
 	}
 
 	public Map<String, Path> getMappings() {
