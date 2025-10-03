@@ -107,6 +107,10 @@ public class FileParseResult {
 			}
 		}
 
+		if ( lineNumber < 0 ) {
+			return "";
+		}
+
 		return lineStream.skip( lineNumber ).findFirst().orElse( "" );
 	}
 
