@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
 import org.eclipse.lsp4j.CodeAction;
@@ -24,8 +25,6 @@ import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.Location;
-import org.eclipse.lsp4j.MessageParams;
-import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
@@ -35,7 +34,6 @@ import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceDiagnosticReport;
 import org.eclipse.lsp4j.WorkspaceDocumentDiagnosticReport;
 import org.eclipse.lsp4j.WorkspaceFolder;
-import org.eclipse.lsp4j.WorkspaceFullDocumentDiagnosticReport;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 
@@ -65,6 +63,8 @@ public class ProjectContextProvider {
 	private Map<URI, FileParseResult>	openDocuments				= new HashMap<URI, FileParseResult>();
 	private List<FunctionDefinition>	functionDefinitions			= new ArrayList<FunctionDefinition>();
 	private UserSettings				userSettings				= new UserSettings();
+	private long						WorkspaceDiagnosticReportId	= 1;
+	private List<DiagnosticReport>		cachedDiagnosticReports		= new CopyOnWriteArrayList<DiagnosticReport>();
 
 	private boolean						shouldPublishDiagnostics	= false;
 
@@ -89,6 +89,10 @@ public class ProjectContextProvider {
 		return instance;
 	}
 
+	public List<DiagnosticReport> getCachedDiagnosticReports() {
+		return cachedDiagnosticReports;
+	}
+
 	public void remove( URI docURI ) {
 		this.parsedFiles.remove( docURI );
 		this.openDocuments.remove( docURI );
@@ -98,9 +102,17 @@ public class ProjectContextProvider {
 		this.userSettings = settings;
 	}
 
-	public CompletableFuture<WorkspaceDiagnosticReport> generateWorkspaceDiagnosticReport() {
+	public UserSettings getUserSettings() {
+		return userSettings;
+	}
 
-		return CompletableFuture.supplyAsync( () -> {
+	public long getWorkspaceDiagnosticReportId() {
+		return WorkspaceDiagnosticReportId;
+	}
+
+	public void parseWorkspace() {
+		CompletableFuture.runAsync( () -> {
+			System.out.println( "Generating workspace diagnostic report" );
 			ProjectContextProvider					provider	= ProjectContextProvider.getInstance();
 			WorkspaceDiagnosticReport				report		= new WorkspaceDiagnosticReport();
 			List<WorkspaceDocumentDiagnosticReport>	docReports	= new ArrayList<>();
@@ -108,15 +120,13 @@ public class ProjectContextProvider {
 
 			if ( provider.getWorkspaceFolders() == null
 			    || provider.getWorkspaceFolders().isEmpty() ) {
-				return report;
+				return;
 			}
 
 			if ( !this.userSettings.isEnableBackgroundParsing() ) {
-				this.client.logMessage( new MessageParams( MessageType.Info, "Background parsing is disabled, skipping workspace diagnostics." ) );
-				return report;
+				return;
 			}
 
-			this.client.logMessage( new MessageParams( MessageType.Info, "Background parsing is enabled, gathering diagnostics." ) );
 			try {
 				// TODO: This needs to change to `BoxExecutor` once 1.6 is released
 				ExecutorRecord executor = AsyncService.chooseParallelExecutor( "LSP_diagnostic", 0, true );
@@ -133,10 +143,18 @@ public class ProjectContextProvider {
 						    .filter( LSPTools::canWalkFile )
 						    .forEach( ( clazzPath ) -> {
 							    try {
-								    WorkspaceFullDocumentDiagnosticReport fullReport = new WorkspaceFullDocumentDiagnosticReport();
-								    fullReport.setItems( provider.getFileDiagnostics( clazzPath.toUri() ) );
-								    fullReport.setUri( clazzPath.toUri().toString() );
-								    docReports.add( new WorkspaceDocumentDiagnosticReport( fullReport ) );
+								    List<Diagnostic> diagnostics			= provider.getFileDiagnostics( clazzPath.toUri() );
+
+								    DiagnosticReport cachedFileDiagnostics	= this.cachedDiagnosticReports.stream()
+								        .filter( dr -> dr.getFileURI().toString().equals( clazzPath.toUri().toString() ) )
+								        .findFirst()
+								        .orElseGet( () -> {
+																				        DiagnosticReport newReport = new DiagnosticReport( clazzPath.toUri() );
+																				        this.cachedDiagnosticReports.add( newReport );
+																				        return newReport;
+																			        } );
+
+								    cachedFileDiagnostics.setDiagnostics( diagnostics );
 							    } catch ( Exception e ) {
 								    // TODO Auto-generated catch block
 								    e.printStackTrace();
@@ -153,9 +171,8 @@ public class ProjectContextProvider {
 			} catch ( Exception e ) {
 				e.printStackTrace();
 			}
-
-			return report;
 		} );
+
 	}
 
 	public Map<String, Path> getMappings() {
@@ -237,7 +254,9 @@ public class ProjectContextProvider {
 
 		for ( TextDocumentContentChangeEvent change : changes ) {
 			if ( change.getRange() == null ) {
-				this.openDocuments.put( docUri, FileParseResult.fromSourceString( docUri, change.getText() ) );
+				FileParseResult fpr = FileParseResult.fromSourceString( docUri, change.getText() );
+				this.openDocuments.put( docUri, fpr );
+				cacheLatestDiagnostics( fpr );
 			}
 		}
 	}
@@ -254,11 +273,15 @@ public class ProjectContextProvider {
 			}
 		}
 
-		this.openDocuments.put( docUri, FileParseResult.fromSourceString( docUri, fileContent ) );
+		FileParseResult fpr = FileParseResult.fromSourceString( docUri, fileContent );
+		this.openDocuments.put( docUri, fpr );
+		cacheLatestDiagnostics( fpr );
 	}
 
 	public void trackDocumentOpen( URI docUri, String text ) {
-		this.openDocuments.put( docUri, FileParseResult.fromSourceString( docUri, text ) );
+		FileParseResult fpr = FileParseResult.fromSourceString( docUri, text );
+		this.openDocuments.put( docUri, fpr );
+		cacheLatestDiagnostics( fpr );
 	}
 
 	public void trackDocumentClose( URI docUri ) {
@@ -276,6 +299,8 @@ public class ProjectContextProvider {
 		}
 
 		FileParseResult result = FileParseResult.fromFileSystem( docUri );
+
+		cacheLatestDiagnostics( result );
 
 		return Optional.of( result );
 	}
@@ -397,5 +422,18 @@ public class ProjectContextProvider {
 		}
 
 		return actions;
+	}
+
+	private void cacheLatestDiagnostics( FileParseResult fpr ) {
+		DiagnosticReport cachedFileDiagnostics = this.cachedDiagnosticReports.stream()
+		    .filter( dr -> dr.getFileURI().toString().equals( fpr.getURI().toString() ) )
+		    .findFirst()
+		    .orElseGet( () -> {
+			    DiagnosticReport newReport = new DiagnosticReport( fpr.getURI() );
+			    this.cachedDiagnosticReports.add( newReport );
+			    return newReport;
+		    } );
+
+		cachedFileDiagnostics.setDiagnostics( fpr.getDiagnostics() );
 	}
 }

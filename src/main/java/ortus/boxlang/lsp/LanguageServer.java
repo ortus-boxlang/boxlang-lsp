@@ -50,6 +50,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			) ) );
 
 			ProjectContextProvider.getInstance().setWorkspaceFolders( params.getWorkspaceFolders() );
+			ProjectContextProvider.getInstance().parseWorkspace();
 
 			return new InitializeResult( capabilities );
 		} );

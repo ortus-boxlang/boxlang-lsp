@@ -3,13 +3,13 @@
 	"version": "@build.version@+@build.number@",
 	"location": "https://downloads.ortussolutions.com/ortussolutions/boxlang-modules/bx-lsp/@build.version@/bx-lsp-@build.version@.zip",
 	"author": "Ortus Solutions",
-	"homepage": "https://github.com/boxlang-modules/bx-lsp",
-	"documentation": "https://github.com/boxlang-modules/bx-lsp",
+	"homepage": "https://github.com/ortus-boxlang/boxlang-lsp",
+	"documentation": "https://github.com/ortus-boxlang/boxlang-lsp",
 	"repository": {
 		"type": "git",
-		"URL": "https://github.com/boxlang-modules/bx-lsp"
+		"URL": "https://github.com/ortus-boxlang/boxlang-lsp"
 	},
-	"bugs": "https://github.com/boxlang-modules/bx-lsp/issues",
+	"bugs": "https://github.com/ortus-boxlang/boxlang-lsp/issues",
 	"slug": "bx-lsp",
 	"shortDescription": "Module template for BoxLang modules",
 	"type": "boxlang-modules",
