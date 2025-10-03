@@ -254,7 +254,9 @@ public class ProjectContextProvider {
 
 		for ( TextDocumentContentChangeEvent change : changes ) {
 			if ( change.getRange() == null ) {
-				this.openDocuments.put( docUri, FileParseResult.fromSourceString( docUri, change.getText() ) );
+				FileParseResult fpr = FileParseResult.fromSourceString( docUri, change.getText() );
+				this.openDocuments.put( docUri, fpr );
+				cacheLatestDiagnostics( fpr );
 			}
 		}
 	}
@@ -271,11 +273,15 @@ public class ProjectContextProvider {
 			}
 		}
 
-		this.openDocuments.put( docUri, FileParseResult.fromSourceString( docUri, fileContent ) );
+		FileParseResult fpr = FileParseResult.fromSourceString( docUri, fileContent );
+		this.openDocuments.put( docUri, fpr );
+		cacheLatestDiagnostics( fpr );
 	}
 
 	public void trackDocumentOpen( URI docUri, String text ) {
-		this.openDocuments.put( docUri, FileParseResult.fromSourceString( docUri, text ) );
+		FileParseResult fpr = FileParseResult.fromSourceString( docUri, text );
+		this.openDocuments.put( docUri, fpr );
+		cacheLatestDiagnostics( fpr );
 	}
 
 	public void trackDocumentClose( URI docUri ) {
@@ -293,6 +299,8 @@ public class ProjectContextProvider {
 		}
 
 		FileParseResult result = FileParseResult.fromFileSystem( docUri );
+
+		cacheLatestDiagnostics( result );
 
 		return Optional.of( result );
 	}
@@ -414,5 +422,18 @@ public class ProjectContextProvider {
 		}
 
 		return actions;
+	}
+
+	private void cacheLatestDiagnostics( FileParseResult fpr ) {
+		DiagnosticReport cachedFileDiagnostics = this.cachedDiagnosticReports.stream()
+		    .filter( dr -> dr.getFileURI().toString().equals( fpr.getURI().toString() ) )
+		    .findFirst()
+		    .orElseGet( () -> {
+			    DiagnosticReport newReport = new DiagnosticReport( fpr.getURI() );
+			    this.cachedDiagnosticReports.add( newReport );
+			    return newReport;
+		    } );
+
+		cachedFileDiagnostics.setDiagnostics( fpr.getDiagnostics() );
 	}
 }
