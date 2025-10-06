@@ -51,12 +51,12 @@ dependencies {
 	// Look for it in the local build directory
 	// You must run `./gradle build -x test` in the BoxLang project
 	// compileOnly files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '.jar' )
-    compileOnly "io.boxlang:boxlang:1.5.0"
+    compileOnly "io.boxlang:boxlang:1.6.0"
 
     // Testing Dependencies
 	// testImplementation files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '.jar' )
 	// testImplementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
-    testImplementation "io.boxlang:boxlang:1.5.0"
+    testImplementation "io.boxlang:boxlang:1.6.0"
     // Align all JUnit dependencies to the same version to avoid compatibility issues
     testImplementation "org.junit.jupiter:junit-jupiter:5.13.4"
 	testImplementation "org.mockito:mockito-core:5.+"
