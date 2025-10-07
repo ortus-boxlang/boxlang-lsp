@@ -1,0 +1,5 @@
+class {
+    function test( argA ){
+        otherFunc( arguments );
+    }
+}

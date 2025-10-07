@@ -215,4 +215,76 @@ public class UnusedVariablesTest {
 
 		assertThat( xUnused ).isNull();
 	}
+
+	@Test
+	void testShouldNotIncludeProperties() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		// Get the project root directory
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		// Resolve the file path relative to the project root directory
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unusedvariables/NoProps.bx" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+
+		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
+		assertNotNull( diagnostics, "Diagnostics should not be null." );
+
+		Diagnostic whatUnused = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "Variable [what] is declared but never used." ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( whatUnused ).isNull();
+	}
+
+	@Test
+	void testShouldNotIncludeVariablesInPseudoConstructor() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		// Get the project root directory
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		// Resolve the file path relative to the project root directory
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unusedvariables/PseudoVars.bx" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+
+		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
+		assertNotNull( diagnostics, "Diagnostics should not be null." );
+
+		Diagnostic whatUnused = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "Variable [what] is declared but never used." ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( whatUnused ).isNull();
+
+		Diagnostic thingUnused = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "Variable [thing] is declared but never used." ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( thingUnused ).isNull();
+	}
+
+	@Test
+	void testShouldCountArgumentsAsAUseForAllArgs() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		// Get the project root directory
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		// Resolve the file path relative to the project root directory
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unusedvariables/ArgumentsIdentifier.bx" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+
+		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
+		assertNotNull( diagnostics, "Diagnostics should not be null." );
+
+		// The variable x should NOT be reported as unused because it has a reassignment
+		// This test verifies the exact example from the issue description
+		Diagnostic argAUnused = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "Variable [argA] is declared but never used." ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( argAUnused ).isNull();
+	}
 }

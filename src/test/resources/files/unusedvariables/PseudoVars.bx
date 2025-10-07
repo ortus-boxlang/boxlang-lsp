@@ -1,0 +1,9 @@
+class {
+    variables.what = "hello";
+    thing = "hello";
+
+    function test(){
+        what = "hello";
+        thing = "hello";
+    }
+}
