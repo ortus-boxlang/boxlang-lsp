@@ -16,13 +16,14 @@ import org.eclipse.lsp4j.launch.LSPLauncher;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageClientAware;
 
+import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
+import ortus.boxlang.lsp.lint.LintConfigLoader;
+import ortus.boxlang.lsp.lint.rules.UnscopedVariableRule;
+import ortus.boxlang.lsp.lint.rules.UnusedVariableRule;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.logging.BoxLangLogger;
 import ortus.boxlang.runtime.types.Struct;
 import picocli.CommandLine;
-import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
-import ortus.boxlang.lsp.lint.rules.UnscopedVariableRule;
-import ortus.boxlang.lsp.lint.rules.UnusedVariableRule;
 
 public class App {
 
@@ -33,7 +34,6 @@ public class App {
 		new CommandLine( cli ).parseArgs( args );
 
 		App app = new App();
-
 		app.runUsingDebugServer( cli.debugServerPort );
 	}
 
@@ -46,6 +46,43 @@ public class App {
 		DiagnosticRuleRegistry.getInstance().register( new UnscopedVariableRule() );
 		DiagnosticRuleRegistry.getInstance().register( new UnusedVariableRule() );
 		BoxRuntime.getInstance().announce( "LSPRegisterVisitors", Struct.of( "sourceCodeVisitorService", SourceCodeVisitorService.getInstance() ) );
+		startConfigWatcher();
+	}
+
+	private void startConfigWatcher() {
+		var folders = ortus.boxlang.lsp.workspace.ProjectContextProvider.getInstance().getWorkspaceFolders();
+		if ( folders == null || folders.isEmpty() ) {
+			return;
+		}
+		new Thread( () -> {
+			try {
+				java.nio.file.Path			root	= java.nio.file.Path.of( new java.net.URI( folders.getFirst().getUri() ) );
+				java.nio.file.Path			cfg		= root.resolve( ortus.boxlang.lsp.lint.LintConfigLoader.CONFIG_FILENAME );
+				java.nio.file.WatchService	watcher	= root.getFileSystem().newWatchService();
+				root.register( watcher, java.nio.file.StandardWatchEventKinds.ENTRY_CREATE, java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY,
+				    java.nio.file.StandardWatchEventKinds.ENTRY_DELETE );
+				while ( true ) {
+					java.nio.file.WatchKey	key		= watcher.take();
+					boolean					changed	= false;
+					for ( var event : key.pollEvents() ) {
+						java.nio.file.Path changedPath = root.resolve( ( java.nio.file.Path ) event.context() );
+						if ( changedPath.equals( cfg ) ) {
+							changed = true;
+							break;
+						}
+					}
+					key.reset();
+					if ( changed ) {
+						LintConfigLoader.invalidate();
+						// Trigger re-publication of diagnostics on demand by clearing cache
+						var provider = ortus.boxlang.lsp.workspace.ProjectContextProvider.getInstance();
+						provider.getCachedDiagnosticReports().forEach( dr -> provider.remove( dr.getFileURI() ) );
+					}
+				}
+			} catch ( Exception e ) {
+				logger.warn( "Config watcher failure", e );
+			}
+		}, "boxlang-lsp-config-watcher" ).start();
 	}
 
 	private void runLSP( InputStream in, OutputStream out ) {
@@ -98,7 +135,6 @@ public class App {
 					connectionSocket.close();
 					System.out.println( "Closing debug connection" );
 				}
-
 			}
 		} catch ( IOException e ) {
 			e.printStackTrace();
