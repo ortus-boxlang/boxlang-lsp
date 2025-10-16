@@ -20,6 +20,8 @@ import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.logging.BoxLangLogger;
 import ortus.boxlang.runtime.types.Struct;
 import picocli.CommandLine;
+import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
+import ortus.boxlang.lsp.lint.rules.UnscopedVariableRule;
 
 public class App {
 
@@ -39,6 +41,8 @@ public class App {
 		logger = BoxRuntime.getInstance().getLoggingService().getLogger( "lsp" );
 
 		MemoryThresholdMonitor.startMemoryManagement();
+		// Register diagnostic rules
+		DiagnosticRuleRegistry.getInstance().register( new UnscopedVariableRule() );
 		BoxRuntime.getInstance().announce( "LSPRegisterVisitors", Struct.of( "sourceCodeVisitorService", SourceCodeVisitorService.getInstance() ) );
 	}
 
