@@ -11,8 +11,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.eclipse.lsp4j.CodeAction;
@@ -23,14 +26,19 @@ import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.Diagnostic;
+import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.DocumentSymbol;
+import org.eclipse.lsp4j.FileSystemWatcher;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.Registration;
+import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
 import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.WatchKind;
 import org.eclipse.lsp4j.WorkspaceDiagnosticReport;
 import org.eclipse.lsp4j.WorkspaceDocumentDiagnosticReport;
 import org.eclipse.lsp4j.WorkspaceFolder;
@@ -44,17 +52,39 @@ import ortus.boxlang.compiler.ast.Point;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
 import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
+import ortus.boxlang.lsp.App;
 import ortus.boxlang.lsp.LSPTools;
 import ortus.boxlang.lsp.UserSettings;
+import ortus.boxlang.lsp.lint.LintConfig;
+import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensFacts;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensRuleBook;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
 import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
 import ortus.boxlang.lsp.workspace.visitors.DefinitionTargetVisitor;
-import ortus.boxlang.runtime.async.executors.ExecutorRecord;
+import ortus.boxlang.runtime.async.executors.BoxExecutor;
 import ortus.boxlang.runtime.services.AsyncService;
 
 public class ProjectContextProvider {
+
+	private boolean shouldAnalyzePath( URI docURI ) {
+		try {
+			var folders = getWorkspaceFolders();
+			if ( folders == null || folders.isEmpty() ) {
+				return true; // no workspace context -> analyze
+			}
+			Path	root		= Path.of( new URI( folders.getFirst().getUri() ) );
+			Path	filePath	= Paths.get( docURI );
+			if ( !filePath.startsWith( root ) ) {
+				return true; // outside workspace? allow
+			}
+			Path		rel	= root.relativize( filePath );
+			LintConfig	lc	= LintConfigLoader.get();
+			return lc.shouldAnalyze( rel.toString() );
+		} catch ( Exception e ) {
+			return true; // fail open
+		}
+	}
 
 	static ProjectContextProvider		instance;
 	private List<WorkspaceFolder>		workspaceFolders			= new ArrayList<WorkspaceFolder>();
@@ -67,6 +97,7 @@ public class ProjectContextProvider {
 	private List<DiagnosticReport>		cachedDiagnosticReports		= new CopyOnWriteArrayList<DiagnosticReport>();
 
 	private boolean						shouldPublishDiagnostics	= false;
+	private final AtomicBoolean			workspaceParseRunning		= new AtomicBoolean( false );
 
 	public static ortus.boxlang.compiler.ast.Position toBLPosition( Position lspPosition ) {
 		Point								start	= new Point( lspPosition.getLine(), lspPosition.getCharacter() );
@@ -127,9 +158,19 @@ public class ProjectContextProvider {
 				return;
 			}
 
+			// TODO: this code should only be able to run one at a time, if it is already
+			// running, it should be cancelled and restarted
+			// once it completes (exceptionally or successfully) it should end the lock so that the
+			// next one can run
+
+			if ( !this.workspaceParseRunning.compareAndSet( false, true ) ) {
+				App.logger.info( "Workspace parsing is already running" );
+				// already running
+				return;
+			}
+
 			try {
-				// TODO: This needs to change to `BoxExecutor` once 1.6 is released
-				ExecutorRecord executor = AsyncService.chooseParallelExecutor( "LSP_diagnostic", 0, true );
+				BoxExecutor executor = AsyncService.chooseParallelExecutor( "LSP_diagnostic", 0, true );
 				executor.submitAndGet( () -> {
 					try {
 						Stream<Path> stream = Files
@@ -141,6 +182,7 @@ public class ProjectContextProvider {
 
 						stream
 						    .filter( LSPTools::canWalkFile )
+						    .filter( p -> shouldAnalyzePath( p.toUri() ) )
 						    .forEach( ( clazzPath ) -> {
 							    try {
 								    List<Diagnostic> diagnostics			= provider.getFileDiagnostics( clazzPath.toUri() );
@@ -165,11 +207,16 @@ public class ProjectContextProvider {
 
 					} catch ( IOException | URISyntaxException e ) {
 						e.printStackTrace();
+					} finally {
+						App.logger.info( "Completed workspace diagnostic report" );
+						workspaceParseRunning.set( false );
 					}
 
 				} );
 			} catch ( Exception e ) {
 				e.printStackTrace();
+				App.logger.info( "Completed workspace diagnostic report" );
+				workspaceParseRunning.set( false );
 			}
 		} );
 
@@ -180,6 +227,9 @@ public class ProjectContextProvider {
 	}
 
 	public List<Diagnostic> getFileDiagnostics( URI docURI ) {
+		if ( !shouldAnalyzePath( docURI ) ) {
+			return new ArrayList<>();
+		}
 		return getLatestFileParseResult( docURI )
 		    .map( ( res ) -> res.getDiagnostics() )
 		    .orElseGet( () -> new ArrayList<Diagnostic>() );
@@ -206,8 +256,7 @@ public class ProjectContextProvider {
 
 		this.shouldPublishDiagnostics = shouldPublishDiagnostics;
 
-		// TODO: This needs to change to `BoxExecutor` once 1.6 is released
-		ExecutorRecord executor = AsyncService.chooseParallelExecutor( "LSP_publish", 0, true );
+		BoxExecutor executor = AsyncService.chooseParallelExecutor( "LSP_publish", 0, true );
 
 		executor.submitAndGet( () -> {
 			this.parsedFiles.keySet()
@@ -326,7 +375,7 @@ public class ProjectContextProvider {
 				    // global - should this be found? or what should we show?
 				    // parent class
 				    return findMatchingFunctionDeclarations( docURI, fnUse.getName() );
-			    } else if ( node instanceof BoxMethodInvocation methodUse ) {
+			    } else if ( node instanceof BoxMethodInvocation ) {
 				    // should only be able to find function definitions in these locations
 				    // the type being accessed
 				    // a parent of the type being accessed
@@ -399,7 +448,8 @@ public class ProjectContextProvider {
 		if ( params.getContext().getDiagnostics().size() != 0 ) {
 			this.getFileCodeActions( convertDocumentURI ).stream().filter( codeAction -> {
 				for ( Diagnostic cad : codeAction.getDiagnostics() ) {
-					Map<String, Object>	cadData					= ( Map ) cad.getData();
+					@SuppressWarnings( "unchecked" )
+					Map<String, Object>	cadData					= ( Map<String, Object> ) cad.getData();
 					String				codeActionDiagnosticId	= ( String ) cadData.get( "id" );
 
 					for ( Diagnostic d : params.getContext().getDiagnostics() ) {
@@ -435,5 +485,127 @@ public class ProjectContextProvider {
 		    } );
 
 		cachedFileDiagnostics.setDiagnostics( fpr.getDiagnostics() );
+	}
+
+	/** Recompute diagnostics for all currently open documents and publish immediately. */
+	public void recomputeAndPublishDiagnosticsForOpenDocuments() {
+		this.openDocuments.forEach( ( uri, fpr ) -> {
+			fpr.reparse();
+			cacheLatestDiagnostics( fpr );
+			publishDiagnostics( uri );
+		} );
+	}
+
+	public void watchLSPConfig() {
+		startConfigWatcher();
+		try {
+			FileSystemWatcher watcher = new FileSystemWatcher();
+			watcher.setGlobPattern( ".bxlint.json" );
+			watcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
+			DidChangeWatchedFilesRegistrationOptions	options			= new DidChangeWatchedFilesRegistrationOptions( List.of( watcher ) );
+			Registration								registration	= new Registration( UUID.randomUUID().toString(), "workspace/didChangeWatchedFiles",
+			    options );
+			client.registerCapability( new RegistrationParams( List.of( registration ) ) );
+			App.logger.info( "Registered dynamic file watcher for .bxlint.json" );
+		} catch ( Exception e ) {
+			App.logger.warn( "Failed to register dynamic file watcher", e );
+		}
+	}
+
+	private void startConfigWatcher() {
+		var folders = ortus.boxlang.lsp.workspace.ProjectContextProvider.getInstance().getWorkspaceFolders();
+		if ( folders == null || folders.isEmpty() ) {
+			return;
+		}
+		new Thread( () -> {
+			try {
+				java.nio.file.Path			root	= java.nio.file.Path.of( new java.net.URI( folders.getFirst().getUri() ) );
+				java.nio.file.Path			cfg		= root.resolve( ortus.boxlang.lsp.lint.LintConfigLoader.CONFIG_FILENAME );
+				java.nio.file.WatchService	watcher	= root.getFileSystem().newWatchService();
+				root.register( watcher, java.nio.file.StandardWatchEventKinds.ENTRY_CREATE, java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY,
+				    java.nio.file.StandardWatchEventKinds.ENTRY_DELETE );
+				App.logger.info( "Started lint config watcher at: " + cfg );
+				while ( true ) {
+					java.nio.file.WatchKey	key		= watcher.take();
+					boolean					changed	= false;
+					for ( var event : key.pollEvents() ) {
+						java.nio.file.Path changedPath = root.resolve( ( java.nio.file.Path ) event.context() );
+						if ( changedPath.equals( cfg ) ) {
+							changed = true;
+							break;
+						}
+					}
+					key.reset();
+					if ( changed ) {
+						App.logger.info( "Detected lint config change: " + cfg + "; reloading and recomputing diagnostics." );
+						LintConfigLoader.invalidate();
+						// Eager reload to surface any parse errors immediately
+						LintConfigLoader.get();
+						// Recompute diagnostics for currently open documents
+						var provider = ortus.boxlang.lsp.workspace.ProjectContextProvider.getInstance();
+						provider.recomputeAndPublishDiagnosticsForOpenDocuments();
+
+						try {
+							provider.clearExcludedDiagnostics();
+							provider.parseWorkspace();
+						} catch ( Exception e ) {
+							App.logger.warn( "Failed to re-parse workspace after lint config change", e );
+						}
+					}
+				}
+			} catch ( Exception e ) {
+				App.logger.warn( "Config watcher failure", e );
+			}
+		}, "boxlang-lsp-config-watcher" ).start();
+	}
+
+	private void clearExcludedDiagnostics() {
+		var		lc				= LintConfigLoader.get();
+
+		String	workspaceFolder	= workspaceFolders.getFirst().getUri();
+
+		if ( workspaceFolder == null || workspaceFolder.isEmpty() ) {
+			return;
+		}
+
+		Path workspaceFolderPath;
+		try {
+			workspaceFolderPath = Paths.get( new URI( workspaceFolder ) );
+		} catch ( URISyntaxException e ) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return;
+		}
+
+		var keep = this.cachedDiagnosticReports.stream()
+		    .map( dr -> {
+			    Path filePath		= Paths.get( dr.getFileURI() );
+			    Path relativePath	= workspaceFolderPath.relativize( filePath );
+
+			    if ( !lc.shouldAnalyze( relativePath.toString() ) ) {
+				    dr.setDiagnostics( new ArrayList() );
+			    }
+
+			    return dr;
+		    } )
+		    .collect( Collectors.toList() );
+
+		this.cachedDiagnosticReports = keep;
+		// this.cachedDiagnosticReports.forEach( dr -> {
+
+		// // clear first
+		// var clearParams = new PublishDiagnosticsParams();
+		// clearParams.setUri( dr.getFileURI().toString() );
+		// clearParams.setDiagnostics( List.of() );
+
+		// this.client.publishDiagnostics( clearParams );
+
+		// var params = new PublishDiagnosticsParams();
+		// params.setUri( dr.getFileURI().toString() );
+		// params.setDiagnostics( dr.getDiagnostics() );
+
+		// this.client.publishDiagnostics( params );
+		// } );
+
 	}
 }

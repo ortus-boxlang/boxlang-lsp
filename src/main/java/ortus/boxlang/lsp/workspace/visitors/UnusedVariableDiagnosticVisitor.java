@@ -19,27 +19,39 @@ import ortus.boxlang.compiler.ast.expression.BoxAssignment;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
+import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.lsp.SourceCodeVisitor;
+import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
+import ortus.boxlang.lsp.lint.LintConfigLoader;
+import ortus.boxlang.lsp.lint.rules.UnusedVariableRule;
+import ortus.boxlang.lsp.workspace.BLASTTools;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
 public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 
-	private Map<BoxFunctionDeclaration, Set<BoxNode>>	assignedVars	= new WeakHashMap<>();
-	private Map<BoxFunctionDeclaration, Set<String>>	usedVars		= new WeakHashMap<>();
+	private Set<String>									properties				= new HashSet<String>();
+	private Set<BoxFunctionDeclaration>					hasArgumentsIdentifier	= new HashSet<>();
+	private Map<BoxFunctionDeclaration, Set<BoxNode>>	assignedVars			= new WeakHashMap<>();
+	private Map<BoxFunctionDeclaration, Set<String>>	usedVars				= new WeakHashMap<>();
 
 	public List<Diagnostic> getDiagnostics() {
-
+		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( UnusedVariableRule.ID, true ) ) {
+			return List.of();
+		}
+		var settings = LintConfigLoader.get().forRule( UnusedVariableRule.ID );
 		return assignedVars.entrySet().stream()
 		    .flatMap( entry -> {
 			    return entry.getValue().stream()
 			        .filter(
 			            item -> !usedVars.containsKey( entry.getKey() ) || !usedVars.get( entry.getKey() ).contains( getNameFromNode( item ).toLowerCase() ) );
 		    } )
+		    .filter( varNode -> !properties.contains( getNameFromNode( varNode ).toLowerCase() ) )
+		    .filter( varNode -> !hasArgumentsIdentifier.contains( varNode.getFirstAncestorOfType( BoxFunctionDeclaration.class ) ) )
 		    .map( varNode -> {
 			    var diagnostic = new Diagnostic(
 			        ProjectContextProvider.positionToRange( varNode.getPosition() ),
 			        "Variable [" + getNameFromNode( varNode ) + "] is declared but never used.",
-			        DiagnosticSeverity.Hint,
+			        settings == null ? DiagnosticSeverity.Hint : settings.toSeverityOr( DiagnosticSeverity.Hint ),
 			        "boxlang"
 			    );
 
@@ -51,7 +63,14 @@ public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	public List<CodeAction> getCodeActions() {
+		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( UnusedVariableRule.ID, true ) ) {
+			return List.of();
+		}
 		return new ArrayList<CodeAction>();
+	}
+
+	public void visit( BoxProperty node ) {
+		properties.add( BLASTTools.getPropertyName( node ).toLowerCase() );
 	}
 
 	private String getNameFromNode( BoxNode node ) {
@@ -70,7 +89,20 @@ public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	public void visit( BoxIdentifier node ) {
-		BoxFunctionDeclaration func = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+		BoxFunctionDeclaration	func	= node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+		String					name	= getNameFromNode( node ).toLowerCase();
+
+		// if arguments is used anywhere in a function then we assume all args are used
+		if ( name.equalsIgnoreCase( "arguments" ) ) {
+			hasArgumentsIdentifier.add( func );
+			return;
+		}
+
+		// if not in a func then we are in the pseudo constructor, just track as a property
+		if ( func == null ) {
+			properties.add( name );
+			return;
+		}
 
 		if ( this.isBeingAssignedTo( node ) ) {
 			// Check if this variable name has already been assigned in this function

@@ -21,6 +21,7 @@ import org.eclipse.lsp4j.services.LanguageClientAware;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.eclipse.lsp4j.services.WorkspaceService;
 
+import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
 public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer, LanguageClientAware {
@@ -28,6 +29,8 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 	private WorkspaceService		workspaceService		= new BoxLangWorkspaceService();
 	private TextDocumentService		textDocumentService		= new BoxLangTextDocumentService();
 	private ProjectContextProvider	projectContextProvider	= ProjectContextProvider.getInstance();
+
+	private boolean					supportsFileWatch;
 
 	@Override
 	public CompletableFuture<InitializeResult> initialize( InitializeParams params ) {
@@ -49,7 +52,23 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			    CodeActionKind.RefactorRewrite
 			) ) );
 
+			// TODO add an initialize method to ProjectContextProvider to pass in workspace folders
+			// and other client capabilities as needed
+			// as well as enforce the proper order of operations
 			ProjectContextProvider.getInstance().setWorkspaceFolders( params.getWorkspaceFolders() );
+
+			// this needs to come before parseWorkspace so that we can watch for changes to the lsp config file
+			if ( params.getCapabilities() != null
+			    && params.getCapabilities().getWorkspace() != null
+			    && params.getCapabilities().getWorkspace().getDidChangeWatchedFiles() != null
+			    && params.getCapabilities().getWorkspace().getDidChangeWatchedFiles().getDynamicRegistration() == true ) {
+				supportsFileWatch = true;
+				ProjectContextProvider.getInstance().watchLSPConfig();
+			}
+
+			// eagerly gather config
+			LintConfigLoader.get();
+
 			ProjectContextProvider.getInstance().parseWorkspace();
 
 			return new InitializeResult( capabilities );

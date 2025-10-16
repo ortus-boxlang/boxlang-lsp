@@ -9,7 +9,7 @@
             "name": "Run LSP",
             "request": "launch",
             "mainClass": "ortus.boxlang.runtime.BoxRunner",
-            "projectName": "boxlang-lsp",
+            "projectName": "bx-lsp-boxlang-lsp",
             "env": {
                 "BOXLANG_HOME": "${workspaceFolder}/.boxlang_home",
                 "xBOXLANG_CONFIG": "boxlang.json",

@@ -1,0 +1,7 @@
+class {
+    property name="what";
+
+    function test(){
+        what = "hello";
+    }
+}

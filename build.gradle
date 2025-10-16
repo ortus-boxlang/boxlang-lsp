@@ -51,12 +51,13 @@ dependencies {
 	// Look for it in the local build directory
 	// You must run `./gradle build -x test` in the BoxLang project
 	// compileOnly files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '.jar' )
-    compileOnly "io.boxlang:boxlang:1.5.0"
+    // compileOnly "io.boxlang:boxlang:1.6.0"
 
     // Testing Dependencies
 	// testImplementation files( '../../boxlang/build/distributions/boxlang-' + boxlangVersion + '.jar' )
-	// testImplementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
-    testImplementation "io.boxlang:boxlang:1.5.0"
+	compileOnly files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
+	testImplementation files( 'src/test/resources/libs/boxlang-' + boxlangVersion + '.jar' )
+    // testImplementation "io.boxlang:boxlang:1.6.0"
     // Align all JUnit dependencies to the same version to avoid compatibility issues
     testImplementation "org.junit.jupiter:junit-jupiter:5.13.4"
 	testImplementation "org.mockito:mockito-core:5.+"
@@ -67,6 +68,9 @@ dependencies {
 
 	// This dependency is used by the application.
     implementation "com.google.guava:guava:33.5.0-jre"
+
+	// JSON parsing for diagnostic configuration - use older version compatible with BoxLang jackson-jr
+	implementation "com.fasterxml.jackson.core:jackson-databind:2.20.0"
 
     // https://mvnrepository.com/artifact/org.eclipse.lsp4j/org.eclipse.lsp4j
     implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:0.24.0"

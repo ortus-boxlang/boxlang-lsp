@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.Diagnostic;
+import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceEdit;
 
@@ -44,6 +45,9 @@ import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.lsp.SourceCodeVisitor;
+import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
+import ortus.boxlang.lsp.lint.LintConfigLoader;
+import ortus.boxlang.lsp.lint.rules.UnscopedVariableRule;
 import ortus.boxlang.lsp.workspace.BLASTTools;
 import ortus.boxlang.lsp.workspace.FileParseResult;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
@@ -62,8 +66,26 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 	private Map<Diagnostic, BoxNode>					diagnosticNodes		= new WeakHashMap<>();
 
 	public List<Diagnostic> getDiagnostics() {
+		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( UnscopedVariableRule.ID, true ) ) {
+			return List.of();
+		}
+		var settings = LintConfigLoader.get().forRule( UnscopedVariableRule.ID );
 		return this.diagnostics.stream()
-		    .filter( d -> !properties.contains( ( ( String ) ( ( Map ) d.getData() ).get( "variableName" ) ).toLowerCase() ) )
+		    .filter( d -> {
+			    Object dataObj = d.getData();
+			    if ( dataObj instanceof Map<?, ?> m ) {
+				    Object v = m.get( "variableName" );
+				    if ( v != null ) {
+					    return !properties.contains( v.toString().toLowerCase() );
+				    }
+			    }
+			    return true;
+		    } )
+		    .peek( d -> {
+			    if ( settings != null ) {
+				    d.setSeverity( settings.toSeverityOr( DiagnosticSeverity.Warning ) );
+			    }
+		    } )
 		    .collect( Collectors.toList() );
 	}
 
@@ -73,8 +95,12 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 
 	@Override
 	public List<CodeAction> getCodeActions() {
+		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( UnscopedVariableRule.ID, true ) ) {
+			return List.of();
+		}
 		return this.diagnostics.stream()
 		    .map( d -> this.createCodeAction( d ) )
+		    .filter( c -> c != null )
 		    .toList();
 	}
 
@@ -89,6 +115,10 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	public void visit( BoxAssignment node ) {
+
+		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( UnscopedVariableRule.ID, true ) ) {
+			return;
+		}
 
 		var function = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
 
@@ -166,7 +196,15 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	private CodeAction createCodeAction( Diagnostic diagnostic ) {
-		BoxNode			node			= diagnosticNodes.get( diagnostic );
+		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( UnscopedVariableRule.ID, true ) ) {
+			return null;
+		}
+		BoxNode node = diagnosticNodes.get( diagnostic );
+
+		if ( node == null || node.getPosition() == null ) {
+			return null;
+		}
+
 		TextEdit		edit			= new TextEdit(
 		    ProjectContextProvider.positionToRange( node.getPosition() ),
 		    node.getSourceText().replaceAll( "^", "var " ) );
