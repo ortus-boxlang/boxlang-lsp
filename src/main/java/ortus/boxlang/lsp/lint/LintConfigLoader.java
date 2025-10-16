@@ -15,10 +15,10 @@ import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.logging.BoxLangLogger;
 
-/** Loads and caches the lint configuration file .boxlang-lsp.json at the project root. */
+/** Loads and caches the lint configuration file .bxlint.json at the project root. */
 public class LintConfigLoader {
 
-	public static final String							CONFIG_FILENAME	= ".boxlang-lsp.json";
+	public static final String							CONFIG_FILENAME	= ".bxlint.json";
 	private static final ObjectMapper					MAPPER			= new ObjectMapper();
 	private static final AtomicReference<LintConfig>	CACHE			= new AtomicReference<>( new LintConfig() );
 	private static volatile long						lastLoad		= 0L;
@@ -48,7 +48,7 @@ public class LintConfigLoader {
 		}
 		Path cfgPath = root.resolve( CONFIG_FILENAME );
 		if ( !Files.exists( cfgPath ) ) {
-			LOGGER.trace( ".boxlang-lsp.json not found at " + cfgPath + "; using defaults." );
+			LOGGER.trace( ".bxlint.json not found at " + cfgPath + "; using defaults." );
 			lastLoad = now;
 			return CACHE.get();
 		}
