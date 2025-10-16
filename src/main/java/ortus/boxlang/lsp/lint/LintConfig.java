@@ -7,7 +7,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
-/** Root configuration loaded from .boxlang-lsp.json */
+/** Root configuration loaded from .bxlint.json */
 public class LintConfig {
 
 	/** Map of rule id -> settings */

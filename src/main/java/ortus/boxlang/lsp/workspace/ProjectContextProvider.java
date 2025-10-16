@@ -500,13 +500,13 @@ public class ProjectContextProvider {
 		startConfigWatcher();
 		try {
 			FileSystemWatcher watcher = new FileSystemWatcher();
-			watcher.setGlobPattern( ".boxlang-lsp.json" );
+			watcher.setGlobPattern( ".bxlint.json" );
 			watcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
 			DidChangeWatchedFilesRegistrationOptions	options			= new DidChangeWatchedFilesRegistrationOptions( List.of( watcher ) );
 			Registration								registration	= new Registration( UUID.randomUUID().toString(), "workspace/didChangeWatchedFiles",
 			    options );
 			client.registerCapability( new RegistrationParams( List.of( registration ) ) );
-			App.logger.info( "Registered dynamic file watcher for .boxlang-lsp.json" );
+			App.logger.info( "Registered dynamic file watcher for .bxlint.json" );
 		} catch ( Exception e ) {
 			App.logger.warn( "Failed to register dynamic file watcher", e );
 		}
@@ -546,8 +546,8 @@ public class ProjectContextProvider {
 						provider.recomputeAndPublishDiagnosticsForOpenDocuments();
 
 						try {
-							provider.parseWorkspace();
 							provider.clearExcludedDiagnostics();
+							provider.parseWorkspace();
 						} catch ( Exception e ) {
 							App.logger.warn( "Failed to re-parse workspace after lint config change", e );
 						}

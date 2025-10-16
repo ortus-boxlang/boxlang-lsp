@@ -199,7 +199,12 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( UnscopedVariableRule.ID, true ) ) {
 			return null;
 		}
-		BoxNode			node			= diagnosticNodes.get( diagnostic );
+		BoxNode node = diagnosticNodes.get( diagnostic );
+
+		if ( node == null || node.getPosition() == null ) {
+			return null;
+		}
+
 		TextEdit		edit			= new TextEdit(
 		    ProjectContextProvider.positionToRange( node.getPosition() ),
 		    node.getSourceText().replaceAll( "^", "var " ) );
