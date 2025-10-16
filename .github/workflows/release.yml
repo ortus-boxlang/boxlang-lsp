@@ -35,6 +35,9 @@ jobs:
   build:
     name: Build & Publish Release
     runs-on: ubuntu-latest
+    # Expose the calculated version so downstream jobs can reference it
+    outputs:
+      version: ${{ steps.current_version.outputs.version }}
     permissions:
       checks: write
       pull-requests: write
@@ -72,6 +75,8 @@ jobs:
           fi
           # Set the version in the environment
           echo "VERSION=$TMPVERSION" >> $GITHUB_ENV
+          # Also set job output for downstream jobs
+          echo "version=$TMPVERSION" >> $GITHUB_OUTPUT
 
           # Branch
           echo "Github Ref is $GITHUB_REF"
@@ -88,7 +93,7 @@ jobs:
         if: env.SNAPSHOT == 'false'
         with:
           changelogPath: ./changelog.md
-          tag: v${{ env.VERSION }}
+          tag: v${{ steps.current_version.outputs.version }}
 
       - name: Build it!
         run: |
@@ -103,22 +108,22 @@ jobs:
         with:
           author_name: Github Actions
           author_email: info@ortussolutions.com
-          message: "Finalized changelog for v${{ env.VERSION }}"
+          message: "Finalized changelog for v${{ steps.current_version.outputs.version }}"
           add: changelog.md
 
       - name: Tag Version
         uses: rickstaa/action-create-tag@v1.7.2
         if: env.SNAPSHOT == 'false'
         with:
-          tag: "v${{ env.VERSION }}"
+          tag: "v${{ steps.current_version.outputs.version }}"
           force_push_tag: true
-          message: "Latest Release v${{ env.VERSION }}"
+          message: "Latest Release v${{ steps.current_version.outputs.version }}"
 
       - name: Upload Build Artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: bx-lsp@${{ env.VERSION }}
+          name: bx-lsp@${{ steps.current_version.outputs.version }}
           path: |
             build/reports/tests/**
             changelog.md
@@ -132,7 +137,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_SECRET }}
           SOURCE_DIR: "build/distributions"
-          DEST_DIR: "ortussolutions/boxlang-modules/${{ env.MODULE_ID }}/${{ env.VERSION }}"
+          DEST_DIR: "ortussolutions/boxlang-modules/${{ env.MODULE_ID }}/${{ steps.current_version.outputs.version }}"
 
       - name: Upload API Docs to S3
         uses: jakejarvis/s3-sync-action@master
@@ -143,7 +148,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ACCESS_SECRET }}
           SOURCE_DIR: "build/docs/javadoc"
-          DEST_DIR: "boxlang-modules/${{ env.MODULE_ID }}/${{ env.VERSION }}"
+          DEST_DIR: "boxlang-modules/${{ env.MODULE_ID }}/${{ steps.current_version.outputs.version }}"
 
       - name: Publish to ForgeBox
         run: |
@@ -157,10 +162,10 @@ jobs:
         if: env.SNAPSHOT == 'false'
         id: create_release
         with:
-          title: ${{ env.VERSION }}
+          title: ${{ steps.current_version.outputs.version }}
           changelog: changelog.md
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: refs/tags/v${{ env.VERSION }}
+          ref: refs/tags/v${{ steps.current_version.outputs.version }}
 
       - name: Inform Slack
         if: ${{ always() }}
@@ -169,7 +174,7 @@ jobs:
           SLACK_CHANNEL: coding
           SLACK_COLOR: ${{ job.status }} # or a specific color like 'green' or '#ff00ff'
           SLACK_ICON_EMOJI: ":bell:"
-          SLACK_MESSAGE: "Module ${{ env.MODULE_ID }} v${{ env.VERSION }} Built with ${{ job.status }}!"
+          SLACK_MESSAGE: "Module ${{ env.MODULE_ID }} v${{ steps.current_version.outputs.version }} Built with ${{ job.status }}!"
           SLACK_TITLE: "BoxLang Module ${{ env.MODULE_ID }}"
           SLACK_USERNAME: CI
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -182,6 +187,9 @@ jobs:
     if: github.ref != 'refs/heads/development'
     runs-on: ubuntu-latest
     needs: [build]
+    env:
+      # Make version available as env.VERSION in this job
+      VERSION: ${{ needs.build.outputs.version }}
     permissions:
       checks: write
       pull-requests: write
@@ -201,7 +209,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v5
         with:
-          name: bx-lsp@${{ env.VERSION }}
+          name: bx-lsp@${{ needs.build.outputs.version }}
           path: .tmp
 
       - name: Copy Changelog
