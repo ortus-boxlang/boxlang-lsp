@@ -15,6 +15,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.eclipse.lsp4j.CodeAction;
@@ -54,14 +55,14 @@ import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
 import ortus.boxlang.lsp.App;
 import ortus.boxlang.lsp.LSPTools;
 import ortus.boxlang.lsp.UserSettings;
-import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.lint.LintConfig;
+import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensFacts;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensRuleBook;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
 import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
 import ortus.boxlang.lsp.workspace.visitors.DefinitionTargetVisitor;
-import ortus.boxlang.runtime.async.executors.ExecutorRecord;
+import ortus.boxlang.runtime.async.executors.BoxExecutor;
 import ortus.boxlang.runtime.services.AsyncService;
 
 public class ProjectContextProvider {
@@ -169,8 +170,7 @@ public class ProjectContextProvider {
 			}
 
 			try {
-				// TODO: This needs to change to `BoxExecutor` once 1.6 is released
-				ExecutorRecord executor = AsyncService.chooseParallelExecutor( "LSP_diagnostic", 0, true );
+				BoxExecutor executor = AsyncService.chooseParallelExecutor( "LSP_diagnostic", 0, true );
 				executor.submitAndGet( () -> {
 					try {
 						Stream<Path> stream = Files
@@ -256,8 +256,7 @@ public class ProjectContextProvider {
 
 		this.shouldPublishDiagnostics = shouldPublishDiagnostics;
 
-		// TODO: This needs to change to `BoxExecutor` once 1.6 is released
-		ExecutorRecord executor = AsyncService.chooseParallelExecutor( "LSP_publish", 0, true );
+		BoxExecutor executor = AsyncService.chooseParallelExecutor( "LSP_publish", 0, true );
 
 		executor.submitAndGet( () -> {
 			this.parsedFiles.keySet()
@@ -545,12 +544,68 @@ public class ProjectContextProvider {
 						// Recompute diagnostics for currently open documents
 						var provider = ortus.boxlang.lsp.workspace.ProjectContextProvider.getInstance();
 						provider.recomputeAndPublishDiagnosticsForOpenDocuments();
-						parseWorkspace();
+
+						try {
+							provider.parseWorkspace();
+							provider.clearExcludedDiagnostics();
+						} catch ( Exception e ) {
+							App.logger.warn( "Failed to re-parse workspace after lint config change", e );
+						}
 					}
 				}
 			} catch ( Exception e ) {
 				App.logger.warn( "Config watcher failure", e );
 			}
 		}, "boxlang-lsp-config-watcher" ).start();
+	}
+
+	private void clearExcludedDiagnostics() {
+		var		lc				= LintConfigLoader.get();
+
+		String	workspaceFolder	= workspaceFolders.getFirst().getUri();
+
+		if ( workspaceFolder == null || workspaceFolder.isEmpty() ) {
+			return;
+		}
+
+		Path workspaceFolderPath;
+		try {
+			workspaceFolderPath = Paths.get( new URI( workspaceFolder ) );
+		} catch ( URISyntaxException e ) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return;
+		}
+
+		var keep = this.cachedDiagnosticReports.stream()
+		    .map( dr -> {
+			    Path filePath		= Paths.get( dr.getFileURI() );
+			    Path relativePath	= workspaceFolderPath.relativize( filePath );
+
+			    if ( !lc.shouldAnalyze( relativePath.toString() ) ) {
+				    dr.setDiagnostics( new ArrayList() );
+			    }
+
+			    return dr;
+		    } )
+		    .collect( Collectors.toList() );
+
+		this.cachedDiagnosticReports = keep;
+		// this.cachedDiagnosticReports.forEach( dr -> {
+
+		// // clear first
+		// var clearParams = new PublishDiagnosticsParams();
+		// clearParams.setUri( dr.getFileURI().toString() );
+		// clearParams.setDiagnostics( List.of() );
+
+		// this.client.publishDiagnostics( clearParams );
+
+		// var params = new PublishDiagnosticsParams();
+		// params.setUri( dr.getFileURI().toString() );
+		// params.setDiagnostics( dr.getDiagnostics() );
+
+		// this.client.publishDiagnostics( params );
+		// } );
+
 	}
 }

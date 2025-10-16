@@ -32,9 +32,11 @@ public class LintConfig {
 	public boolean shouldAnalyze( String relativePath ) {
 		Objects.requireNonNull( relativePath, "relativePath" );
 		String	rel			= normalize( relativePath );
-		boolean	included	= include == null || include.isEmpty() || include.stream().anyMatch( p -> compile( p ).matcher( rel ).matches() );
-		if ( !included )
-			return false;
+		boolean	included	= include != null && !include.isEmpty() && include.stream().anyMatch( p -> compile( p ).matcher( rel ).matches() );
+		if ( included ) {
+			return true;
+		}
+
 		boolean excluded = exclude != null && exclude.stream().anyMatch( p -> compile( p ).matcher( rel ).matches() );
 		return !excluded;
 	}

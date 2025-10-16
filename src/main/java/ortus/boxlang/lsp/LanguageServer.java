@@ -21,6 +21,7 @@ import org.eclipse.lsp4j.services.LanguageClientAware;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.eclipse.lsp4j.services.WorkspaceService;
 
+import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
 public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer, LanguageClientAware {
@@ -64,6 +65,9 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 				supportsFileWatch = true;
 				ProjectContextProvider.getInstance().watchLSPConfig();
 			}
+
+			// eagerly gather config
+			LintConfigLoader.get();
 
 			ProjectContextProvider.getInstance().parseWorkspace();
 
