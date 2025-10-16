@@ -16,8 +16,6 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxNode;
-import ortus.boxlang.compiler.ast.expression.BoxAssignment;
-import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
@@ -111,24 +109,24 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
 		visitChildren( node );
 	}
 
-	public void visit( BoxAssignment node ) {
-		if ( ! ( node.getLeft() instanceof BoxIdentifier ) ) {
-			visitChildren( node );
-			return;
-		}
-		BoxIdentifier	id					= ( BoxIdentifier ) node.getLeft();
-		DocumentSymbol	assignmentSymbol	= new DocumentSymbol();
+	// public void visit( BoxAssignment node ) {
+	// if ( ! ( node.getLeft() instanceof BoxIdentifier ) ) {
+	// visitChildren( node );
+	// return;
+	// }
+	// BoxIdentifier id = ( BoxIdentifier ) node.getLeft();
+	// DocumentSymbol assignmentSymbol = new DocumentSymbol();
 
-		assignmentSymbol.setKind( SymbolKind.Variable );
+	// assignmentSymbol.setKind( SymbolKind.Variable );
 
-		assignmentSymbol.setName( id.getName() );
-		Range range = getRange( node );
-		assignmentSymbol.setRange( range );
-		assignmentSymbol.setSelectionRange( range );
+	// assignmentSymbol.setName( id.getName() );
+	// Range range = getRange( node );
+	// assignmentSymbol.setRange( range );
+	// assignmentSymbol.setSelectionRange( range );
 
-		trackSymbol( assignmentSymbol );
-		visitChildren( node );
-	}
+	// trackSymbol( assignmentSymbol );
+	// visitChildren( node );
+	// }
 
 	private void trackSymbol( DocumentSymbol symbol ) {
 		if ( symbolStack.size() > 0 ) {
