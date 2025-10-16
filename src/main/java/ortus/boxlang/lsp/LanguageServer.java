@@ -29,6 +29,8 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 	private TextDocumentService		textDocumentService		= new BoxLangTextDocumentService();
 	private ProjectContextProvider	projectContextProvider	= ProjectContextProvider.getInstance();
 
+	private boolean					supportsFileWatch;
+
 	@Override
 	public CompletableFuture<InitializeResult> initialize( InitializeParams params ) {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
@@ -49,7 +51,20 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			    CodeActionKind.RefactorRewrite
 			) ) );
 
+			// TODO add an initialize method to ProjectContextProvider to pass in workspace folders
+			// and other client capabilities as needed
+			// as well as enforce the proper order of operations
 			ProjectContextProvider.getInstance().setWorkspaceFolders( params.getWorkspaceFolders() );
+
+			// this needs to come before parseWorkspace so that we can watch for changes to the lsp config file
+			if ( params.getCapabilities() != null
+			    && params.getCapabilities().getWorkspace() != null
+			    && params.getCapabilities().getWorkspace().getDidChangeWatchedFiles() != null
+			    && params.getCapabilities().getWorkspace().getDidChangeWatchedFiles().getDynamicRegistration() == true ) {
+				supportsFileWatch = true;
+				ProjectContextProvider.getInstance().watchLSPConfig();
+			}
+
 			ProjectContextProvider.getInstance().parseWorkspace();
 
 			return new InitializeResult( capabilities );

@@ -30,9 +30,9 @@ import java.util.stream.Collectors;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.Diagnostic;
+import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceEdit;
-import org.eclipse.lsp4j.DiagnosticSeverity;
 
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.expression.BoxArrayAccess;
@@ -45,12 +45,12 @@ import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.lsp.SourceCodeVisitor;
-import ortus.boxlang.lsp.workspace.BLASTTools;
-import ortus.boxlang.lsp.workspace.FileParseResult;
-import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.lint.rules.UnscopedVariableRule;
+import ortus.boxlang.lsp.workspace.BLASTTools;
+import ortus.boxlang.lsp.workspace.FileParseResult;
+import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
 /**
  * Visitor for detecting unscoped variables.
@@ -72,19 +72,19 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 		var settings = LintConfigLoader.get().forRule( UnscopedVariableRule.ID );
 		return this.diagnostics.stream()
 		    .filter( d -> {
-		    	Object dataObj = d.getData();
-		    	if ( dataObj instanceof Map<?,?> m ) {
-		    		Object v = m.get( "variableName" );
-		    		if ( v != null ) {
-		    			return !properties.contains( v.toString().toLowerCase() );
-		    		}
-		    	}
-		    	return true;
+			    Object dataObj = d.getData();
+			    if ( dataObj instanceof Map<?, ?> m ) {
+				    Object v = m.get( "variableName" );
+				    if ( v != null ) {
+					    return !properties.contains( v.toString().toLowerCase() );
+				    }
+			    }
+			    return true;
 		    } )
 		    .peek( d -> {
-		    	if ( settings != null ) {
-		    		d.setSeverity( settings.toSeverityOr( DiagnosticSeverity.Warning ) );
-		    	}
+			    if ( settings != null ) {
+				    d.setSeverity( settings.toSeverityOr( DiagnosticSeverity.Warning ) );
+			    }
 		    } )
 		    .collect( Collectors.toList() );
 	}

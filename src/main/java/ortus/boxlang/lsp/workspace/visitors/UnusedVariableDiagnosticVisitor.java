@@ -21,11 +21,11 @@ import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.lsp.SourceCodeVisitor;
-import ortus.boxlang.lsp.workspace.BLASTTools;
-import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.lint.rules.UnusedVariableRule;
+import ortus.boxlang.lsp.workspace.BLASTTools;
+import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
 public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 

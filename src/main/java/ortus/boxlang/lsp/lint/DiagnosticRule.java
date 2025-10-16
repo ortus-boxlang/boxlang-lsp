@@ -8,9 +8,9 @@ import org.eclipse.lsp4j.DiagnosticSeverity;
  */
 public interface DiagnosticRule {
 
-    /** Unique, stable identifier (e.g., "unscopedVariable"). */
-    String getId();
+	/** Unique, stable identifier (e.g., "unscopedVariable"). */
+	String getId();
 
-    /** Default severity if the config file omits one. */
-    DiagnosticSeverity getDefaultSeverity();
+	/** Default severity if the config file omits one. */
+	DiagnosticSeverity getDefaultSeverity();
 }
