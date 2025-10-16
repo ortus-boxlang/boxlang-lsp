@@ -55,6 +55,7 @@ import ortus.boxlang.lsp.App;
 import ortus.boxlang.lsp.LSPTools;
 import ortus.boxlang.lsp.UserSettings;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
+import ortus.boxlang.lsp.lint.LintConfig;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensFacts;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensRuleBook;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
@@ -64,6 +65,25 @@ import ortus.boxlang.runtime.async.executors.ExecutorRecord;
 import ortus.boxlang.runtime.services.AsyncService;
 
 public class ProjectContextProvider {
+
+	private boolean shouldAnalyzePath( URI docURI ) {
+		try {
+			var folders = getWorkspaceFolders();
+			if ( folders == null || folders.isEmpty() ) {
+				return true; // no workspace context -> analyze
+			}
+			Path	root		= Path.of( new URI( folders.getFirst().getUri() ) );
+			Path	filePath	= Paths.get( docURI );
+			if ( !filePath.startsWith( root ) ) {
+				return true; // outside workspace? allow
+			}
+			Path		rel	= root.relativize( filePath );
+			LintConfig	lc	= LintConfigLoader.get();
+			return lc.shouldAnalyze( rel.toString() );
+		} catch ( Exception e ) {
+			return true; // fail open
+		}
+	}
 
 	static ProjectContextProvider		instance;
 	private List<WorkspaceFolder>		workspaceFolders			= new ArrayList<WorkspaceFolder>();
@@ -162,6 +182,7 @@ public class ProjectContextProvider {
 
 						stream
 						    .filter( LSPTools::canWalkFile )
+						    .filter( p -> shouldAnalyzePath( p.toUri() ) )
 						    .forEach( ( clazzPath ) -> {
 							    try {
 								    List<Diagnostic> diagnostics			= provider.getFileDiagnostics( clazzPath.toUri() );
@@ -206,6 +227,9 @@ public class ProjectContextProvider {
 	}
 
 	public List<Diagnostic> getFileDiagnostics( URI docURI ) {
+		if ( !shouldAnalyzePath( docURI ) ) {
+			return new ArrayList<>();
+		}
 		return getLatestFileParseResult( docURI )
 		    .map( ( res ) -> res.getDiagnostics() )
 		    .orElseGet( () -> new ArrayList<Diagnostic>() );
@@ -352,7 +376,7 @@ public class ProjectContextProvider {
 				    // global - should this be found? or what should we show?
 				    // parent class
 				    return findMatchingFunctionDeclarations( docURI, fnUse.getName() );
-			    } else if ( node instanceof BoxMethodInvocation methodUse ) {
+			    } else if ( node instanceof BoxMethodInvocation ) {
 				    // should only be able to find function definitions in these locations
 				    // the type being accessed
 				    // a parent of the type being accessed
@@ -425,7 +449,8 @@ public class ProjectContextProvider {
 		if ( params.getContext().getDiagnostics().size() != 0 ) {
 			this.getFileCodeActions( convertDocumentURI ).stream().filter( codeAction -> {
 				for ( Diagnostic cad : codeAction.getDiagnostics() ) {
-					Map<String, Object>	cadData					= ( Map ) cad.getData();
+					@SuppressWarnings( "unchecked" )
+					Map<String, Object>	cadData					= ( Map<String, Object> ) cad.getData();
 					String				codeActionDiagnosticId	= ( String ) cadData.get( "id" );
 
 					for ( Diagnostic d : params.getContext().getDiagnostics() ) {
