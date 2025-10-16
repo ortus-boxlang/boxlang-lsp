@@ -58,8 +58,23 @@ public class LintConfigLoader {
 			LintConfig	lc		= MAPPER.readValue( bytes, LintConfig.class );
 			if ( lc == null )
 				lc = new LintConfig();
+			// normalize include/exclude entries (trim + forward slashes)
+			if ( lc.include != null ) {
+				lc.include = lc.include.stream()
+				    .filter( s -> s != null && !s.isBlank() )
+				    .map( s -> s.trim().replace( '\\', '/' ) )
+				    .distinct()
+				    .toList();
+			}
+			if ( lc.exclude != null ) {
+				lc.exclude = lc.exclude.stream()
+				    .filter( s -> s != null && !s.isBlank() )
+				    .map( s -> s.trim().replace( '\\', '/' ) )
+				    .distinct()
+				    .toList();
+			}
 			CACHE.set( lc );
-			LOGGER.info( "Lint config loaded: " + lc.diagnostics.keySet() );
+			LOGGER.info( "Lint config loaded: rules=" + lc.diagnostics.keySet() + " include=" + lc.include + " exclude=" + lc.exclude );
 		} catch ( IOException e ) {
 			LOGGER.error( "Failed to load lint config; keeping previous configuration", e );
 			// ignore malformed file; keep prior config

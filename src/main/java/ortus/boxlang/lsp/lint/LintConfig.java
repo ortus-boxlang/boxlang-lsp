@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /** Root configuration loaded from .boxlang-lsp.json */
@@ -31,15 +32,21 @@ public class LintConfig {
 	public boolean shouldAnalyze( String relativePath ) {
 		Objects.requireNonNull( relativePath, "relativePath" );
 		String	rel			= normalize( relativePath );
-		boolean	included	= include == null || include.isEmpty() || include.stream().anyMatch( p -> globToRegex( p ).matcher( rel ).matches() );
+		boolean	included	= include == null || include.isEmpty() || include.stream().anyMatch( p -> compile( p ).matcher( rel ).matches() );
 		if ( !included )
 			return false;
-		boolean excluded = exclude != null && exclude.stream().anyMatch( p -> globToRegex( p ).matcher( rel ).matches() );
+		boolean excluded = exclude != null && exclude.stream().anyMatch( p -> compile( p ).matcher( rel ).matches() );
 		return !excluded;
 	}
 
 	private static String normalize( String p ) {
 		return p.replace( '\\', '/' );
+	}
+
+	private static final Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
+
+	private static Pattern compile( String glob ) {
+		return PATTERN_CACHE.computeIfAbsent( glob, LintConfig::globToRegex );
 	}
 
 	private static Pattern globToRegex( String glob ) {
