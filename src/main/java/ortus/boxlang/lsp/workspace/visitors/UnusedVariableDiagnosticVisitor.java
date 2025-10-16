@@ -23,6 +23,9 @@ import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.lsp.SourceCodeVisitor;
 import ortus.boxlang.lsp.workspace.BLASTTools;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
+import ortus.boxlang.lsp.lint.LintConfigLoader;
+import ortus.boxlang.lsp.lint.rules.UnusedVariableRule;
 
 public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 
@@ -32,7 +35,10 @@ public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 	private Map<BoxFunctionDeclaration, Set<String>>	usedVars				= new WeakHashMap<>();
 
 	public List<Diagnostic> getDiagnostics() {
-
+		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( UnusedVariableRule.ID, true ) ) {
+			return List.of();
+		}
+		var settings = LintConfigLoader.get().forRule( UnusedVariableRule.ID );
 		return assignedVars.entrySet().stream()
 		    .flatMap( entry -> {
 			    return entry.getValue().stream()
@@ -45,7 +51,7 @@ public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 			    var diagnostic = new Diagnostic(
 			        ProjectContextProvider.positionToRange( varNode.getPosition() ),
 			        "Variable [" + getNameFromNode( varNode ) + "] is declared but never used.",
-			        DiagnosticSeverity.Hint,
+			        settings == null ? DiagnosticSeverity.Hint : settings.toSeverityOr( DiagnosticSeverity.Hint ),
 			        "boxlang"
 			    );
 
@@ -57,6 +63,9 @@ public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	public List<CodeAction> getCodeActions() {
+		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( UnusedVariableRule.ID, true ) ) {
+			return List.of();
+		}
 		return new ArrayList<CodeAction>();
 	}
 

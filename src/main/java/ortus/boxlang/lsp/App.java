@@ -22,6 +22,7 @@ import ortus.boxlang.runtime.types.Struct;
 import picocli.CommandLine;
 import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
 import ortus.boxlang.lsp.lint.rules.UnscopedVariableRule;
+import ortus.boxlang.lsp.lint.rules.UnusedVariableRule;
 
 public class App {
 
@@ -43,6 +44,7 @@ public class App {
 		MemoryThresholdMonitor.startMemoryManagement();
 		// Register diagnostic rules
 		DiagnosticRuleRegistry.getInstance().register( new UnscopedVariableRule() );
+		DiagnosticRuleRegistry.getInstance().register( new UnusedVariableRule() );
 		BoxRuntime.getInstance().announce( "LSPRegisterVisitors", Struct.of( "sourceCodeVisitorService", SourceCodeVisitorService.getInstance() ) );
 	}
 

@@ -12,7 +12,7 @@ import org.eclipse.lsp4j.WorkspaceFolder;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-/** Loads & caches the lint configuration file .boxlang-lsp.json at the project root. */
+/** Loads and caches the lint configuration file .boxlang-lsp.json at the project root. */
 public class LintConfigLoader {
     public static final String CONFIG_FILENAME = ".boxlang-lsp.json";
     private static final ObjectMapper MAPPER = new ObjectMapper();
