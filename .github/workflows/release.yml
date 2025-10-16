@@ -118,7 +118,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: boxlang-build
+          name: bx-lsp@${{ env.VERSION }}
           path: |
             build/reports/tests/**
             changelog.md
@@ -201,7 +201,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v5
         with:
-          name: boxlang-build
+          name: bx-lsp@${{ env.VERSION }}
           path: .tmp
 
       - name: Copy Changelog
