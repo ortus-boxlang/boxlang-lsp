@@ -207,7 +207,7 @@ jobs:
           gradle-version: ${{ env.GRADLE }}
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: bx-lsp@${{ needs.build.outputs.version }}
           path: .tmp
