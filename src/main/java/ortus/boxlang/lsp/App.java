@@ -29,6 +29,11 @@ public class App {
 
 	public static BoxLangLogger logger;
 
+	static {
+		BoxRuntime.getInstance();
+		logger = BoxRuntime.getInstance().getLoggingService().getLogger( "lsp" );
+	}
+
 	public static void main( String[] args ) {
 		CLI cli = new CLI();
 		new CommandLine( cli ).parseArgs( args );
@@ -38,8 +43,6 @@ public class App {
 	}
 
 	public App() {
-		BoxRuntime.getInstance();
-		logger = BoxRuntime.getInstance().getLoggingService().getLogger( "lsp" );
 
 		MemoryThresholdMonitor.startMemoryManagement();
 		// Register diagnostic rules

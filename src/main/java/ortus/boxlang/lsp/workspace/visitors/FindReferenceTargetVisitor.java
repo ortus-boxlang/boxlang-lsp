@@ -3,8 +3,8 @@ package ortus.boxlang.lsp.workspace.visitors;
 import org.eclipse.lsp4j.Position;
 
 import ortus.boxlang.compiler.ast.BoxNode;
-import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
+import ortus.boxlang.lsp.workspace.BLASTTools;
 
 public class FindReferenceTargetVisitor extends VoidBoxVisitor {
 
@@ -24,7 +24,7 @@ public class FindReferenceTargetVisitor extends VoidBoxVisitor {
 	}
 
 	public void visit( ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration node ) {
-		if ( !containsPosition( node ) ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
 			visitChildren( node );
 			return;
 		}
@@ -36,28 +36,5 @@ public class FindReferenceTargetVisitor extends VoidBoxVisitor {
 		for ( BoxNode child : node.getChildren() ) {
 			child.accept( this );
 		}
-	}
-
-	private boolean containsPosition( BoxNode node ) {
-		ortus.boxlang.compiler.ast.Position nodePos = node.getPosition();
-
-		if ( nodePos == null ) {
-			return false;
-		}
-
-		int	boxStartLine	= nodePos.getStart().getLine();
-		int	boxStartCol		= nodePos.getStart().getColumn();
-		int	boxEndLine		= nodePos.getEnd().getLine();
-		int	boxEndCol		= nodePos.getEnd().getColumn();
-
-		if ( node instanceof BoxFunctionInvocation bfi ) {
-			boxEndLine	= boxStartLine;
-			boxEndCol	= boxStartCol + bfi.getName().length();
-		}
-
-		return ! ( line < boxStartLine
-		    || ( line == boxStartLine && column <= boxStartCol )
-		    || line > boxEndLine
-		    || ( line == boxEndLine && column >= boxEndCol ) );
 	}
 }

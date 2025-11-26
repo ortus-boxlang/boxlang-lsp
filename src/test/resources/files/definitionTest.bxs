@@ -1,0 +1,6 @@
+
+
+function myFunc(){ return 1; }
+
+
+myFunc();
