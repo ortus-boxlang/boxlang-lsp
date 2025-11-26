@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- BLIDE-215 Add ability to go to definition of BoxLang functions within the same file
+- BLIDE-236 Add ability to find references of a BoxLang function within the same file
+
 ## [1.5.0] - 2025-10-16
 
 ## [1.3.0] - 2025-10-03

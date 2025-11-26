@@ -61,7 +61,8 @@ import ortus.boxlang.lsp.workspace.codeLens.CodeLensFacts;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensRuleBook;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
 import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
-import ortus.boxlang.lsp.workspace.visitors.DefinitionTargetVisitor;
+import ortus.boxlang.lsp.workspace.visitors.FindDefinitionTargetVisitor;
+import ortus.boxlang.lsp.workspace.visitors.FindReferenceTargetVisitor;
 import ortus.boxlang.runtime.async.executors.BoxExecutor;
 import ortus.boxlang.runtime.services.AsyncService;
 
@@ -359,11 +360,43 @@ public class ProjectContextProvider {
 		    .map( ( res ) -> res.getOutline() );
 	}
 
+	public List<Location> findFunctionUsages( URI docURI, Position pos ) {
+		return findReferenceTarget( docURI, pos )
+		    .map( node -> {
+			    if ( node instanceof ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration fnDecl ) {
+				    String name = fnDecl.getName();
+				    return getLatestFileParseResult( docURI )
+				        .map( fpr -> fpr.findAstRoot()
+				            .map( root -> {
+					            // naive search: all BoxFunctionInvocation with matching name
+					            return root
+					                .getDescendantsOfType( ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation.class,
+					                    n -> n.getName().equalsIgnoreCase( name ) )
+					                .stream()
+					                .map( inv -> {
+						                ortus.boxlang.compiler.ast.Position p = inv.getPosition();
+						                Location			l	= new Location();
+						                l.setUri( docURI.toString() );
+						                l.setRange( new Range( new Position( p.getStart().getLine() - 1, p.getStart().getColumn() ),
+						                    new Position( p.getStart().getLine() - 1, p.getStart().getColumn() + inv.getName().length() ) ) );
+						                return l;
+					                } )
+					                .toList();
+				            } ).orElseGet( () -> new ArrayList<Location>() ) )
+				        .orElseGet( () -> new ArrayList<Location>() );
+			    }
+			    return new ArrayList<Location>();
+		    } )
+		    .orElseGet( () -> new ArrayList<Location>() );
+	}
+
 	public List<Location> findMatchingFunctionDeclarations( URI docURI, String functionName ) {
-		return this.functionDefinitions.stream()
-		    .filter( ( fn ) -> fn.getFunctionName().equals( functionName ) && docURI.equals( fn.getFileURI() ) )
-		    .map( FunctionDefinition::getLocation )
-		    .toList();
+		return getLatestFileParseResult( docURI )
+		    .map( fpr -> fpr.getFunctionDefinitions().stream()
+		        .filter( fn -> fn.getFunctionName().equalsIgnoreCase( functionName ) )
+		        .map( FunctionDefinition::getLocation )
+		        .toList() )
+		    .orElseGet( () -> new ArrayList<Location>() );
 	}
 
 	public List<Location> findDefinitionPossibiltiies( URI docURI, Position pos ) {
@@ -404,21 +437,29 @@ public class ProjectContextProvider {
 		} ).orElseGet( () -> new ArrayList<CodeLens>() );
 	}
 
-	public Optional<BoxNode> findDefinitionTarget( URI docURI, Position position ) {
+	public Optional<BoxNode> findReferenceTarget( URI docURI, Position position ) {
 		return getLatestFileParseResult( docURI )
 		    .flatMap( fpr -> fpr.findAstRoot() )
 		    .map( ( rootNode ) -> {
-			    return searchForCursorTarget( rootNode, position );
+			    FindReferenceTargetVisitor visitor = new FindReferenceTargetVisitor( position );
+			    rootNode.accept( visitor );
+
+			    return visitor.getReferenceTarget();
 		    } );
 
 	}
 
-	private BoxNode searchForCursorTarget( BoxNode root, Position position ) {
-		DefinitionTargetVisitor visitor = new DefinitionTargetVisitor( position );
+	public Optional<BoxNode> findDefinitionTarget( URI docURI, Position position ) {
+		return getLatestFileParseResult( docURI )
+		    .flatMap( fpr -> fpr.findAstRoot() )
+		    .map( ( rootNode ) -> {
+			    FindDefinitionTargetVisitor visitor = new FindDefinitionTargetVisitor( position );
 
-		root.accept( visitor );
+			    rootNode.accept( visitor );
 
-		return visitor.getDefinitionTarget();
+			    return visitor.getDefinitionTarget();
+		    } );
+
 	}
 
 	private void publishDiagnostics( URI docURI ) {

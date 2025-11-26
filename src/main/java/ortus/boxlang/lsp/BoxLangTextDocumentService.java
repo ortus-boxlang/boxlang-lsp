@@ -139,6 +139,9 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(
 	    DefinitionParams params ) {
 
+		// get the node at the cursor position
+		// based on its type figure out where it is defined
+
 		try {
 			URI docURI = new URI( params.getTextDocument().getUri() );
 
@@ -225,6 +228,14 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 			return result;
 		} );
 
+	}
+
+	@JsonRequest
+	public CompletableFuture<List<? extends Location>> references( org.eclipse.lsp4j.ReferenceParams params ) {
+		java.net.URI	docURI	= LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
+		List<Location>	locs	= ProjectContextProvider.getInstance().findFunctionUsages( docURI, params.getPosition() );
+		App.logger.info( "references returned " + locs.size() + ( locs.isEmpty() ? "" : " first=" + locs.get( 0 ).getRange() ) );
+		return CompletableFuture.completedFuture( locs );
 	}
 
 }

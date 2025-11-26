@@ -4,46 +4,33 @@ import org.eclipse.lsp4j.Position;
 
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
-import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
 
-public class DefinitionTargetVisitor extends VoidBoxVisitor {
+public class FindReferenceTargetVisitor extends VoidBoxVisitor {
 
-	private BoxNode			definitionTarget;
+	private BoxNode			referenceTarget;
 	private final Position	cursorPosition;
 	private int				line;
 	private int				column;
 
-	public DefinitionTargetVisitor( Position cursorPosition ) {
+	public FindReferenceTargetVisitor( Position cursorPosition ) {
 		this.cursorPosition	= cursorPosition;
 		this.line			= this.cursorPosition.getLine() + 1;
 		this.column			= this.cursorPosition.getCharacter();
 	}
 
-	public BoxNode getDefinitionTarget() {
-		return definitionTarget;
+	public BoxNode getReferenceTarget() {
+		return referenceTarget;
 	}
 
-	public void visit( BoxMethodInvocation node ) {
-		visitChildren( node );
-	}
-
-	public void visit( BoxFunctionInvocation node ) {
+	public void visit( ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration node ) {
 		if ( !containsPosition( node ) ) {
 			visitChildren( node );
 			return;
 		}
 
-		this.definitionTarget = node;
+		this.referenceTarget = node;
 	}
-
-	// public void visit(BoxFunctionDeclaration node) {
-	// if (!containsPosition(node)) {
-	// return;
-	// }
-
-	// this.definitionTarget = node;
-	// }
 
 	private void visitChildren( BoxNode node ) {
 		for ( BoxNode child : node.getChildren() ) {
