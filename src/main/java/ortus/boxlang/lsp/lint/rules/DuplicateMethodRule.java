@@ -5,12 +5,11 @@ import org.eclipse.lsp4j.DiagnosticSeverity;
 import ortus.boxlang.lsp.lint.DiagnosticRule;
 
 /**
- * Rule for semantic error diagnostics.
- * Covers: invalid extends, invalid implements, duplicate definitions.
+ * Rule for duplicate method definitions within a class.
  */
-public class SemanticErrorRule implements DiagnosticRule {
+public class DuplicateMethodRule implements DiagnosticRule {
 
-	public static final String ID = "semanticError";
+	public static final String ID = "duplicateMethod";
 
 	@Override
 	public String getId() {

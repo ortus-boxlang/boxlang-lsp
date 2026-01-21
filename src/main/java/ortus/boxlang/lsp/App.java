@@ -18,7 +18,10 @@ import org.eclipse.lsp4j.services.LanguageClientAware;
 
 import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
-import ortus.boxlang.lsp.lint.rules.SemanticErrorRule;
+import ortus.boxlang.lsp.lint.rules.DuplicateMethodRule;
+import ortus.boxlang.lsp.lint.rules.DuplicatePropertyRule;
+import ortus.boxlang.lsp.lint.rules.InvalidExtendsRule;
+import ortus.boxlang.lsp.lint.rules.InvalidImplementsRule;
 import ortus.boxlang.lsp.lint.rules.UnscopedVariableRule;
 import ortus.boxlang.lsp.lint.rules.UnusedVariableRule;
 import ortus.boxlang.runtime.BoxRuntime;
@@ -49,7 +52,10 @@ public class App {
 		// Register diagnostic rules
 		DiagnosticRuleRegistry.getInstance().register( new UnscopedVariableRule() );
 		DiagnosticRuleRegistry.getInstance().register( new UnusedVariableRule() );
-		DiagnosticRuleRegistry.getInstance().register( new SemanticErrorRule() );
+		DiagnosticRuleRegistry.getInstance().register( new InvalidExtendsRule() );
+		DiagnosticRuleRegistry.getInstance().register( new InvalidImplementsRule() );
+		DiagnosticRuleRegistry.getInstance().register( new DuplicateMethodRule() );
+		DiagnosticRuleRegistry.getInstance().register( new DuplicatePropertyRule() );
 		BoxRuntime.getInstance().announce( "LSPRegisterVisitors", Struct.of( "sourceCodeVisitorService", SourceCodeVisitorService.getInstance() ) );
 		startConfigWatcher();
 	}

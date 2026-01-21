@@ -42,7 +42,6 @@ import ortus.boxlang.runtime.BoxRuntime;
  * Tests detection of:
  * - Invalid extends (class not found)
  * - Invalid implements (interface not found)
- * - Duplicate class definitions
  * - Duplicate method definitions
  * - Duplicate property definitions
  */
@@ -310,49 +309,6 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		    .orElse( null );
 
 		assertThat( duplicateProperty ).isNull();
-	}
-
-	// ============ Duplicate Class Definition Tests ============
-
-	@Test
-	void testDuplicateClassDefinitionInWorkspace() throws Exception {
-		// Create two classes with the same name in different directories
-		Path dir1 = tempDir.resolve( "models" );
-		Path dir2 = tempDir.resolve( "services" );
-		Files.createDirectories( dir1 );
-		Files.createDirectories( dir2 );
-
-		String classCode1 = """
-		                    class {
-		                        function init() { return this; }
-		                    }
-		                    """;
-
-		String classCode2 = """
-		                    class {
-		                        function init() { return this; }
-		                    }
-		                    """;
-
-		Path file1 = dir1.resolve( "User.bx" );
-		Path file2 = dir2.resolve( "User.bx" );
-		Files.writeString( file1, classCode1 );
-		Files.writeString( file2, classCode2 );
-
-		index.indexFile( file1.toUri() );
-		index.indexFile( file2.toUri() );
-
-		// Check diagnostics on the second file
-		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( file2.toUri() );
-		assertNotNull( diagnostics );
-
-		Diagnostic duplicateClass = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "duplicate" ) && d.getMessage().toLowerCase().contains( "class" ) )
-		    .findFirst()
-		    .orElse( null );
-
-		assertThat( duplicateClass ).isNotNull();
-		assertThat( duplicateClass.getSeverity() ).isEqualTo( DiagnosticSeverity.Warning );
 	}
 
 	// ============ Helper Methods ============

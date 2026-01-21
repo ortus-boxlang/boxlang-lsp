@@ -38,7 +38,10 @@ import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.lsp.SourceCodeVisitor;
 import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
-import ortus.boxlang.lsp.lint.rules.SemanticErrorRule;
+import ortus.boxlang.lsp.lint.rules.DuplicateMethodRule;
+import ortus.boxlang.lsp.lint.rules.DuplicatePropertyRule;
+import ortus.boxlang.lsp.lint.rules.InvalidExtendsRule;
+import ortus.boxlang.lsp.lint.rules.InvalidImplementsRule;
 import ortus.boxlang.lsp.workspace.BLASTTools;
 import ortus.boxlang.lsp.workspace.FileParseResult;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
@@ -52,7 +55,8 @@ import ortus.boxlang.lsp.workspace.index.ProjectIndex;
  * - Invalid implements (interface not found)
  * - Duplicate method definitions within a class
  * - Duplicate property definitions within a class
- * - Duplicate class definitions in workspace (warning)
+ *
+ * Each diagnostic type has its own rule ID for individual configuration.
  */
 public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 
@@ -63,14 +67,22 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 
 	@Override
 	public List<Diagnostic> getDiagnostics() {
-		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( SemanticErrorRule.ID, true ) ) {
-			return List.of();
-		}
-		var settings = LintConfigLoader.get().forRule( SemanticErrorRule.ID );
+		// Filter and adjust severity based on individual rule settings
 		return this.diagnostics.stream()
+		    .filter( d -> {
+			    String ruleId = d.getCode() != null ? d.getCode().getLeft() : null;
+			    if ( ruleId == null ) {
+				    return true;
+			    }
+			    return DiagnosticRuleRegistry.getInstance().isEnabled( ruleId, true );
+		    } )
 		    .peek( d -> {
-			    if ( settings != null && d.getSeverity() == DiagnosticSeverity.Error ) {
-				    d.setSeverity( settings.toSeverityOr( DiagnosticSeverity.Error ) );
+			    String ruleId = d.getCode() != null ? d.getCode().getLeft() : null;
+			    if ( ruleId != null ) {
+				    var settings = LintConfigLoader.get().forRule( ruleId );
+				    if ( settings != null ) {
+					    d.setSeverity( settings.toSeverityOr( d.getSeverity() ) );
+				    }
 			    }
 		    } )
 		    .toList();
@@ -101,19 +113,16 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 		List<BoxAnnotation>	annotations		= findAnnotations( node );
 		String				extendsClass	= extractExtends( annotations );
 		if ( extendsClass != null && !extendsClass.isEmpty() ) {
-			validateClassReference( extendsClass, node, "extends" );
+			validateExtendsReference( extendsClass, node );
 		}
 
 		// Check implements
 		List<String> implementsInterfaces = extractImplements( annotations );
 		for ( String interfaceName : implementsInterfaces ) {
 			if ( interfaceName != null && !interfaceName.isEmpty() ) {
-				validateClassReference( interfaceName, node, "implements" );
+				validateImplementsReference( interfaceName, node );
 			}
 		}
-
-		// Check for duplicate class in workspace
-		checkDuplicateClass( currentClassName, node );
 
 		// Visit children to check methods and properties
 		visitChildren( node );
@@ -132,11 +141,8 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 		List<BoxAnnotation>	annotations			= findAnnotations( node );
 		String				extendsInterface	= extractExtends( annotations );
 		if ( extendsInterface != null && !extendsInterface.isEmpty() ) {
-			validateClassReference( extendsInterface, node, "extends" );
+			validateExtendsReference( extendsInterface, node );
 		}
-
-		// Check for duplicate interface in workspace
-		checkDuplicateClass( currentClassName, node );
 
 		// Visit children
 		visitChildren( node );
@@ -159,7 +165,7 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 			    "Duplicate method definition: '" + node.getName() + "' is already defined in this class.",
 			    DiagnosticSeverity.Error,
 			    "boxlang",
-			    SemanticErrorRule.ID
+			    DuplicateMethodRule.ID
 			);
 			diagnostics.add( diagnostic );
 		} else {
@@ -181,7 +187,7 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 			    "Duplicate property definition: '" + propertyName + "' is already defined in this class.",
 			    DiagnosticSeverity.Error,
 			    "boxlang",
-			    SemanticErrorRule.ID
+			    DuplicatePropertyRule.ID
 			);
 			diagnostics.add( diagnostic );
 		} else {
@@ -202,7 +208,7 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 			return null;
 		}
 
-		String path		= this.filePath;
+		String	path		= this.filePath;
 		int		lastSlash	= Math.max( path.lastIndexOf( '/' ), path.lastIndexOf( '\\' ) );
 		String	fileName	= lastSlash >= 0 ? path.substring( lastSlash + 1 ) : path;
 
@@ -210,7 +216,7 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 		return dotIndex > 0 ? fileName.substring( 0, dotIndex ) : fileName;
 	}
 
-	private void validateClassReference( String className, BoxNode node, String referenceType ) {
+	private void validateExtendsReference( String className, BoxNode node ) {
 		ProjectIndex index = ProjectContextProvider.getInstance().getIndex();
 		if ( index == null ) {
 			return;
@@ -226,42 +232,37 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 		if ( foundClass.isEmpty() ) {
 			Diagnostic diagnostic = new Diagnostic(
 			    ProjectContextProvider.positionToRange( node.getPosition() ),
-			    "Class or interface '" + className + "' not found (" + referenceType + " reference).",
+			    "Class or interface '" + className + "' not found (extends reference).",
 			    DiagnosticSeverity.Error,
 			    "boxlang",
-			    SemanticErrorRule.ID
+			    InvalidExtendsRule.ID
 			);
 			diagnostics.add( diagnostic );
 		}
 	}
 
-	private void checkDuplicateClass( String className, BoxNode node ) {
-		if ( className == null ) {
-			return;
-		}
-
+	private void validateImplementsReference( String interfaceName, BoxNode node ) {
 		ProjectIndex index = ProjectContextProvider.getInstance().getIndex();
 		if ( index == null ) {
 			return;
 		}
 
-		var allClasses = index.findAllClassesByName( className );
-		if ( allClasses.size() > 1 ) {
-			// Find if any other class has a different file URI
-			String currentFileUri = this.filePath;
-			for ( var otherClass : allClasses ) {
-				if ( otherClass.fileUri() != null && !otherClass.fileUri().equals( currentFileUri ) ) {
-					Diagnostic diagnostic = new Diagnostic(
-					    ProjectContextProvider.positionToRange( node.getPosition() ),
-					    "Duplicate class definition: '" + className + "' is also defined in " + otherClass.fileUri(),
-					    DiagnosticSeverity.Warning,
-					    "boxlang",
-					    SemanticErrorRule.ID
-					);
-					diagnostics.add( diagnostic );
-					break; // Only report once
-				}
-			}
+		// Try to find by simple name first
+		var foundClass = index.findClassByName( interfaceName );
+		if ( foundClass.isEmpty() ) {
+			// Try by FQN
+			foundClass = index.findClassByFQN( interfaceName );
+		}
+
+		if ( foundClass.isEmpty() ) {
+			Diagnostic diagnostic = new Diagnostic(
+			    ProjectContextProvider.positionToRange( node.getPosition() ),
+			    "Interface '" + interfaceName + "' not found (implements reference).",
+			    DiagnosticSeverity.Error,
+			    "boxlang",
+			    InvalidImplementsRule.ID
+			);
+			diagnostics.add( diagnostic );
 		}
 	}
 

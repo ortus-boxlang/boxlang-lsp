@@ -6,7 +6,7 @@
 
 ### Summary
 
-Implemented semantic error diagnostics that detect errors which are syntactically valid but semantically incorrect. This leverages the Project Index to validate class references and detect duplicate definitions.
+Implemented semantic error diagnostics that detect errors which are syntactically valid but semantically incorrect. This leverages the Project Index to validate class references and detect duplicate definitions. Each diagnostic type has its own configurable rule ID.
 
 ### Changes Made
 
@@ -18,17 +18,16 @@ Implemented semantic error diagnostics that detect errors which are syntacticall
 - Validates `implements` annotations - reports error if interfaces not found in index
 - Detects duplicate method definitions within a class (case-insensitive comparison)
 - Detects duplicate property definitions within a class (case-insensitive comparison)
-- Detects duplicate class definitions in workspace (warning severity)
 - Supports comma-separated lists and array syntax for multiple `implements` values
 
-**`SemanticErrorRule.java`** (`src/main/java/ortus/boxlang/lsp/lint/rules/`)
-- Implements `DiagnosticRule` interface
-- Rule ID: `semanticError`
-- Default severity: `Error`
-- Configurable via `.bxlint.json`
+**Individual Rule Files** (`src/main/java/ortus/boxlang/lsp/lint/rules/`)
+- `InvalidExtendsRule.java` - Rule ID: `invalidExtends`
+- `InvalidImplementsRule.java` - Rule ID: `invalidImplements`
+- `DuplicateMethodRule.java` - Rule ID: `duplicateMethod`
+- `DuplicatePropertyRule.java` - Rule ID: `duplicateProperty`
 
 **`SemanticErrorDiagnosticsTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
-- 10 comprehensive tests covering all semantic error scenarios:
+- 9 comprehensive tests covering all semantic error scenarios:
   - `testInvalidExtendsClassNotFound()` - verifies error for non-existent parent class
   - `testValidExtendsNoError()` - verifies no error when parent exists
   - `testInvalidImplementsInterfaceNotFound()` - verifies error for non-existent interface
@@ -38,7 +37,6 @@ Implemented semantic error diagnostics that detect errors which are syntacticall
   - `testNoDuplicateMethodsWithDifferentNames()` - verifies no false positives
   - `testDuplicatePropertyDefinition()` - verifies error for duplicate property names
   - `testNoDuplicatePropertiesWithDifferentNames()` - verifies no false positives
-  - `testDuplicateClassDefinitionInWorkspace()` - verifies warning for duplicate class names
 
 #### Modified Files
 
@@ -47,30 +45,41 @@ Implemented semantic error diagnostics that detect errors which are syntacticall
 - Registered `SemanticErrorDiagnosticVisitor` in static initializer
 
 **`App.java`**
-- Added import for `SemanticErrorRule`
-- Registered `SemanticErrorRule` in `DiagnosticRuleRegistry`
+- Added imports for individual rule classes
+- Registered all four rules in `DiagnosticRuleRegistry`
 
 **`ProjectContextProvider.java`**
 - Added `setIndex(ProjectIndex)` method for testing purposes
 
 ### Diagnostics Implemented
 
-| Diagnostic | Severity | Message Pattern |
-|------------|----------|-----------------|
-| Invalid extends | Error | "Class or interface 'X' not found (extends reference)" |
-| Invalid implements | Error | "Class or interface 'X' not found (implements reference)" |
-| Duplicate method | Error | "Duplicate method definition: 'X' is already defined in this class" |
-| Duplicate property | Error | "Duplicate property definition: 'X' is already defined in this class" |
-| Duplicate class | Warning | "Duplicate class definition: 'X' is also defined in Y" |
+| Rule ID | Severity | Message Pattern |
+|---------|----------|-----------------|
+| `invalidExtends` | Error | "Class or interface 'X' not found (extends reference)" |
+| `invalidImplements` | Error | "Interface 'X' not found (implements reference)" |
+| `duplicateMethod` | Error | "Duplicate method definition: 'X' is already defined in this class" |
+| `duplicateProperty` | Error | "Duplicate property definition: 'X' is already defined in this class" |
 
 ### Configuration
 
-The semantic error rule can be configured via `.bxlint.json`:
+Each rule can be configured independently via `.bxlint.json`:
 
 ```json
 {
   "diagnostics": {
-    "semanticError": {
+    "invalidExtends": {
+      "enabled": true,
+      "severity": "error"
+    },
+    "invalidImplements": {
+      "enabled": true,
+      "severity": "error"
+    },
+    "duplicateMethod": {
+      "enabled": true,
+      "severity": "error"
+    },
+    "duplicateProperty": {
       "enabled": true,
       "severity": "error"
     }
@@ -82,9 +91,13 @@ The semantic error rule can be configured via `.bxlint.json`:
 
 - ✅ Duplicate function/method definitions
 - ✅ Duplicate property definitions
-- ✅ Duplicate class definitions in workspace
 - ✅ Invalid `extends` (class not found)
 - ✅ Invalid `implements` (interface not found)
+
+### Design Decisions
+
+- **No duplicate class detection**: BoxLang classes are defined by their filename, not in the class definition itself, so duplicate class detection was removed.
+- **Individual rule IDs**: Each diagnostic type has its own rule ID for granular configuration control.
 
 ### Requirements Deferred
 
