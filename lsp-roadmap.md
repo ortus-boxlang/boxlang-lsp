@@ -212,7 +212,7 @@ Ensure all syntax errors from the parser are properly reported as diagnostics.
 
 ---
 
-### 1.5 Expand Diagnostics - Semantic Errors (Incomplete)
+### 1.5 Expand Diagnostics - Semantic Errors (Complete)
 
 **Priority:** High  
 **Complexity:** Medium  

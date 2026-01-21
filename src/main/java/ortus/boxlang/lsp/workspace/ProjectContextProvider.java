@@ -145,6 +145,15 @@ public class ProjectContextProvider {
 		return projectIndex;
 	}
 
+	/**
+	 * Set the project index. Primarily used for testing.
+	 *
+	 * @param index The project index to use
+	 */
+	public void setIndex( ProjectIndex index ) {
+		this.projectIndex = index;
+	}
+
 	public List<DiagnosticReport> getCachedDiagnosticReports() {
 		return cachedDiagnosticReports;
 	}
