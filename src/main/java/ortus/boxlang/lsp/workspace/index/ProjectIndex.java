@@ -51,6 +51,13 @@ public class ProjectIndex {
 	private final Map<String, List<IndexedMethod>>		methodsByFileUri		= new ConcurrentHashMap<>();
 	private final Map<String, List<IndexedProperty>>	propertiesByFileUri		= new ConcurrentHashMap<>();
 
+	// Track file modification times for cache freshness validation
+	private final Map<String, Instant>					fileModifiedTimes		= new ConcurrentHashMap<>();
+	// Files that need re-indexing after cache load (stale or missing)
+	private final List<String>							staleFiles				= new ArrayList<>();
+	// Flag indicating if cache was corrupted and full re-index is needed
+	private boolean										cacheCorrupted			= false;
+
 	private final InheritanceGraph						inheritanceGraph		= new InheritanceGraph();
 	private final Gson									gson;
 	private Path										workspaceRoot;
@@ -127,6 +134,15 @@ public class ProjectIndex {
 			// Remove old data for this file first
 			removeFile( fileUri );
 
+			// Track the file modification time for cache freshness validation
+			try {
+				Instant modTime = Files.getLastModifiedTime( filePath ).toInstant();
+				fileModifiedTimes.put( fileUriStr, modTime );
+			} catch ( IOException e ) {
+				// If we can't read mod time, use current time
+				fileModifiedTimes.put( fileUriStr, Instant.now() );
+			}
+
 			// Add classes
 			List<IndexedClass> classes = visitor.getIndexedClasses();
 			classesByFileUri.put( fileUriStr, classes );
@@ -176,6 +192,9 @@ public class ProjectIndex {
 	 */
 	public void removeFile( URI fileUri ) {
 		String fileUriStr = fileUri.toString();
+
+		// Remove file modification time tracking
+		fileModifiedTimes.remove( fileUriStr );
 
 		// Remove classes
 		List<IndexedClass> oldClasses = classesByFileUri.remove( fileUriStr );
@@ -432,6 +451,48 @@ public class ProjectIndex {
 	}
 
 	/**
+	 * Get the list of file URIs that were marked as stale during cache loading.
+	 * These files need to be re-indexed.
+	 *
+	 * @return List of stale file URIs
+	 */
+	public List<String> getStaleFiles() {
+		return new ArrayList<>( staleFiles );
+	}
+
+	/**
+	 * Check if the cache was corrupted and needs a full re-index.
+	 *
+	 * @return true if cache was corrupted
+	 */
+	public boolean isCacheCorrupted() {
+		return cacheCorrupted;
+	}
+
+	/**
+	 * Check if a specific file needs re-indexing.
+	 *
+	 * @param fileUri The URI of the file to check
+	 *
+	 * @return true if the file needs re-indexing (not in cache, stale, or corrupted cache)
+	 */
+	public boolean needsReindexing( URI fileUri ) {
+		if ( cacheCorrupted ) {
+			return true;
+		}
+
+		String fileUriStr = fileUri.toString();
+
+		// If the file has no cached modification time, it needs indexing
+		if ( !fileModifiedTimes.containsKey( fileUriStr ) ) {
+			return true;
+		}
+
+		// If the file is in the stale list, it needs re-indexing
+		return staleFiles.contains( fileUriStr );
+	}
+
+	/**
 	 * Clear all indexed data.
 	 */
 	public void clear() {
@@ -445,12 +506,15 @@ public class ProjectIndex {
 		methodsByFileUri.clear();
 		propertiesByFileUri.clear();
 		inheritanceGraph.clear();
+		fileModifiedTimes.clear();
+		staleFiles.clear();
+		cacheCorrupted = false;
 	}
 
 	// ============ Persistence ============
 
 	/**
-	 * Load the index from the cache file.
+	 * Load the index from the cache file, validating freshness and marking stale files.
 	 */
 	private void loadCache() {
 		if ( cacheFilePath == null || !Files.exists( cacheFilePath ) ) {
@@ -463,13 +527,26 @@ public class ProjectIndex {
 		try ( FileReader reader = new FileReader( cacheFilePath.toFile() ) ) {
 			JsonElement element = JsonParser.parseReader( reader );
 			if ( !element.isJsonObject() ) {
-				if ( App.logger != null ) {
-					App.logger.warn( "Invalid project index cache file format, starting with empty index" );
-				}
+				handleCacheCorruption( "Invalid project index cache file format" );
 				return;
 			}
 
 			JsonObject cacheObject = element.getAsJsonObject();
+
+			// Load file modification times first
+			if ( cacheObject.has( "fileModifiedTimes" ) ) {
+				JsonObject fileTimesObj = cacheObject.getAsJsonObject( "fileModifiedTimes" );
+				for ( String fileUri : fileTimesObj.keySet() ) {
+					try {
+						Instant cachedTime = Instant.parse( fileTimesObj.get( fileUri ).getAsString() );
+						fileModifiedTimes.put( fileUri, cachedTime );
+					} catch ( Exception e ) {
+						if ( App.logger != null ) {
+							App.logger.warn( "Failed to parse file modification time from cache: " + e.getMessage() );
+						}
+					}
+				}
+			}
 
 			// Load classes
 			if ( cacheObject.has( "classes" ) ) {
@@ -477,6 +554,9 @@ public class ProjectIndex {
 				for ( JsonElement classElement : classesArray ) {
 					try {
 						IndexedClass indexedClass = gson.fromJson( classElement, IndexedClass.class );
+						if ( indexedClass == null ) {
+							continue;
+						}
 						classesByFQN.put( indexedClass.fullyQualifiedName(), indexedClass );
 						classesBySimpleName.computeIfAbsent( indexedClass.name().toLowerCase(), k -> new ArrayList<>() ).add( indexedClass );
 						if ( indexedClass.fileUri() != null ) {
@@ -501,6 +581,9 @@ public class ProjectIndex {
 				for ( JsonElement methodElement : methodsArray ) {
 					try {
 						IndexedMethod indexedMethod = gson.fromJson( methodElement, IndexedMethod.class );
+						if ( indexedMethod == null ) {
+							continue;
+						}
 						methodsByKey.put( indexedMethod.getKey(), indexedMethod );
 						methodsByName.computeIfAbsent( indexedMethod.name().toLowerCase(), k -> new ArrayList<>() ).add( indexedMethod );
 						if ( indexedMethod.fileUri() != null ) {
@@ -520,7 +603,10 @@ public class ProjectIndex {
 				for ( JsonElement propertyElement : propertiesArray ) {
 					try {
 						IndexedProperty indexedProperty = gson.fromJson( propertyElement, IndexedProperty.class );
-						String			key				= indexedProperty.containingClass() + "." + indexedProperty.name();
+						if ( indexedProperty == null ) {
+							continue;
+						}
+						String key = indexedProperty.containingClass() + "." + indexedProperty.name();
 						propertiesByKey.put( key, indexedProperty );
 						if ( indexedProperty.containingClass() != null ) {
 							propertiesByClassName.computeIfAbsent( indexedProperty.containingClass().toLowerCase(), k -> new ArrayList<>() )
@@ -537,15 +623,79 @@ public class ProjectIndex {
 				}
 			}
 
+			// Validate cache freshness for all loaded files
+			validateCacheFreshness();
+
 			if ( App.logger != null ) {
-				App.logger.debug( "Loaded project index cache with {} classes, {} methods, {} properties",
-				    classesByFQN.size(), methodsByKey.size(), propertiesByKey.size() );
+				App.logger.debug( "Loaded project index cache with {} classes, {} methods, {} properties, {} stale files",
+				    classesByFQN.size(), methodsByKey.size(), propertiesByKey.size(), staleFiles.size() );
 			}
 
-		} catch ( IOException e ) {
-			if ( App.logger != null ) {
-				App.logger.error( "Failed to load project index cache: " + e.getMessage(), e );
+		} catch ( Exception e ) {
+			handleCacheCorruption( "Failed to load project index cache: " + e.getMessage() );
+		}
+	}
+
+	/**
+	 * Handle cache corruption by clearing and marking for full re-index.
+	 */
+	private void handleCacheCorruption( String reason ) {
+		if ( App.logger != null ) {
+			App.logger.warn( reason + ", falling back to full re-index" );
+		}
+		clear();
+		cacheCorrupted = true;
+	}
+
+	/**
+	 * Validate cache freshness by comparing cached file modification times against current.
+	 * Files that have been modified since caching are marked as stale.
+	 */
+	private void validateCacheFreshness() {
+		staleFiles.clear();
+
+		for ( Map.Entry<String, Instant> entry : fileModifiedTimes.entrySet() ) {
+			String	fileUri		= entry.getKey();
+			Instant	cachedTime	= entry.getValue();
+
+			try {
+				URI		uri			= URI.create( fileUri );
+				Path	filePath	= Paths.get( uri );
+
+				if ( !Files.exists( filePath ) ) {
+					// File was deleted - mark as stale and remove from index
+					staleFiles.add( fileUri );
+					removeFileByUri( fileUri );
+					continue;
+				}
+
+				Instant currentModTime = Files.getLastModifiedTime( filePath ).toInstant();
+				if ( currentModTime.isAfter( cachedTime ) ) {
+					// File has been modified since caching - mark as stale
+					staleFiles.add( fileUri );
+					// Remove stale data from index (will be re-indexed later)
+					removeFileByUri( fileUri );
+				}
+			} catch ( Exception e ) {
+				// If we can't check, mark as stale to be safe
+				if ( App.logger != null ) {
+					App.logger.debug( "Could not validate cache freshness for {}: {}", fileUri, e.getMessage() );
+				}
+				staleFiles.add( fileUri );
+				removeFileByUri( fileUri );
 			}
+		}
+	}
+
+	/**
+	 * Remove all indexed data for a file using its URI string.
+	 * Internal helper for cache validation.
+	 */
+	private void removeFileByUri( String fileUriStr ) {
+		try {
+			removeFile( URI.create( fileUriStr ) );
+		} catch ( Exception e ) {
+			// Ignore errors during cleanup
 		}
 	}
 
@@ -565,6 +715,13 @@ public class ProjectIndex {
 			Files.createDirectories( cacheFilePath.getParent() );
 
 			JsonObject cacheObject = new JsonObject();
+
+			// Save file modification times
+			JsonObject fileTimesObj = new JsonObject();
+			for ( Map.Entry<String, Instant> entry : fileModifiedTimes.entrySet() ) {
+				fileTimesObj.addProperty( entry.getKey(), entry.getValue().toString() );
+			}
+			cacheObject.add( "fileModifiedTimes", fileTimesObj );
 
 			// Save classes
 			JsonArray classesArray = new JsonArray();

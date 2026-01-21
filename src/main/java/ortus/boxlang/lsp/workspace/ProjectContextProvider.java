@@ -209,6 +209,9 @@ public class ProjectContextProvider {
 							stream.parallel();
 						}
 
+						// Get the project index for incremental indexing
+						var index = getIndex();
+
 						stream
 						    .filter( LSPTools::canWalkFile )
 						    .filter( p -> shouldAnalyzePath( p.toUri() ) )
@@ -227,8 +230,11 @@ public class ProjectContextProvider {
 
 								    cachedFileDiagnostics.setDiagnostics( diagnostics );
 
-								    // Index the file for symbol lookups
-								    getIndex().indexFile( clazzPath.toUri() );
+								    // Index the file for symbol lookups - only if it needs re-indexing
+								    // This implements incremental re-indexing: skip files that haven't changed
+								    if ( index.needsReindexing( clazzPath.toUri() ) ) {
+									    index.indexFile( clazzPath.toUri() );
+								    }
 							    } catch ( Exception e ) {
 								    // TODO Auto-generated catch block
 								    e.printStackTrace();

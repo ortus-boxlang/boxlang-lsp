@@ -373,6 +373,180 @@ class ProjectIndexTest extends BaseTest {
 		assertThat( index.searchSymbols( "" ) ).isEmpty();
 	}
 
+	// ============ Persistent Cache Tests ============
+
+	@Test
+	void testCachePersistence() throws Exception {
+		// Create and index a file
+		String classCode = """
+		                   class {
+		                       property name="cached" type="string";
+		                       function getCached() { return variables.cached; }
+		                   }
+		                   """;
+
+		Path testFile = createTestFile( "CacheTest.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		// Verify it's indexed
+		assertTrue( index.findClassByName( "CacheTest" ).isPresent() );
+		assertThat( index.findMethodsByName( "getCached" ) ).hasSize( 1 );
+
+		// Save cache
+		index.saveCache();
+
+		// Create a new index and initialize it (should load from cache)
+		ProjectIndex newIndex = new ProjectIndex();
+		newIndex.initialize( tempDir );
+
+		// Verify data was loaded from cache
+		assertTrue( newIndex.findClassByName( "CacheTest" ).isPresent() );
+		assertThat( newIndex.findMethodsByName( "getCached" ) ).hasSize( 1 );
+		Optional<IndexedProperty> prop = newIndex.findProperty( "CacheTest", "cached" );
+		assertTrue( prop.isPresent() );
+		assertEquals( "string", prop.get().typeHint() );
+	}
+
+	@Test
+	void testCacheFreshnessValidation() throws Exception {
+		// Create and index a file
+		String classCode = """
+		                   class {
+		                       function oldMethod() {}
+		                   }
+		                   """;
+
+		Path testFile = createTestFile( "FreshnessTest.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		// Save cache
+		index.saveCache();
+
+		// Wait a moment and modify the file
+		Thread.sleep( 100 );
+		String newClassCode = """
+		                      class {
+		                          function newMethod() {}
+		                      }
+		                      """;
+		Files.writeString( testFile, newClassCode );
+
+		// Create a new index and initialize it
+		ProjectIndex newIndex = new ProjectIndex();
+		newIndex.initialize( tempDir );
+
+		// The file should be marked as stale since it was modified after caching
+		assertTrue( newIndex.needsReindexing( testFile.toUri() ) );
+		assertThat( newIndex.getStaleFiles() ).contains( testFile.toUri().toString() );
+
+		// The old data should have been removed during freshness validation
+		// (stale files have their data removed)
+		assertFalse( newIndex.findClassByName( "FreshnessTest" ).isPresent() );
+	}
+
+	@Test
+	void testCacheHandlesDeletedFiles() throws Exception {
+		// Create and index a file
+		String classCode = "class { }";
+		Path testFile = createTestFile( "DeletedFile.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		// Save cache
+		index.saveCache();
+
+		// Delete the file
+		Files.delete( testFile );
+
+		// Create a new index and initialize it
+		ProjectIndex newIndex = new ProjectIndex();
+		newIndex.initialize( tempDir );
+
+		// The file should be marked as stale
+		assertTrue( newIndex.needsReindexing( testFile.toUri() ) );
+
+		// The old data should have been removed
+		assertFalse( newIndex.findClassByName( "DeletedFile" ).isPresent() );
+	}
+
+	@Test
+	void testCacheCorruptionHandling() throws Exception {
+		// Create and index a file
+		String classCode = "class { }";
+		Path testFile = createTestFile( "CorruptionTest.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		// Save cache
+		index.saveCache();
+
+		// Corrupt the cache file
+		Path cacheFile = ProjectIndex.getDefaultCacheFilePath( tempDir );
+		Files.writeString( cacheFile, "not valid json {{{" );
+
+		// Create a new index and initialize it
+		ProjectIndex newIndex = new ProjectIndex();
+		newIndex.initialize( tempDir );
+
+		// The cache should be marked as corrupted
+		assertTrue( newIndex.isCacheCorrupted() );
+
+		// All files should need re-indexing
+		assertTrue( newIndex.needsReindexing( testFile.toUri() ) );
+
+		// Index should be empty (cleared due to corruption)
+		assertThat( newIndex.getAllClasses() ).isEmpty();
+	}
+
+	@Test
+	void testNeedsReindexingForNewFile() throws Exception {
+		// Index should need re-indexing for files not in cache
+		Path newFile = tempDir.resolve( "NewFile.bx" );
+		Files.writeString( newFile, "class { }" );
+
+		assertTrue( index.needsReindexing( newFile.toUri() ) );
+	}
+
+	@Test
+	void testCacheWithMultipleFiles() throws Exception {
+		// Create and index multiple files
+		String class1 = "class { function method1() {} }";
+		String class2 = "class { function method2() {} }";
+		String class3 = "class { function method3() {} }";
+
+		Path file1 = createTestFile( "Multi1.bx", class1 );
+		Path file2 = createTestFile( "Multi2.bx", class2 );
+		Path file3 = createTestFile( "Multi3.bx", class3 );
+
+		index.indexFile( file1.toUri() );
+		index.indexFile( file2.toUri() );
+		index.indexFile( file3.toUri() );
+
+		// Save cache
+		index.saveCache();
+
+		// Modify only one file
+		Thread.sleep( 100 );
+		Files.writeString( file2, "class { function updatedMethod() {} }" );
+
+		// Create a new index and initialize it
+		ProjectIndex newIndex = new ProjectIndex();
+		newIndex.initialize( tempDir );
+
+		// Only the modified file should need re-indexing
+		assertFalse( newIndex.needsReindexing( file1.toUri() ) );
+		assertTrue( newIndex.needsReindexing( file2.toUri() ) );
+		assertFalse( newIndex.needsReindexing( file3.toUri() ) );
+
+		// Unmodified files should still have their data
+		assertTrue( newIndex.findClassByName( "Multi1" ).isPresent() );
+		assertThat( newIndex.findMethodsByName( "method1" ) ).hasSize( 1 );
+		assertTrue( newIndex.findClassByName( "Multi3" ).isPresent() );
+		assertThat( newIndex.findMethodsByName( "method3" ) ).hasSize( 1 );
+
+		// Modified file should have had its data removed (stale)
+		assertFalse( newIndex.findClassByName( "Multi2" ).isPresent() );
+		assertThat( newIndex.findMethodsByName( "method2" ) ).isEmpty();
+	}
+
 	private Path createTestFile( String fileName, String content ) throws Exception {
 		Path testFile = tempDir.resolve( fileName );
 		Files.writeString( testFile, content );
