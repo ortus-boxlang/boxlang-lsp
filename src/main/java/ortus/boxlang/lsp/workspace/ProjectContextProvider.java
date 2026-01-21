@@ -61,6 +61,7 @@ import ortus.boxlang.lsp.workspace.codeLens.CodeLensFacts;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensRuleBook;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
 import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
+import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 import ortus.boxlang.lsp.workspace.visitors.FindDefinitionTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FindReferenceTargetVisitor;
 import ortus.boxlang.runtime.async.executors.BoxExecutor;
@@ -99,6 +100,7 @@ public class ProjectContextProvider {
 
 	private boolean						shouldPublishDiagnostics	= false;
 	private final AtomicBoolean			workspaceParseRunning		= new AtomicBoolean( false );
+	private ProjectIndex				projectIndex;
 
 	public static ortus.boxlang.compiler.ast.Position toBLPosition( Position lspPosition ) {
 		Point								start	= new Point( lspPosition.getLine(), lspPosition.getCharacter() );
@@ -121,6 +123,28 @@ public class ProjectContextProvider {
 		return instance;
 	}
 
+	/**
+	 * Get the project index for symbol lookups.
+	 * Lazily initializes the index if needed.
+	 *
+	 * @return The project index
+	 */
+	public ProjectIndex getIndex() {
+		if ( projectIndex == null ) {
+			projectIndex = new ProjectIndex();
+			// Initialize with workspace root if available
+			if ( workspaceFolders != null && !workspaceFolders.isEmpty() ) {
+				try {
+					Path workspaceRoot = Path.of( new URI( workspaceFolders.getFirst().getUri() ) );
+					projectIndex.initialize( workspaceRoot );
+				} catch ( Exception e ) {
+					App.logger.warn( "Failed to initialize project index with workspace root", e );
+				}
+			}
+		}
+		return projectIndex;
+	}
+
 	public List<DiagnosticReport> getCachedDiagnosticReports() {
 		return cachedDiagnosticReports;
 	}
@@ -128,6 +152,10 @@ public class ProjectContextProvider {
 	public void remove( URI docURI ) {
 		this.parsedFiles.remove( docURI );
 		this.openDocuments.remove( docURI );
+		// Remove from project index as well
+		if ( projectIndex != null ) {
+			projectIndex.removeFile( docURI );
+		}
 	}
 
 	public void setUserSettings( UserSettings settings ) {
@@ -198,6 +226,9 @@ public class ProjectContextProvider {
 																			        } );
 
 								    cachedFileDiagnostics.setDiagnostics( diagnostics );
+
+								    // Index the file for symbol lookups
+								    getIndex().indexFile( clazzPath.toUri() );
 							    } catch ( Exception e ) {
 								    // TODO Auto-generated catch block
 								    e.printStackTrace();
@@ -210,6 +241,11 @@ public class ProjectContextProvider {
 						e.printStackTrace();
 					} finally {
 						App.logger.info( "Completed workspace diagnostic report" );
+						// Save the project index cache
+						if ( projectIndex != null ) {
+							projectIndex.saveCache();
+							App.logger.info( "Saved project index cache" );
+						}
 						workspaceParseRunning.set( false );
 					}
 
@@ -326,6 +362,9 @@ public class ProjectContextProvider {
 		FileParseResult fpr = FileParseResult.fromSourceString( docUri, fileContent );
 		this.openDocuments.put( docUri, fpr );
 		cacheLatestDiagnostics( fpr );
+
+		// Reindex the file for symbol lookups
+		getIndex().reindexFile( docUri );
 	}
 
 	public void trackDocumentOpen( URI docUri, String text ) {
