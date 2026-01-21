@@ -138,7 +138,7 @@ CREATE TABLE properties (
 
 ---
 
-### 1.3 Index Query API (Incomplete)
+### 1.3 Index Query API (Complete)
 
 **Priority:** Critical  
 **Complexity:** Medium  
@@ -184,7 +184,7 @@ interface ProjectIndex {
 
 ---
 
-### 1.4 Expand Diagnostics - Syntax Errors (Incomplete)
+### 1.4 Expand Diagnostics - Syntax Errors (Complete)
 
 **Priority:** High  
 **Complexity:** Low  

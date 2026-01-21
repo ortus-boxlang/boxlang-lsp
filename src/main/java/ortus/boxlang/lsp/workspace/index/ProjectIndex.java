@@ -442,6 +442,180 @@ public class ProjectIndex {
 	}
 
 	/**
+	 * Get all indexed standalone functions (methods with no containing class).
+	 * These are typically functions defined in .bxs script files.
+	 *
+	 * @return List of all standalone functions
+	 */
+	public List<IndexedMethod> getAllFunctions() {
+		return methodsByKey.values().stream()
+		    .filter( m -> m.containingClass() == null )
+		    .collect( Collectors.toList() );
+	}
+
+	/**
+	 * Find a standalone function by name.
+	 * Standalone functions are those defined outside of classes (e.g., in .bxs files).
+	 *
+	 * @param name The function name (case-insensitive)
+	 *
+	 * @return Optional containing the first matching function, or empty if not found
+	 */
+	public Optional<IndexedMethod> findFunction( String name ) {
+		if ( name == null || name.isEmpty() ) {
+			return Optional.empty();
+		}
+		List<IndexedMethod> matches = methodsByName.get( name.toLowerCase() );
+		if ( matches == null ) {
+			return Optional.empty();
+		}
+		return matches.stream()
+		    .filter( m -> m.containingClass() == null )
+		    .findFirst();
+	}
+
+	/**
+	 * Find all standalone functions in a specific file.
+	 *
+	 * @param filePath The file URI string
+	 *
+	 * @return List of standalone functions in the file
+	 */
+	public List<IndexedMethod> findFunctionsInFile( String filePath ) {
+		if ( filePath == null || filePath.isEmpty() ) {
+			return new ArrayList<>();
+		}
+		List<IndexedMethod> methods = methodsByFileUri.get( filePath );
+		if ( methods == null ) {
+			return new ArrayList<>();
+		}
+		return methods.stream()
+		    .filter( m -> m.containingClass() == null )
+		    .collect( Collectors.toList() );
+	}
+
+	/**
+	 * Find methods that override a given method in subclasses.
+	 *
+	 * @param className  The class containing the original method
+	 * @param methodName The method name to find overrides for
+	 *
+	 * @return List of methods in subclasses that override this method
+	 */
+	public List<IndexedMethod> findOverrides( String className, String methodName ) {
+		if ( className == null || className.isEmpty() || methodName == null || methodName.isEmpty() ) {
+			return new ArrayList<>();
+		}
+
+		// Get all descendants of the class
+		List<String> descendants = inheritanceGraph.getDescendants( className );
+		if ( descendants.isEmpty() ) {
+			return new ArrayList<>();
+		}
+
+		// Find methods with the same name in descendant classes
+		String lowerMethodName = methodName.toLowerCase();
+		List<IndexedMethod> overrides = new ArrayList<>();
+
+		for ( String descendant : descendants ) {
+			// Look for methods in this descendant class that match the method name
+			List<IndexedMethod> methods = methodsByName.get( lowerMethodName );
+			if ( methods != null ) {
+				for ( IndexedMethod method : methods ) {
+					if ( method.containingClass() != null && method.containingClass().equals( descendant ) ) {
+						overrides.add( method );
+					}
+				}
+			}
+		}
+
+		return overrides;
+	}
+
+	/**
+	 * Get all methods of a class.
+	 *
+	 * @param className The class name (case-insensitive)
+	 *
+	 * @return List of methods for the class
+	 */
+	public List<IndexedMethod> getMethodsOfClass( String className ) {
+		if ( className == null || className.isEmpty() ) {
+			return new ArrayList<>();
+		}
+		String lowerClassName = className.toLowerCase();
+		return methodsByKey.values().stream()
+		    .filter( m -> m.containingClass() != null && m.containingClass().toLowerCase().equals( lowerClassName ) )
+		    .collect( Collectors.toList() );
+	}
+
+	/**
+	 * Get all indexed file URIs.
+	 *
+	 * @return List of all indexed file URIs
+	 */
+	public List<String> getIndexedFiles() {
+		return new ArrayList<>( fileModifiedTimes.keySet() );
+	}
+
+	/**
+	 * Get all indexed files within a specific directory.
+	 *
+	 * @param directory The directory path
+	 *
+	 * @return List of file URIs within the directory
+	 */
+	public List<String> getFilesInDirectory( String directory ) {
+		if ( directory == null || directory.isEmpty() ) {
+			return new ArrayList<>();
+		}
+		// Normalize directory path for comparison
+		String normalizedDir = directory.replace( '\\', '/' );
+		if ( !normalizedDir.endsWith( "/" ) ) {
+			normalizedDir = normalizedDir + "/";
+		}
+		final String dirPrefix = normalizedDir;
+
+		return fileModifiedTimes.keySet().stream()
+		    .filter( fileUri -> {
+			    try {
+				    URI uri = URI.create( fileUri );
+				    String filePath = Paths.get( uri ).toString().replace( '\\', '/' );
+				    return filePath.startsWith( dirPrefix ) || filePath.contains( "/" + dirPrefix );
+			    } catch ( Exception e ) {
+				    return false;
+			    }
+		    } )
+		    .collect( Collectors.toList() );
+	}
+
+	/**
+	 * Get files that depend on a given file.
+	 * Note: Dependency tracking is not yet implemented. This returns an empty list.
+	 *
+	 * @param filePath The file path to check dependents for
+	 *
+	 * @return List of file paths that depend on the given file (currently empty)
+	 */
+	public List<String> getFilesDependingOn( String filePath ) {
+		// TODO: Implement dependency tracking
+		return new ArrayList<>();
+	}
+
+	/**
+	 * Get the files that a given file depends on.
+	 * Note: Dependency tracking is not yet implemented. This returns an empty list.
+	 *
+	 * @param filePath The file path to check dependencies for
+	 *
+	 * @return List of file paths that the given file depends on (currently empty)
+	 */
+	public List<String> getDependenciesOf( String filePath ) {
+		// TODO: Implement dependency tracking
+		return new ArrayList<>();
+	}
+
+	/**
 	 * Get the inheritance graph for hierarchy queries.
 	 *
 	 * @return The inheritance graph
