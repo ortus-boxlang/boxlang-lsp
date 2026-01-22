@@ -1353,6 +1353,139 @@ public class ProjectContextProvider {
 	}
 
 	/**
+	 * Find the type definition location for a variable at the given position.
+	 * This navigates from a variable to its type's class definition.
+	 *
+	 * @param docURI The document URI
+	 * @param pos    The cursor position
+	 *
+	 * @return List containing the type definition location, or empty list if not found
+	 */
+	public List<Location> findTypeDefinition( URI docURI, Position pos ) {
+		return getLatestFileParseResult( docURI )
+		    .flatMap( fpr -> fpr.findAstRoot() )
+		    .map( rootNode -> {
+			    // Find the target node at the cursor position
+			    return findDefinitionTarget( docURI, pos )
+			        .map( ( node ) -> {
+				        // Handle identifiers (variables)
+				        if ( node instanceof BoxIdentifier identifier ) {
+					        return findTypeDefinitionFromIdentifier( rootNode, identifier );
+				        }
+
+				        // Handle argument declarations with type hints
+				        if ( node instanceof BoxArgumentDeclaration argDecl ) {
+					        return findTypeDefinitionFromArgument( argDecl );
+				        }
+
+				        return new ArrayList<Location>();
+			        } )
+			        .orElseGet( () -> new ArrayList<Location>() );
+		    } )
+		    .orElseGet( () -> new ArrayList<Location>() );
+	}
+
+	/**
+	 * Find the type definition for a variable identifier.
+	 * Determines the variable's type from type hints or inferred from assignments.
+	 *
+	 * @param rootNode   The AST root node
+	 * @param identifier The variable identifier
+	 *
+	 * @return List containing the type definition location, or empty list if not found or primitive type
+	 */
+	private List<Location> findTypeDefinitionFromIdentifier( BoxNode rootNode, BoxIdentifier identifier ) {
+		// First collect variable scope/type information
+		VariableScopeCollectorVisitor scopeCollector = new VariableScopeCollectorVisitor();
+		rootNode.accept( scopeCollector );
+
+		String varName = identifier.getName();
+
+		// Skip scope keywords
+		if ( scopeCollector.isScopeKeyword( varName ) ) {
+			return new ArrayList<>();
+		}
+
+		// Find the containing function for context
+		BoxFunctionDeclaration containingFunc = identifier.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+
+		// Look up variable info
+		VariableInfo varInfo = scopeCollector.getVariableInfo( varName, containingFunc );
+
+		if ( varInfo == null ) {
+			// No variable info found - try the type collector as fallback
+			VariableTypeCollectorVisitor typeCollector = new VariableTypeCollectorVisitor();
+			rootNode.accept( typeCollector );
+			String inferredType = typeCollector.getVariableType( varName );
+
+			if ( inferredType != null && !isPrimitiveType( inferredType ) ) {
+				return findClassByNameAndGetLocation( inferredType );
+			}
+
+			return new ArrayList<>();
+		}
+
+		// Get the type - prefer explicit type hint, then inferred type
+		String typeName = varInfo.typeHint();
+		if ( typeName == null || typeName.isEmpty() ) {
+			typeName = varInfo.inferredType();
+		}
+
+		if ( typeName == null || typeName.isEmpty() || isPrimitiveType( typeName ) ) {
+			return new ArrayList<>();
+		}
+
+		// Look up the class in the index
+		return findClassByNameAndGetLocation( typeName );
+	}
+
+	/**
+	 * Find the type definition for a function argument with a type hint.
+	 *
+	 * @param argDecl The argument declaration
+	 *
+	 * @return List containing the type definition location, or empty list if not found or primitive type
+	 */
+	private List<Location> findTypeDefinitionFromArgument( BoxArgumentDeclaration argDecl ) {
+		String typeName = argDecl.getType() != null ? argDecl.getType().toString() : null;
+
+		if ( typeName == null || typeName.isEmpty() || isPrimitiveType( typeName ) ) {
+			return new ArrayList<>();
+		}
+
+		return findClassByNameAndGetLocation( typeName );
+	}
+
+	/**
+	 * Check if a type name represents a primitive or built-in type.
+	 *
+	 * @param typeName The type name to check
+	 *
+	 * @return true if the type is primitive/built-in, false otherwise
+	 */
+	private boolean isPrimitiveType( String typeName ) {
+		if ( typeName == null ) {
+			return true;
+		}
+		String lower = typeName.toLowerCase();
+		return lower.equals( "string" )
+		    || lower.equals( "numeric" )
+		    || lower.equals( "number" )
+		    || lower.equals( "boolean" )
+		    || lower.equals( "array" )
+		    || lower.equals( "struct" )
+		    || lower.equals( "query" )
+		    || lower.equals( "any" )
+		    || lower.equals( "void" )
+		    || lower.equals( "date" )
+		    || lower.equals( "datetime" )
+		    || lower.equals( "binary" )
+		    || lower.equals( "function" )
+		    || lower.equals( "xml" )
+		    || lower.equals( "object" );
+	}
+
+	/**
 	 * Find the definition location for a variable identifier.
 	 * Uses VariableDefinitionResolver to properly handle scoping rules.
 	 *

@@ -1,0 +1,16 @@
+/**
+ * Repository interface.
+ */
+interface IRepository {
+
+	/**
+	 * Find entity by ID.
+	 */
+	public any function findById( required numeric id );
+
+	/**
+	 * Save entity.
+	 */
+	public void function save( required any entity );
+
+}

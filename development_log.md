@@ -1,5 +1,85 @@
 # BoxLang LSP Development Log
 
+## Task 2.10: Go to Type Definition (Complete)
+
+**Date:** 2026-01-22
+
+### Summary
+
+Implemented "Go to Type Definition" functionality for the BoxLang LSP. When the user triggers "Go to Type Definition" on a variable, the LSP navigates to the class definition file of that variable's type. This is different from "Go to Definition" which navigates to where the variable is declared.
+
+### Features Implemented
+
+1. **Variable Type Resolution from Assignments**
+   - Variables assigned via `new ClassName()` expressions have their type inferred
+   - Navigates to the class definition file (e.g., `var user = new User()` navigates to `User.bx`)
+
+2. **Type Resolution from Type Hints**
+   - Function parameters with type hints (e.g., `required User userParam`) navigate to the type's class
+   - Uses explicit type hint when available, falls back to inferred type
+
+3. **Primitive Type Handling**
+   - Returns empty results for primitive types (string, numeric, boolean, array, struct, etc.)
+   - No navigation for variables with only primitive type inference
+
+4. **Integration with Existing Infrastructure**
+   - Reuses `VariableScopeCollectorVisitor` for variable type information
+   - Reuses `VariableTypeCollectorVisitor` for assignment-based type inference
+   - Reuses `findClassByNameAndGetLocation()` for class index lookup
+
+### Changes Made
+
+#### Modified Files
+
+**`BoxLangTextDocumentService.java`**
+- Added `typeDefinition()` method implementing `textDocument/typeDefinition` request
+- Added import for `TypeDefinitionParams`
+
+**`LanguageServer.java`**
+- Added `setTypeDefinitionProvider(true)` to server capabilities
+
+**`ProjectContextProvider.java`**
+- Added `findTypeDefinition()` method as the main entry point
+- Added `findTypeDefinitionFromIdentifier()` to resolve variable types
+- Added `findTypeDefinitionFromArgument()` to resolve typed parameter types
+- Added `isPrimitiveType()` helper to filter out built-in types
+
+#### New Files Created
+
+**Test Resource Files** (`src/test/resources/files/typeDefinitionTest/`)
+- `User.bx` - User entity class with properties and methods
+- `UserService.bx` - Service class with various type definition scenarios
+- `IRepository.bx` - Repository interface
+- `UserRepository.bx` - Repository implementation with self-referencing type
+
+**`TypeDefinitionTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 8 comprehensive tests covering:
+  - `testTypeDefinitionOnNewExpressionVariable()` - Variable from `new User()` assignment
+  - `testTypeDefinitionOnVariableUsage()` - Variable usage in method call
+  - `testTypeDefinitionOnTypedParameter()` - Typed function parameter
+  - `testTypeDefinitionOnTypedParameterUsage()` - Parameter usage in function body
+  - `testTypeDefinitionOnPrimitiveVariableReturnsEmpty()` - Numeric variable returns empty
+  - `testTypeDefinitionOnStringVariableReturnsEmpty()` - String variable returns empty
+  - `testTypeDefinitionNavigatesToSameFile()` - Self-referencing type
+  - `testTypeDefinitionOnNonSymbolReturnsEmpty()` - Non-symbol positions return empty
+
+### Requirements Met
+
+- ✅ Identify variable at cursor position
+- ✅ Determine variable's type from type hint
+- ✅ Determine variable's type from assignment inference (new ClassName())
+- ✅ Navigate to that type's class definition file
+- ✅ Return empty for primitive types
+
+### Technical Notes
+
+- The implementation leverages existing visitors (`VariableScopeCollectorVisitor`, `VariableTypeCollectorVisitor`) for type information
+- Primitive types are filtered using `isPrimitiveType()` helper which checks for: string, numeric, number, boolean, array, struct, query, any, void, date, datetime, binary, function, xml, object
+- Uses `findDefinitionTarget()` to locate the node at cursor position, then resolves its type
+- Works with both `BoxIdentifier` (variable references) and `BoxArgumentDeclaration` (typed parameters)
+
+---
+
 ## Task 2.9: Document Symbols - Hierarchical Improvements (Complete)
 
 **Date:** 2026-01-22
