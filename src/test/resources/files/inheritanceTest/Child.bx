@@ -1,0 +1,11 @@
+/**
+ * Child class that extends Parent.
+ */
+class extends="Parent" {
+
+	function childFunc() {
+		// This should go to parentFunc() in Parent.bx
+		parentFunc();
+	}
+
+}

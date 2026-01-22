@@ -568,8 +568,9 @@ public class ProjectContextProvider {
 				        if ( node instanceof BoxFunctionInvocation fnUse ) {
 					        // Find function definitions in these locations:
 					        // 1. Same file
-					        // 2. BIFs - return empty (no source to navigate to)
-					        return findMatchingFunctionDeclarations( docURI, fnUse.getName() );
+					        // 2. Parent classes (if inside a class that extends another)
+					        // 3. BIFs - return empty (no source to navigate to)
+					        return findFunctionDefinition( rootNode, fnUse.getName(), docURI );
 				        } else if ( node instanceof BoxMethodInvocation methodInvocation ) {
 					        // Find method definitions:
 					        // 1. Resolve the receiver type (obj in obj.method())
@@ -618,6 +619,68 @@ public class ProjectContextProvider {
 		}
 
 		return locations;
+	}
+
+	/**
+	 * Find the definition location for a function invocation (without receiver).
+	 * First looks in the same file, then walks up the inheritance chain
+	 * if the file defines a class that extends another class.
+	 *
+	 * @param rootNode     The AST root node
+	 * @param functionName The function name to find
+	 * @param docURI       The document URI
+	 *
+	 * @return List containing the definition location, or empty list if not found
+	 */
+	private List<Location> findFunctionDefinition( BoxNode rootNode, String functionName, URI docURI ) {
+		// First, look in the same file
+		List<Location> sameFileLocations = findMatchingFunctionDeclarations( docURI, functionName );
+		if ( !sameFileLocations.isEmpty() ) {
+			return sameFileLocations;
+		}
+
+		// If not found, check if we're in a class that extends another class
+		// and look for the function in parent classes
+		ProjectIndex index = getIndex();
+
+		// Get the class name from the current file
+		String className = getClassNameFromUri( docURI );
+		if ( className == null ) {
+			return new ArrayList<>();
+		}
+
+		// Find the class in the index
+		var classOpt = index.findClassByName( className );
+		if ( classOpt.isEmpty() ) {
+			return new ArrayList<>();
+		}
+
+		IndexedClass indexedClass = classOpt.get();
+
+		// If the class doesn't extend anything, we can't find the function
+		if ( indexedClass.extendsClass() == null || indexedClass.extendsClass().isEmpty() ) {
+			return new ArrayList<>();
+		}
+
+		// Walk up the inheritance chain looking for the function as a method
+		String classFQN = indexedClass.fullyQualifiedName();
+		List<String> ancestors = index.getInheritanceGraph().getAncestors( classFQN );
+
+		for ( String ancestorFQN : ancestors ) {
+			String ancestorSimpleName = extractSimpleNameFromFQN( ancestorFQN );
+
+			// Try to find the method in this ancestor
+			var methodOpt = index.findMethod( ancestorSimpleName, functionName );
+			if ( methodOpt.isPresent() ) {
+				IndexedMethod method = methodOpt.get();
+				Location location = createLocationFromIndexedMethod( method );
+				if ( location != null ) {
+					return List.of( location );
+				}
+			}
+		}
+
+		return new ArrayList<>();
 	}
 
 	/**
