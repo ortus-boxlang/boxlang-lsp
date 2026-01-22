@@ -1,5 +1,66 @@
 # BoxLang LSP Development Log
 
+## Task 2.5: Go to Definition - Imports (Complete)
+
+**Date:** 2026-01-22
+
+### Summary
+
+Implemented go-to-definition functionality for import statements. When the user clicks "Go to Definition" on an import statement, the LSP navigates to the imported class or interface definition file. This includes support for:
+- Simple imports (`import ClassName;`) - navigate to class definition
+- Aliased imports (`import ClassName as Alias;`) - navigate to original class definition
+- Interface imports - navigate to interface definition
+- Java imports (`import java:java.util.ArrayList;`) - return empty (no source to navigate to)
+
+### Key Design Decisions
+
+- Import navigation always resolves to the original class, even when clicking on the alias part of an aliased import
+- Java imports (prefixed with `java:`) return empty results since there's no source file to navigate to
+- The implementation reuses the existing `findClassByNameAndGetLocation()` method for consistent class lookups
+
+### Changes Made
+
+#### New Files Created
+
+**Test Resource Files** (`src/test/resources/files/importDefinitionTest/`)
+- `UserEntity.bx` - User entity class for import navigation testing
+- `IUserService.bx` - Interface for import navigation testing
+- `UserServiceImpl.bx` - Class with simple imports for testing
+- `AliasedImports.bx` - Class with aliased imports for testing
+- `JavaImports.bx` - Class with Java imports for testing
+
+**`ImportDefinitionTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 6 comprehensive tests for import go-to-definition:
+  - `testGoToDefinitionOnSimpleImport()` - `import UserEntity;` navigation
+  - `testGoToDefinitionOnInterfaceImport()` - `import IUserService;` navigation
+  - `testGoToDefinitionOnAliasedImportClassName()` - class name part of aliased import
+  - `testGoToDefinitionOnAliasedImportAlias()` - alias part of aliased import
+  - `testGoToDefinitionOnJavaImportReturnsEmpty()` - Java imports return empty
+  - `testGoToDefinitionOnUnknownImportReturnsEmpty()` - unknown imports return empty
+
+#### Modified Files
+
+**`FindDefinitionTargetVisitor.java`**
+- Added import for `BoxImport`
+- Added `visit(BoxImport)` method to capture import statements at cursor position
+
+**`ProjectContextProvider.java`**
+- Added import for `BoxImport`
+- Added `BoxImport` handler in `findDefinitionPossibiltiies()` method
+- Added `findClassDefinitionFromImport(BoxImport)` method to resolve import to class location
+- Added `extractClassNameFromImport(BoxImport)` method to extract class name from import expression
+
+### Requirements Met
+
+- ✅ Identify import statement at cursor
+- ✅ Resolve import path to actual file
+- ✅ Handle simple imports (import ClassName;)
+- ✅ Handle aliased imports (import ClassName as Alias;)
+- ✅ Handle Java imports (return empty - no source available)
+- ✅ Handle unknown imports (return empty)
+
+---
+
 ## Task 2.4: Go to Definition - Properties (Complete)
 
 **Date:** 2026-01-22

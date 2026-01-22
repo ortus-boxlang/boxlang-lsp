@@ -68,6 +68,7 @@ import ortus.boxlang.compiler.ast.expression.BoxScope;
 import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
+import ortus.boxlang.compiler.ast.statement.BoxImport;
 import ortus.boxlang.compiler.ast.statement.BoxReturnType;
 import ortus.boxlang.compiler.ast.statement.BoxDocumentationAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
@@ -597,6 +598,9 @@ public class ProjectContextProvider {
 				        } else if ( node instanceof BoxFQN fqn ) {
 					        // Handle type hints (return type, parameter type, variable type)
 					        return findClassDefinitionFromFQN( fqn );
+				        } else if ( node instanceof BoxImport importNode ) {
+					        // Handle import statements - navigate to imported class/interface definition
+					        return findClassDefinitionFromImport( importNode );
 				        } else if ( node instanceof BoxDotAccess dotAccess ) {
 					        // Handle property access via scoped access (variables.x, this.x)
 					        return findPropertyDefinition( rootNode, dotAccess, docURI );
@@ -957,6 +961,69 @@ public class ProjectContextProvider {
 		}
 
 		return findClassByNameAndGetLocation( className );
+	}
+
+	/**
+	 * Find the definition location for a class from a BoxImport node.
+	 * Handles import statements like `import ClassName;` and `import ClassName as Alias;`
+	 *
+	 * Note: Java imports (e.g., `import java:java.util.ArrayList;`) return empty
+	 * since there's no source file to navigate to.
+	 *
+	 * @param importNode The BoxImport node representing the import statement
+	 *
+	 * @return List containing the class definition location, or empty list if not found
+	 */
+	private List<Location> findClassDefinitionFromImport( BoxImport importNode ) {
+		// Extract the class/interface name from the import expression
+		String className = extractClassNameFromImport( importNode );
+		if ( className == null ) {
+			return new ArrayList<>();
+		}
+
+		// Check if this is a Java import (contains "java:" prefix)
+		// Java imports don't have source to navigate to
+		if ( importNode.getExpression() != null ) {
+			String fullPath = importNode.getExpression().getSourceText();
+			if ( fullPath != null && fullPath.toLowerCase().startsWith( "java:" ) ) {
+				// Java import - no source to navigate to
+				return new ArrayList<>();
+			}
+		}
+
+		return findClassByNameAndGetLocation( className );
+	}
+
+	/**
+	 * Extract the class name from a BoxImport node.
+	 * Handles both simple imports (`import ClassName;`) and aliased imports (`import ClassName as Alias;`).
+	 * For aliased imports, returns the original class name (not the alias).
+	 *
+	 * @param importNode The BoxImport node
+	 *
+	 * @return The class name to look up, or null if not extractable
+	 */
+	private String extractClassNameFromImport( BoxImport importNode ) {
+		if ( importNode.getExpression() == null ) {
+			return null;
+		}
+
+		String fullPath = importNode.getExpression().getSourceText();
+		if ( fullPath == null || fullPath.isEmpty() ) {
+			return null;
+		}
+
+		// Get the last part after the last dot or colon
+		// This handles both `import ClassName;` and `import java:java.util.ArrayList;`
+		int lastDot = fullPath.lastIndexOf( '.' );
+		int lastColon = fullPath.lastIndexOf( ':' );
+		int lastSeparator = Math.max( lastDot, lastColon );
+
+		if ( lastSeparator >= 0 && lastSeparator < fullPath.length() - 1 ) {
+			return fullPath.substring( lastSeparator + 1 );
+		}
+
+		return fullPath;
 	}
 
 	/**

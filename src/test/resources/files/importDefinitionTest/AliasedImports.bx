@@ -1,0 +1,23 @@
+/**
+ * Test file with aliased imports.
+ * Tests go-to-definition on import statements with aliases.
+ */
+import UserEntity as User;
+import IUserService as IService;
+
+class implements="IService" {
+    /**
+     * Create a user with aliased type.
+     */
+    public User function createUser(required numeric id, required string name) {
+        return new User(id, name);
+    }
+
+    public function findUser(required numeric id) {
+        return new User(id, "found");
+    }
+
+    public function saveUser(required any user) {
+        // Save implementation
+    }
+}

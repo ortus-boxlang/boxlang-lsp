@@ -18,6 +18,7 @@ import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
+import ortus.boxlang.compiler.ast.statement.BoxImport;
 import ortus.boxlang.compiler.ast.statement.BoxReturnType;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
 import ortus.boxlang.lsp.workspace.BLASTTools;
@@ -72,6 +73,21 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 	}
 
 	// ============ Target node types - check position and set target ============
+
+	/**
+	 * Visit import statements for go-to-definition on imported classes.
+	 * This enables navigating from `import ClassName;` or `import ClassName as Alias;` to the class definition.
+	 */
+	@Override
+	public void visit( BoxImport node ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
+			return;
+		}
+
+		// Set the BoxImport as target - handles both class name and alias
+		this.definitionTarget = node;
+	}
 
 	@Override
 	public void visit( BoxMethodInvocation node ) {
