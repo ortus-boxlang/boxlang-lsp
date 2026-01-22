@@ -14,6 +14,7 @@ import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.SetTraceParams;
+import org.eclipse.lsp4j.SignatureHelpOptions;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
 import org.eclipse.lsp4j.services.LanguageClient;
@@ -47,6 +48,10 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			completionOptions.setTriggerCharacters( List.of( "." ) );
 			// completionOptions.
 			capabilities.setCompletionProvider( completionOptions );
+
+			SignatureHelpOptions signatureHelpOptions = new SignatureHelpOptions();
+			signatureHelpOptions.setTriggerCharacters( List.of( "(", "," ) );
+			capabilities.setSignatureHelpProvider( signatureHelpOptions );
 			capabilities.setDiagnosticProvider( new DiagnosticRegistrationOptions( false, true ) );
 			capabilities.setCodeLensProvider( new CodeLensOptions( true ) );
 			capabilities.setCodeActionProvider( new CodeActionOptions( List.of(

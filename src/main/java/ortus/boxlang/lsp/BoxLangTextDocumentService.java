@@ -27,6 +27,8 @@ import org.eclipse.lsp4j.DocumentSymbolCapabilities;
 import org.eclipse.lsp4j.DocumentSymbolParams;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
+import org.eclipse.lsp4j.SignatureHelp;
+import org.eclipse.lsp4j.SignatureHelpParams;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.RelatedFullDocumentDiagnosticReport;
@@ -250,6 +252,19 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
 			return ProjectContextProvider.getInstance().getHoverInfo( docURI, params.getPosition() );
+		} );
+	}
+
+	/**
+	 * The signature help request is sent from the client to the server to request
+	 * signature information at a given cursor position.
+	 */
+	@JsonRequest
+	@Override
+	public CompletableFuture<SignatureHelp> signatureHelp( SignatureHelpParams params ) {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
+			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
+			return ProjectContextProvider.getInstance().getSignatureHelp( docURI, params.getPosition() );
 		} );
 	}
 

@@ -33,7 +33,10 @@ import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.MarkupKind;
+import org.eclipse.lsp4j.ParameterInformation;
 import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.SignatureHelp;
+import org.eclipse.lsp4j.SignatureInformation;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.Registration;
@@ -76,15 +79,19 @@ import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
 import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
 import ortus.boxlang.lsp.workspace.index.IndexedClass;
 import ortus.boxlang.lsp.workspace.index.IndexedMethod;
+import ortus.boxlang.lsp.workspace.index.IndexedParameter;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 import ortus.boxlang.lsp.workspace.visitors.FindDefinitionTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FindHoverTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FindReferenceTargetVisitor;
+import ortus.boxlang.lsp.workspace.visitors.FindSignatureHelpTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor;
 import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor.VariableInfo;
 import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor.VariableScope;
 import ortus.boxlang.lsp.workspace.visitors.VariableTypeCollectorVisitor;
+import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.async.executors.BoxExecutor;
+import ortus.boxlang.runtime.bifs.BIFDescriptor;
 import ortus.boxlang.runtime.services.AsyncService;
 
 public class ProjectContextProvider {
@@ -681,6 +688,291 @@ public class ProjectContextProvider {
 			    return null;
 		    } )
 		    .orElse( null );
+	}
+
+	/**
+	 * Get signature help for function/method calls at the given position.
+	 * This displays parameter hints while typing function calls.
+	 *
+	 * @param docURI   The document URI
+	 * @param position The cursor position
+	 *
+	 * @return SignatureHelp with function signatures and active parameter
+	 */
+	public SignatureHelp getSignatureHelp( URI docURI, Position position ) {
+		return getLatestFileParseResult( docURI )
+		    .flatMap( fpr -> fpr.findAstRoot() )
+		    .map( rootNode -> {
+			    // Find the function/method invocation at or containing the cursor
+			    // The visitor searches the AST on construction
+			    FindSignatureHelpTargetVisitor visitor = new FindSignatureHelpTargetVisitor( position, rootNode );
+
+			    BoxNode				target			= visitor.getTarget();
+			    int					activeParam		= visitor.getActiveParameter();
+
+			    if ( target == null ) {
+				    return null;
+			    }
+
+			    // Handle function invocations (UDFs and BIFs)
+			    if ( target instanceof BoxFunctionInvocation fnInvocation ) {
+				    String functionName = fnInvocation.getName();
+
+				    // First try to find a user-defined function in the same file
+				    var udfOpt = rootNode
+				        .getDescendantsOfType( BoxFunctionDeclaration.class,
+				            n -> n.getName().equalsIgnoreCase( functionName ) )
+				        .stream()
+				        .findFirst();
+
+				    if ( udfOpt.isPresent() ) {
+					    return buildSignatureHelpForFunction( udfOpt.get(), getClassNameFromUri( docURI ), activeParam );
+				    }
+
+				    // Then try BIFs
+				    SignatureHelp bifHelp = buildSignatureHelpForBIF( functionName, activeParam );
+				    if ( bifHelp != null ) {
+					    return bifHelp;
+				    }
+
+				    return null;
+			    }
+
+			    // Handle method invocations
+			    if ( target instanceof BoxMethodInvocation methodInvocation ) {
+				    String	methodName	= methodInvocation.getName().getSourceText();
+
+				    // Try to resolve the object's type using variable tracking
+				    BoxNode	obj			= methodInvocation.getObj();
+				    if ( obj instanceof BoxIdentifier objIdentifier ) {
+					    String varName = objIdentifier.getName();
+
+					    // Collect variable types from the AST
+					    VariableTypeCollectorVisitor typeCollector = new VariableTypeCollectorVisitor();
+					    rootNode.accept( typeCollector );
+					    String className = typeCollector.getVariableType( varName );
+
+					    if ( className != null ) {
+						    // Look up method in the project index
+						    var indexedMethodOpt = getIndex().findMethod( className, methodName );
+						    if ( indexedMethodOpt.isPresent() ) {
+							    return buildSignatureHelpForIndexedMethod( indexedMethodOpt.get(), activeParam );
+						    }
+					    }
+				    }
+
+				    // Fall back to finding method in the same file
+				    var localMethodOpt = rootNode
+				        .getDescendantsOfType( BoxFunctionDeclaration.class,
+				            n -> n.getName().equalsIgnoreCase( methodName ) )
+				        .stream()
+				        .findFirst();
+
+				    if ( localMethodOpt.isPresent() ) {
+					    return buildSignatureHelpForFunction( localMethodOpt.get(), getClassNameFromUri( docURI ), activeParam );
+				    }
+
+				    return null;
+			    }
+
+			    // Handle constructor calls (new ClassName())
+			    if ( target instanceof BoxNew newExpr ) {
+				    String className = extractClassNameFromNew( newExpr );
+				    if ( className != null ) {
+					    // Look for init method in the class
+					    var indexedClassOpt = getIndex().findClassByName( className );
+					    if ( indexedClassOpt.isPresent() ) {
+						    var initMethodOpt = getIndex().findMethod( className, "init" );
+						    if ( initMethodOpt.isPresent() ) {
+							    return buildSignatureHelpForIndexedMethod( initMethodOpt.get(), activeParam );
+						    }
+					    }
+				    }
+				    return null;
+			    }
+
+			    return null;
+		    } )
+		    .orElse( null );
+	}
+
+	/**
+	 * Build SignatureHelp for a function declaration.
+	 */
+	private SignatureHelp buildSignatureHelpForFunction( BoxFunctionDeclaration fnDecl, String className, int activeParam ) {
+		SignatureHelp			help		= new SignatureHelp();
+		List<SignatureInformation>	signatures	= new ArrayList<>();
+
+		SignatureInformation	sigInfo		= new SignatureInformation();
+
+		// Build the signature label
+		String signatureLabel = buildFunctionSignature( fnDecl, null );
+		sigInfo.setLabel( signatureLabel );
+
+		// Build parameter information
+		List<ParameterInformation> params = new ArrayList<>();
+		for ( BoxNode child : fnDecl.getChildren() ) {
+			if ( child instanceof BoxArgumentDeclaration arg ) {
+				ParameterInformation paramInfo = new ParameterInformation();
+
+				// Build the parameter label
+				StringBuilder paramLabel = new StringBuilder();
+				if ( arg.getRequired() ) {
+					paramLabel.append( "required " );
+				}
+				if ( arg.getType() != null ) {
+					paramLabel.append( arg.getType().toString() ).append( " " );
+				}
+				paramLabel.append( arg.getName() );
+				if ( arg.getValue() != null ) {
+					paramLabel.append( " = " ).append( arg.getValue().getSourceText() );
+				}
+
+				paramInfo.setLabel( paramLabel.toString() );
+				params.add( paramInfo );
+			}
+		}
+		sigInfo.setParameters( params );
+
+		// Add documentation if available
+		if ( fnDecl instanceof IBoxDocumentableNode documentableNode ) {
+			BoxDocComment docComment = documentableNode.getDocComment();
+			if ( docComment != null ) {
+				StringBuilder docContent = new StringBuilder();
+
+				String commentText = docComment.getCommentText();
+				if ( commentText != null && !commentText.isBlank() ) {
+					String cleanedDescription = cleanDocCommentDescription( commentText );
+					if ( !cleanedDescription.isBlank() ) {
+						docContent.append( cleanedDescription );
+					}
+				}
+
+				List<BoxDocumentationAnnotation> annotations = docComment.getAnnotations();
+				if ( annotations != null && !annotations.isEmpty() ) {
+					if ( docContent.length() > 0 ) {
+						docContent.append( "\n\n" );
+					}
+					docContent.append( formatDocumentationAnnotations( annotations ) );
+				}
+
+				if ( docContent.length() > 0 ) {
+					MarkupContent markup = new MarkupContent();
+					markup.setKind( MarkupKind.MARKDOWN );
+					markup.setValue( docContent.toString().trim() );
+					sigInfo.setDocumentation( markup );
+				}
+			}
+		}
+
+		signatures.add( sigInfo );
+		help.setSignatures( signatures );
+		help.setActiveSignature( 0 );
+		help.setActiveParameter( Math.min( activeParam, Math.max( 0, params.size() - 1 ) ) );
+
+		return help;
+	}
+
+	/**
+	 * Build SignatureHelp for an indexed method (from project index).
+	 */
+	private SignatureHelp buildSignatureHelpForIndexedMethod( IndexedMethod method, int activeParam ) {
+		SignatureHelp			help		= new SignatureHelp();
+		List<SignatureInformation>	signatures	= new ArrayList<>();
+
+		SignatureInformation	sigInfo		= new SignatureInformation();
+
+		// Build the signature label
+		String signatureLabel = buildSignatureFromIndexedMethod( method );
+		sigInfo.setLabel( signatureLabel );
+
+		// Build parameter information
+		List<ParameterInformation> params = new ArrayList<>();
+		for ( IndexedParameter param : method.parameters() ) {
+			ParameterInformation paramInfo = new ParameterInformation();
+
+			StringBuilder paramLabel = new StringBuilder();
+			if ( param.required() ) {
+				paramLabel.append( "required " );
+			}
+			if ( param.typeHint() != null && !param.typeHint().isEmpty() ) {
+				paramLabel.append( param.typeHint() ).append( " " );
+			}
+			paramLabel.append( param.name() );
+			if ( param.defaultValue() != null ) {
+				paramLabel.append( " = " ).append( param.defaultValue() );
+			}
+
+			paramInfo.setLabel( paramLabel.toString() );
+			params.add( paramInfo );
+		}
+		sigInfo.setParameters( params );
+
+		// Add documentation if available
+		if ( method.documentation() != null && !method.documentation().isBlank() ) {
+			MarkupContent markup = new MarkupContent();
+			markup.setKind( MarkupKind.MARKDOWN );
+			markup.setValue( formatIndexedMethodDocumentation( method.documentation() ) );
+			sigInfo.setDocumentation( markup );
+		}
+
+		signatures.add( sigInfo );
+		help.setSignatures( signatures );
+		help.setActiveSignature( 0 );
+		help.setActiveParameter( Math.min( activeParam, Math.max( 0, params.size() - 1 ) ) );
+
+		return help;
+	}
+
+	/**
+	 * Build SignatureHelp for a Built-in Function (BIF).
+	 */
+	private SignatureHelp buildSignatureHelpForBIF( String functionName, int activeParam ) {
+		try {
+			BIFDescriptor bifDesc = BoxRuntime.getInstance().getFunctionService().getGlobalFunction( functionName );
+			if ( bifDesc == null ) {
+				return null;
+			}
+
+			SignatureHelp			help		= new SignatureHelp();
+			List<SignatureInformation>	signatures	= new ArrayList<>();
+
+			SignatureInformation	sigInfo		= new SignatureInformation();
+
+			// Build parameters
+			var					declaredArgs	= bifDesc.getBIF().getDeclaredArguments();
+			List<String>		paramStrings	= new ArrayList<>();
+			List<ParameterInformation>	params	= new ArrayList<>();
+
+			for ( var arg : declaredArgs ) {
+				ParameterInformation paramInfo = new ParameterInformation();
+				String				paramSig	= arg.signatureAsString();
+
+				// Add brackets for optional params in signature
+				if ( !arg.required() ) {
+					paramStrings.add( "[" + paramSig + "]" );
+				} else {
+					paramStrings.add( paramSig );
+				}
+
+				paramInfo.setLabel( paramSig );
+				params.add( paramInfo );
+			}
+
+			String signatureLabel = functionName + "(" + String.join( ", ", paramStrings ) + ")";
+			sigInfo.setLabel( signatureLabel );
+			sigInfo.setParameters( params );
+
+			signatures.add( sigInfo );
+			help.setSignatures( signatures );
+			help.setActiveSignature( 0 );
+			help.setActiveParameter( Math.min( activeParam, Math.max( 0, params.size() - 1 ) ) );
+
+			return help;
+		} catch ( Exception e ) {
+			// BIF lookup failed
+			return null;
+		}
 	}
 
 	/**

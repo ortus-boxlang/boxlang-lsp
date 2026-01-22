@@ -481,7 +481,7 @@ Service class for user management operations.
 
 ---
 
-### 1.11 Signature Help (Incomplete)
+### 1.11 Signature Help (Complete)
 
 **Priority:** High  
 **Complexity:** Medium  
@@ -533,7 +533,7 @@ arraySlice(array, start, [length]) → Array
 
 **Named Argument Support:**
 
-When user types `foo(name: |)`, show remaining available named parameters.
+When user types `foo(name = |)`, show remaining available named parameters.
 
 ---
 

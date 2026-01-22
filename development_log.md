@@ -1,5 +1,118 @@
 # BoxLang LSP Development Log
 
+## Task 1.11: Signature Help (Complete)
+
+**Date:** 2026-01-21
+
+### Summary
+
+Implemented signature help functionality that displays parameter hints while typing function calls. When the cursor is inside a function call's parentheses, the LSP shows the function signature with parameter information, documentation, and highlights the active parameter.
+
+### Changes Made
+
+#### New Files Created
+
+**`FindSignatureHelpTargetVisitor.java`** (`src/main/java/ortus/boxlang/lsp/workspace/visitors/`)
+- Traverses AST to find function/method invocations containing the cursor position
+- Handles `BoxFunctionInvocation`, `BoxMethodInvocation`, and `BoxNew` nodes
+- Calculates active parameter index based on cursor position relative to arguments
+- Uses direct AST traversal for reliable node discovery
+
+**`SignatureHelpTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 10 comprehensive tests:
+  - `testSignatureHelpOnFunctionInvocation()` - basic signature help for UDFs
+  - `testSignatureHelpShowsAllParameters()` - verifies parameter information
+  - `testSignatureHelpActiveParameter()` - verifies first parameter highlighting
+  - `testSignatureHelpSecondParameter()` - verifies second parameter highlighting
+  - `testSignatureHelpShowsDocumentation()` - verifies documentation display
+  - `testSignatureHelpForBIF()` - verifies BIF signature lookup
+  - `testSignatureHelpForMethodInvocation()` - cross-file method lookup
+  - `testSignatureHelpForConstructor()` - constructor signature help
+  - `testSignatureHelpOutsideFunctionCallReturnsNull()` - edge case
+  - `testSignatureHelpParameterLabels()` - verifies parameter label format
+
+**`signatureHelpTest.bx`** (`src/test/resources/files/`)
+- Test class with documented functions, multi-parameter functions, and various call scenarios
+
+#### Modified Files
+
+**`BoxLangTextDocumentService.java`**
+- Added `signatureHelp()` method implementing `textDocument/signatureHelp` request
+- Added imports for `SignatureHelp` and `SignatureHelpParams`
+
+**`LanguageServer.java`**
+- Added `SignatureHelpOptions` to server capabilities
+- Set trigger characters: `(` and `,`
+- Added import for `SignatureHelpOptions`
+
+**`ProjectContextProvider.java`**
+- Added `getSignatureHelp()` method as main entry point
+- Added `buildSignatureHelpForFunction()` for UDF signatures
+- Added `buildSignatureHelpForIndexedMethod()` for cross-file method signatures
+- Added `buildSignatureHelpForBIF()` for built-in function signatures
+- Added imports for `ParameterInformation`, `SignatureHelp`, `SignatureInformation`, `BoxRuntime`, `BIFDescriptor`, `IndexedParameter`
+
+### Features Implemented
+
+1. **Trigger Characters**: Signature help triggers on `(` after function name and `,` within arguments
+
+2. **User-Defined Functions (UDFs)**:
+   - Finds function declarations in the same file
+   - Displays function signature with parameters
+   - Shows documentation from javadoc comments
+
+3. **Built-in Functions (BIFs)**:
+   - Looks up BIF metadata from BoxRuntime
+   - Displays parameter signatures with optional indicators
+   - Falls back to BIF lookup when UDF not found
+
+4. **Method Invocations**:
+   - Resolves object type from `new ClassName()` assignments
+   - Looks up method in project index
+   - Shows indexed method signature and documentation
+
+5. **Constructor Calls**:
+   - Detects `new ClassName()` expressions
+   - Looks up `init` method in the class
+   - Shows constructor signature if defined
+
+6. **Active Parameter Tracking**:
+   - Calculates which parameter the cursor is on
+   - Based on argument positions in AST
+   - Highlights the current parameter in IDE
+
+### Signature Help Display Format
+
+```
+functionName(required type param1, [type param2 = default])
+
+Description from documentation.
+
+**Parameters:**
+- param1 Description
+- param2 Description
+
+**@return** Return description
+```
+
+### Requirements Met
+
+- ✅ Trigger on `(` after function name
+- ✅ Trigger on `,` within function call
+- ✅ Track cursor position to highlight active parameter
+- ✅ Support BIFs and user-defined functions
+- ✅ Support method calls
+- ✅ Support constructor calls (`new ClassName(...)`)
+- ✅ Handle optional parameters
+
+### Technical Notes
+
+- Position conversion: LSP uses 0-indexed lines, BoxLang parser uses 1-indexed
+- BLASTTools.containsPosition limits BoxFunctionInvocation range to just the function name (for hover); signature help uses full node position
+- Direct AST traversal used instead of VoidBoxVisitor pattern for reliable node discovery
+
+---
+
 ## Task 1.10: Hover - Classes and Interfaces (Complete)
 
 **Date:** 2026-01-21
