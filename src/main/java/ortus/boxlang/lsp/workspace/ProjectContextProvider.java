@@ -633,7 +633,7 @@ public class ProjectContextProvider {
 		allFiles.putAll( parsedFiles );
 
 		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
-			URI			fileUri	= entry.getKey();
+			URI				fileUri	= entry.getKey();
 			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
 
 			if ( rootOpt.isEmpty() ) {
@@ -898,13 +898,18 @@ public class ProjectContextProvider {
 
 		for ( BoxDotAccess dotAccess : dotAccesses ) {
 			BoxNode context = dotAccess.getContext();
+			// 'this' and 'variables' can be represented as BoxScope or BoxIdentifier
+			String scopeName = null;
 			if ( context instanceof BoxScope scope ) {
-				String scopeName = scope.getName().toLowerCase();
-				if ( scopeName.equals( "variables" ) || scopeName.equals( "this" ) ) {
-					BoxNode access = dotAccess.getAccess();
-					if ( access instanceof BoxIdentifier propId && propId.getName().equalsIgnoreCase( propertyName ) ) {
-						references.add( createLocationFromNode( access, currentDocURI, propertyName.length() ) );
-					}
+				scopeName = scope.getName().toLowerCase();
+			} else if ( context instanceof BoxIdentifier scopeId ) {
+				scopeName = scopeId.getName().toLowerCase();
+			}
+
+			if ( scopeName != null && ( scopeName.equals( "variables" ) || scopeName.equals( "this" ) ) ) {
+				BoxNode access = dotAccess.getAccess();
+				if ( access instanceof BoxIdentifier propId && propId.getName().equalsIgnoreCase( propertyName ) ) {
+					references.add( createLocationFromNode( access, currentDocURI, propertyName.length() ) );
 				}
 			}
 		}
@@ -1235,6 +1240,28 @@ public class ProjectContextProvider {
 		return location;
 	}
 
+	/**
+	 * Create a list containing a single Location from a BoxNode.
+	 * Used when we want to return the node's own location (for "Find References" on declarations).
+	 */
+	private List<Location> createLocationList( BoxNode node, URI fileUri ) {
+		List<Location> locations = new ArrayList<>();
+		Location location = new Location();
+		location.setUri( fileUri.toString() );
+
+		ortus.boxlang.compiler.ast.Position pos = node.getPosition();
+		if ( pos != null ) {
+			int startLine = pos.getStart().getLine() - 1;
+			int startCol = pos.getStart().getColumn();
+			location.setRange( new Range(
+			    new Position( startLine, startCol ),
+			    new Position( pos.getEnd().getLine() - 1, pos.getEnd().getColumn() ) ) );
+			locations.add( location );
+		}
+
+		return locations;
+	}
+
 	public List<Location> findMatchingFunctionDeclarations( URI docURI, String functionName ) {
 		return getLatestFileParseResult( docURI )
 		    .map( fpr -> fpr.getFunctionDefinitions().stream()
@@ -1250,7 +1277,15 @@ public class ProjectContextProvider {
 		    .map( rootNode -> {
 			    return findDefinitionTarget( docURI, pos )
 			        .map( ( node ) -> {
-				        if ( node instanceof BoxFunctionInvocation fnUse ) {
+				        if ( node instanceof BoxFunctionDeclaration fnDecl ) {
+					        // Cursor is on a function declaration - return its own location
+					        // This enables VS Code to show "Find References" when on a declaration
+					        return createLocationList( fnDecl, docURI );
+				        } else if ( node instanceof BoxProperty property ) {
+					        // Cursor is on a property declaration - return its own location
+					        // This enables VS Code to show "Find References" when on a declaration
+					        return createLocationList( property, docURI );
+				        } else if ( node instanceof BoxFunctionInvocation fnUse ) {
 					        // Find function definitions in these locations:
 					        // 1. Same file
 					        // 2. Parent classes (if inside a class that extends another)
@@ -1272,8 +1307,14 @@ public class ProjectContextProvider {
 					        // Handle return type hints - navigate to class definition
 					        return findClassDefinitionFromReturnType( returnType );
 				        } else if ( node instanceof BoxArgumentDeclaration argDecl ) {
-					        // Handle parameter type hints - navigate to class definition
-					        return findClassDefinitionFromArgumentType( argDecl );
+					        // Try to navigate to the type class definition first
+					        List<Location> typeLocations = findClassDefinitionFromArgumentType( argDecl );
+					        if ( !typeLocations.isEmpty() ) {
+						        return typeLocations;
+					        }
+					        // If no type to navigate to, return the parameter's own location
+					        // This enables VS Code to show "Find References" when on a parameter
+					        return createLocationList( argDecl, docURI );
 				        } else if ( node instanceof BoxFQN fqn ) {
 					        // Handle type hints (return type, parameter type, variable type)
 					        return findClassDefinitionFromFQN( fqn );

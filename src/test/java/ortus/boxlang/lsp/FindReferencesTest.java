@@ -135,10 +135,11 @@ public class FindReferencesTest extends BaseTest {
 		String	controllerFileUri	= controllerFilePath.toUri().toString();
 
 		// Position at 'getUser' function declaration in UserController.bx
-		// Line 17 (0-indexed: 16): `public User function getUser(...)`
+		// Line 18 (0-indexed: 17): `public User function getUser(...)`
+		// 'getUser' starts at column 25 (after "    public User function ")
 		ReferenceParams params = new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( controllerFileUri ) );
-		params.setPosition( new Position( 16, 25 ) ); // At 'getUser'
+		params.setPosition( new Position( 17, 25 ) ); // At 'getUser'
 		params.setContext( new ReferenceContext( false ) );
 
 		var refs = svc.references( params ).get();

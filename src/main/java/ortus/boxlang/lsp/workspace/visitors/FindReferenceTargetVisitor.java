@@ -94,6 +94,9 @@ public class FindReferenceTargetVisitor extends VoidBoxVisitor {
 			return;
 		}
 
+		// Visit children first to find more specific targets like parameters
+		visitChildren( node );
+
 		// Check if cursor is on the function declaration line (the function name itself)
 		var	nodePos		= node.getPosition();
 		int	funcLine	= nodePos.getStart().getLine();
@@ -103,9 +106,6 @@ public class FindReferenceTargetVisitor extends VoidBoxVisitor {
 		if ( line == funcLine && this.referenceTarget == null ) {
 			this.referenceTarget = node;
 		}
-
-		// Always visit children to find more specific targets inside the function body
-		visitChildren( node );
 	}
 
 	/**
@@ -131,10 +131,7 @@ public class FindReferenceTargetVisitor extends VoidBoxVisitor {
 			return;
 		}
 
-		// Only set as target if no more specific node found
-		if ( this.referenceTarget == null ) {
-			this.referenceTarget = node;
-		}
+		this.referenceTarget = node;
 	}
 
 	/**

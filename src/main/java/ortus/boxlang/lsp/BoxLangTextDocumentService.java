@@ -239,7 +239,6 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 		java.net.URI	docURI				= LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
 		boolean			includeDeclaration	= params.getContext() != null && params.getContext().isIncludeDeclaration();
 		List<Location>	locs				= ProjectContextProvider.getInstance().findReferences( docURI, params.getPosition(), includeDeclaration );
-		App.logger.info( "references returned " + locs.size() + ( locs.isEmpty() ? "" : " first=" + locs.get( 0 ).getRange() ) );
 		return CompletableFuture.completedFuture( locs );
 	}
 

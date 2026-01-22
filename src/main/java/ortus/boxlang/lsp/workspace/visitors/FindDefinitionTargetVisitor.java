@@ -19,6 +19,7 @@ import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxImport;
+import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.compiler.ast.statement.BoxReturnType;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
 import ortus.boxlang.lsp.workspace.BLASTTools;
@@ -69,7 +70,35 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 
 	@Override
 	public void visit( BoxFunctionDeclaration node ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			return;
+		}
+
+		// Visit children first to find more specific targets like parameters or return types
 		visitChildren( node );
+
+		// If cursor is on the function declaration line and no more specific target found,
+		// set the function as the target (enables "find references" when on a declaration)
+		var	nodePos		= node.getPosition();
+		int	funcLine	= nodePos.getStart().getLine();
+
+		if ( line == funcLine && this.definitionTarget == null ) {
+			this.definitionTarget = node;
+		}
+	}
+
+	/**
+	 * Visit property declarations for go-to-definition on property names.
+	 * This enables "find references" when cursor is on a property declaration.
+	 */
+	@Override
+	public void visit( BoxProperty node ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
+			return;
+		}
+
+		this.definitionTarget = node;
 	}
 
 	// ============ Target node types - check position and set target ============
@@ -293,33 +322,9 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 			return;
 		}
 
-		// Check if cursor is on the type portion of the argument
-		// The type is stored as a String, so we need to check position
-		String type = node.getType();
-		if ( type != null && !type.isEmpty() && !isBuiltInType( type ) ) {
-			// Set as target - we'll extract the type string later
-			this.definitionTarget = node;
-			return;
-		}
-
-		visitChildren( node );
-	}
-
-	/**
-	 * Check if the type is a built-in BoxLang type.
-	 */
-	private boolean isBuiltInType( String type ) {
-		if ( type == null ) {
-			return false;
-		}
-		String lowerType = type.toLowerCase();
-		return lowerType.equals( "any" ) || lowerType.equals( "string" ) ||
-		    lowerType.equals( "numeric" ) || lowerType.equals( "boolean" ) ||
-		    lowerType.equals( "array" ) || lowerType.equals( "struct" ) ||
-		    lowerType.equals( "query" ) || lowerType.equals( "void" ) ||
-		    lowerType.equals( "function" ) || lowerType.equals( "date" ) ||
-		    lowerType.equals( "xml" ) || lowerType.equals( "binary" ) ||
-		    lowerType.equals( "uuid" ) || lowerType.equals( "guid" );
+		// Always set as target when cursor is within the argument declaration
+		// This enables both type hint navigation and "find references" for the parameter
+		this.definitionTarget = node;
 	}
 
 	private void visitChildren( BoxNode node ) {
