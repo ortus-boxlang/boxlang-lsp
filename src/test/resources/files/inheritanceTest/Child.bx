@@ -4,8 +4,13 @@
 class extends="Parent" {
 
 	function childFunc() {
-		// This should go to parentFunc() in Parent.bx
+		// This should go to parentFunc() in Parent.bx (without this)
 		parentFunc();
+	}
+
+	function childFuncWithThis() {
+		// This should also go to parentFunc() in Parent.bx (with this)
+		this.parentFunc();
 	}
 
 }

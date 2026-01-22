@@ -142,4 +142,34 @@ public class InheritanceDefinitionTest extends BaseTest {
 		assertThat( def.getRange().getStart().getLine() ).isEqualTo( 5 );
 	}
 
+	/**
+	 * Test that calling an inherited function WITH this prefix navigates to parent class.
+	 * In Child.bx: this.parentFunc() should go to Parent.bx
+	 */
+	@Test
+	void testInheritedFunctionWithThisPrefix() throws Exception {
+		Path	childPath	= testDir.resolve( "Child.bx" );
+		String	childUri	= childPath.toUri().toString();
+		Path	parentPath	= testDir.resolve( "Parent.bx" );
+		String	parentUri	= parentPath.toUri().toString();
+
+		// Position at 'parentFunc' on line 13: this.parentFunc();
+		// Line 13 (0-indexed: 12), character at 'parentFunc' (after "this.")
+		DefinitionParams params = new DefinitionParams();
+		params.setTextDocument( new TextDocumentIdentifier( childUri ) );
+		params.setPosition( new Position( 12, 8 ) );
+
+		var result = svc.definition( params ).get();
+
+		assertThat( result ).isNotNull();
+		assertThat( result.getLeft() ).isNotNull();
+		assertThat( result.getLeft().size() ).isGreaterThan( 0 );
+
+		var def = result.getLeft().get( 0 );
+		// Should navigate to Parent.bx
+		assertThat( def.getUri() ).isEqualTo( parentUri );
+		// parentFunc is defined on line 6 (0-indexed: 5)
+		assertThat( def.getRange().getStart().getLine() ).isEqualTo( 5 );
+	}
+
 }

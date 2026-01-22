@@ -712,17 +712,27 @@ public class ProjectContextProvider {
 		}
 
 		if ( isThisReceiver ) {
-			// Look for method in the same file
+			// Look for method in the same file first
 			List<Location> sameFileLocations = findMatchingFunctionDeclarations( docURI, methodName );
 			if ( !sameFileLocations.isEmpty() ) {
 				return sameFileLocations;
 			}
+
+			// If not found in same file, check parent classes (for inherited methods)
+			String currentClassName = getClassNameFromUri( docURI );
+			if ( currentClassName != null ) {
+				Location inheritedLocation = findMethodInClassHierarchy( currentClassName, methodName );
+				if ( inheritedLocation != null ) {
+					return List.of( inheritedLocation );
+				}
+			}
+			return locations;
 		}
 
 		// Resolve the receiver type for obj.method() calls
 		String className = null;
 
-		if ( obj instanceof BoxIdentifier objIdentifier && !isThisReceiver ) {
+		if ( obj instanceof BoxIdentifier objIdentifier ) {
 			// Collect variable types from the AST
 			VariableTypeCollectorVisitor typeCollector = new VariableTypeCollectorVisitor();
 			rootNode.accept( typeCollector );
