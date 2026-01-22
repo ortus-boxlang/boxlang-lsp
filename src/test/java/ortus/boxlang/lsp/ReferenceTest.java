@@ -19,7 +19,9 @@ public class ReferenceTest extends BaseTest {
 
 		ReferenceParams referenceParams = new ReferenceParams();
 		referenceParams.setTextDocument( new TextDocumentIdentifier( defPath.toUri().toString() ) );
-		referenceParams.setPosition( new Position( 2, 5 ) );
+		// Position at 'foo' in `function foo(){` on line 2 (0-indexed: 1)
+		// Line is: "    function foo(){", 'foo' starts at column 13
+		referenceParams.setPosition( new Position( 1, 13 ) );
 		var refs = svc.references( referenceParams ).get();
 
 		assertThat( refs ).isNotNull();

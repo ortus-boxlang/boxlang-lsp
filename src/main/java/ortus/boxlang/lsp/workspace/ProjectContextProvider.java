@@ -54,6 +54,8 @@ import org.eclipse.lsp4j.services.LanguageClient;
 
 import com.google.gson.JsonObject;
 
+import ortus.boxlang.compiler.ast.BoxClass;
+import ortus.boxlang.compiler.ast.BoxInterface;
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.IBoxDocumentableNode;
 import ortus.boxlang.compiler.ast.Point;
@@ -554,6 +556,683 @@ public class ProjectContextProvider {
 			    return new ArrayList<Location>();
 		    } )
 		    .orElseGet( () -> new ArrayList<Location>() );
+	}
+
+	/**
+	 * Find all references to the symbol at the given position.
+	 * Searches across all open documents and parsed files.
+	 *
+	 * @param docURI            The document URI
+	 * @param pos               The cursor position
+	 * @param includeDeclaration Whether to include the declaration itself as a reference
+	 *
+	 * @return List of locations where the symbol is referenced
+	 */
+	public List<Location> findReferences( URI docURI, Position pos, boolean includeDeclaration ) {
+		return findReferenceTarget( docURI, pos )
+		    .map( node -> {
+			    List<Location> references = new ArrayList<>();
+
+			    if ( node instanceof BoxFunctionDeclaration fnDecl ) {
+				    // Find references to this function/method
+				    references.addAll( findFunctionReferences( fnDecl.getName(), docURI, includeDeclaration, fnDecl ) );
+			    } else if ( node instanceof BoxClass classNode ) {
+				    // Find references to this class
+				    String className = extractClassNameFromUri( docURI );
+				    references.addAll( findClassReferences( className, includeDeclaration, classNode, docURI ) );
+			    } else if ( node instanceof BoxInterface interfaceNode ) {
+				    // Find references to this interface
+				    String interfaceName = extractClassNameFromUri( docURI );
+				    references.addAll( findInterfaceReferences( interfaceName, includeDeclaration, interfaceNode, docURI ) );
+			    } else if ( node instanceof BoxProperty propertyNode ) {
+				    // Find references to this property
+				    String propertyName = extractPropertyName( propertyNode );
+				    references.addAll( findPropertyReferences( propertyName, docURI, includeDeclaration, propertyNode ) );
+			    } else if ( node instanceof BoxNew newExpr ) {
+				    // Find references from a new expression - user is on the class name
+				    String className = extractClassNameFromNew( newExpr );
+				    if ( className != null ) {
+					    references.addAll( findClassReferences( className, includeDeclaration, null, docURI ) );
+				    }
+			    } else if ( node instanceof BoxIdentifier identifier ) {
+				    // Could be a local variable or parameter
+				    references.addAll( findVariableReferences( identifier, docURI, includeDeclaration ) );
+			    } else if ( node instanceof BoxArgumentDeclaration argDecl ) {
+				    // Find references to this parameter
+				    references.addAll( findParameterReferences( argDecl, docURI, includeDeclaration ) );
+			    } else if ( node instanceof BoxFunctionInvocation fnInvocation ) {
+				    // User is on a function call - find all references to that function
+				    references.addAll( findFunctionReferences( fnInvocation.getName(), docURI, includeDeclaration, null ) );
+			    } else if ( node instanceof BoxMethodInvocation methodInvocation ) {
+				    // User is on a method call - find all references to that method
+				    references.addAll( findMethodInvocationReferences( methodInvocation, docURI, includeDeclaration ) );
+			    }
+
+			    return references;
+		    } )
+		    .orElseGet( () -> new ArrayList<Location>() );
+	}
+
+	/**
+	 * Find all references to a function/method by name.
+	 *
+	 * @param functionName       The function name to search for
+	 * @param currentDocURI      The current document URI
+	 * @param includeDeclaration Whether to include the declaration
+	 * @param declarationNode    The declaration node (if finding from declaration)
+	 *
+	 * @return List of reference locations
+	 */
+	private List<Location> findFunctionReferences( String functionName, URI currentDocURI, boolean includeDeclaration,
+	    BoxFunctionDeclaration declarationNode ) {
+		List<Location> references = new ArrayList<>();
+
+		// Search across all open documents and parsed files
+		Map<URI, FileParseResult> allFiles = new HashMap<>();
+		allFiles.putAll( openDocuments );
+		allFiles.putAll( parsedFiles );
+
+		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
+			URI			fileUri	= entry.getKey();
+			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
+
+			if ( rootOpt.isEmpty() ) {
+				continue;
+			}
+
+			BoxNode root = rootOpt.get();
+
+			// Find all function invocations with matching name
+			List<BoxFunctionInvocation> invocations = root.getDescendantsOfType(
+			    BoxFunctionInvocation.class,
+			    n -> n.getName().equalsIgnoreCase( functionName ) );
+
+			for ( BoxFunctionInvocation inv : invocations ) {
+				references.add( createLocationFromNode( inv, fileUri, inv.getName().length() ) );
+			}
+
+			// Also find method invocations with matching name (for this.methodName() calls)
+			List<BoxMethodInvocation> methodInvocations = root.getDescendantsOfType(
+			    BoxMethodInvocation.class,
+			    n -> n.getName().getSourceText().equalsIgnoreCase( functionName ) );
+
+			for ( BoxMethodInvocation inv : methodInvocations ) {
+				references.add( createLocationFromMethodInvocation( inv, fileUri ) );
+			}
+		}
+
+		// Include declaration if requested
+		if ( includeDeclaration && declarationNode != null ) {
+			references.add( createLocationFromNode( declarationNode, currentDocURI, declarationNode.getName().length() ) );
+		}
+
+		return references;
+	}
+
+	/**
+	 * Find all references to a class by name.
+	 *
+	 * @param className          The class name to search for
+	 * @param includeDeclaration Whether to include the declaration
+	 * @param declarationNode    The declaration node (if finding from declaration)
+	 * @param currentDocURI      The current document URI
+	 *
+	 * @return List of reference locations
+	 */
+	private List<Location> findClassReferences( String className, boolean includeDeclaration, BoxClass declarationNode,
+	    URI currentDocURI ) {
+		List<Location> references = new ArrayList<>();
+
+		if ( className == null || className.isEmpty() ) {
+			return references;
+		}
+
+		// Search across all open documents and parsed files
+		Map<URI, FileParseResult> allFiles = new HashMap<>();
+		allFiles.putAll( openDocuments );
+		allFiles.putAll( parsedFiles );
+
+		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
+			URI			fileUri	= entry.getKey();
+			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
+
+			if ( rootOpt.isEmpty() ) {
+				continue;
+			}
+
+			BoxNode root = rootOpt.get();
+
+			// Find new ClassName() expressions
+			List<BoxNew> newExpressions = root.getDescendantsOfType(
+			    BoxNew.class,
+			    n -> {
+				    String newClassName = extractClassNameFromNew( n );
+				    return newClassName != null && newClassName.equalsIgnoreCase( className );
+			    } );
+
+			for ( BoxNew newExpr : newExpressions ) {
+				references.add( createLocationFromNewExpression( newExpr, fileUri ) );
+			}
+
+			// Find extends="ClassName" annotations
+			List<BoxAnnotation> extendsAnnotations = root.getDescendantsOfType(
+			    BoxAnnotation.class,
+			    n -> {
+				    String key = n.getKey().getValue().toLowerCase();
+				    if ( !key.equals( "extends" ) ) {
+					    return false;
+				    }
+				    String value = extractAnnotationValueForRefs( n );
+				    return value != null && value.equalsIgnoreCase( className );
+			    } );
+
+			for ( BoxAnnotation annotation : extendsAnnotations ) {
+				references.add( createLocationFromAnnotationValue( annotation, fileUri ) );
+			}
+
+			// Find implements="ClassName" annotations (interfaces can be implemented)
+			List<BoxAnnotation> implementsAnnotations = root.getDescendantsOfType(
+			    BoxAnnotation.class,
+			    n -> {
+				    String key = n.getKey().getValue().toLowerCase();
+				    if ( !key.equals( "implements" ) ) {
+					    return false;
+				    }
+				    String value = extractAnnotationValueForRefs( n );
+				    if ( value == null ) {
+					    return false;
+				    }
+				    // Implements can have comma-separated values
+				    for ( String impl : value.split( "," ) ) {
+					    if ( impl.trim().equalsIgnoreCase( className ) ) {
+						    return true;
+					    }
+				    }
+				    return false;
+			    } );
+
+			for ( BoxAnnotation annotation : implementsAnnotations ) {
+				references.add( createLocationFromAnnotationValue( annotation, fileUri ) );
+			}
+
+			// Find type hints (return types, parameter types)
+			findTypeHintReferences( root, className, fileUri, references );
+		}
+
+		// Include declaration if requested
+		if ( includeDeclaration && declarationNode != null ) {
+			references.add( createLocationFromNode( declarationNode, currentDocURI, className.length() ) );
+		}
+
+		return references;
+	}
+
+	/**
+	 * Find all references to an interface by name.
+	 *
+	 * @param interfaceName      The interface name to search for
+	 * @param includeDeclaration Whether to include the declaration
+	 * @param declarationNode    The declaration node
+	 * @param currentDocURI      The current document URI
+	 *
+	 * @return List of reference locations
+	 */
+	private List<Location> findInterfaceReferences( String interfaceName, boolean includeDeclaration,
+	    BoxInterface declarationNode, URI currentDocURI ) {
+		List<Location> references = new ArrayList<>();
+
+		if ( interfaceName == null || interfaceName.isEmpty() ) {
+			return references;
+		}
+
+		// Search across all files
+		Map<URI, FileParseResult> allFiles = new HashMap<>();
+		allFiles.putAll( openDocuments );
+		allFiles.putAll( parsedFiles );
+
+		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
+			URI			fileUri	= entry.getKey();
+			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
+
+			if ( rootOpt.isEmpty() ) {
+				continue;
+			}
+
+			BoxNode root = rootOpt.get();
+
+			// Find implements="InterfaceName" annotations
+			List<BoxAnnotation> implementsAnnotations = root.getDescendantsOfType(
+			    BoxAnnotation.class,
+			    n -> {
+				    String key = n.getKey().getValue().toLowerCase();
+				    if ( !key.equals( "implements" ) ) {
+					    return false;
+				    }
+				    String value = extractAnnotationValueForRefs( n );
+				    if ( value == null ) {
+					    return false;
+				    }
+				    for ( String impl : value.split( "," ) ) {
+					    if ( impl.trim().equalsIgnoreCase( interfaceName ) ) {
+						    return true;
+					    }
+				    }
+				    return false;
+			    } );
+
+			for ( BoxAnnotation annotation : implementsAnnotations ) {
+				references.add( createLocationFromAnnotationValue( annotation, fileUri ) );
+			}
+
+			// Find type hints using the interface
+			findTypeHintReferences( root, interfaceName, fileUri, references );
+		}
+
+		// Include declaration if requested
+		if ( includeDeclaration && declarationNode != null ) {
+			references.add( createLocationFromNode( declarationNode, currentDocURI, interfaceName.length() ) );
+		}
+
+		return references;
+	}
+
+	/**
+	 * Find type hint references for a class/interface name in a file.
+	 */
+	private void findTypeHintReferences( BoxNode root, String typeName, URI fileUri, List<Location> references ) {
+		// Find return type hints
+		List<BoxFunctionDeclaration> functions = root.getDescendantsOfType( BoxFunctionDeclaration.class );
+
+		for ( BoxFunctionDeclaration fn : functions ) {
+			// Check return type via getType() -> BoxReturnType
+			BoxReturnType returnType = fn.getType();
+			if ( returnType != null ) {
+				String fqn = returnType.getFqn();
+				if ( fqn != null && fqn.equalsIgnoreCase( typeName ) ) {
+					references.add( createLocationFromNode( returnType, fileUri, typeName.length() ) );
+				}
+			}
+
+			// Check parameter types by iterating children
+			for ( BoxNode child : fn.getChildren() ) {
+				if ( child instanceof BoxArgumentDeclaration arg ) {
+					String argType = arg.getType();
+					if ( argType != null && argType.equalsIgnoreCase( typeName ) ) {
+						references.add( createLocationFromArgumentType( arg, fileUri, typeName.length() ) );
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Find all references to a property by name within the current file.
+	 *
+	 * @param propertyName       The property name to search for
+	 * @param currentDocURI      The current document URI
+	 * @param includeDeclaration Whether to include the declaration
+	 * @param declarationNode    The declaration node
+	 *
+	 * @return List of reference locations
+	 */
+	private List<Location> findPropertyReferences( String propertyName, URI currentDocURI, boolean includeDeclaration,
+	    BoxProperty declarationNode ) {
+		List<Location> references = new ArrayList<>();
+
+		if ( propertyName == null || propertyName.isEmpty() ) {
+			return references;
+		}
+
+		// Get the current file's AST
+		Optional<BoxNode> rootOpt = getLatestFileParseResult( currentDocURI )
+		    .flatMap( fpr -> fpr.findAstRoot() );
+
+		if ( rootOpt.isEmpty() ) {
+			return references;
+		}
+
+		BoxNode root = rootOpt.get();
+
+		// Find variables.propertyName and this.propertyName access
+		List<BoxDotAccess> dotAccesses = root.getDescendantsOfType( BoxDotAccess.class );
+
+		for ( BoxDotAccess dotAccess : dotAccesses ) {
+			BoxNode context = dotAccess.getContext();
+			if ( context instanceof BoxScope scope ) {
+				String scopeName = scope.getName().toLowerCase();
+				if ( scopeName.equals( "variables" ) || scopeName.equals( "this" ) ) {
+					BoxNode access = dotAccess.getAccess();
+					if ( access instanceof BoxIdentifier propId && propId.getName().equalsIgnoreCase( propertyName ) ) {
+						references.add( createLocationFromNode( access, currentDocURI, propertyName.length() ) );
+					}
+				}
+			}
+		}
+
+		// Include declaration if requested
+		if ( includeDeclaration && declarationNode != null ) {
+			references.add( createLocationFromProperty( declarationNode, currentDocURI ) );
+		}
+
+		return references;
+	}
+
+	/**
+	 * Find all references to a local variable within its scope.
+	 *
+	 * @param identifier         The variable identifier
+	 * @param currentDocURI      The current document URI
+	 * @param includeDeclaration Whether to include the declaration
+	 *
+	 * @return List of reference locations
+	 */
+	private List<Location> findVariableReferences( BoxIdentifier identifier, URI currentDocURI, boolean includeDeclaration ) {
+		List<Location> references = new ArrayList<>();
+		String varName = identifier.getName();
+
+		// Get the current file's AST
+		Optional<BoxNode> rootOpt = getLatestFileParseResult( currentDocURI )
+		    .flatMap( fpr -> fpr.findAstRoot() );
+
+		if ( rootOpt.isEmpty() ) {
+			return references;
+		}
+
+		BoxNode root = rootOpt.get();
+
+		// Find the containing function to scope the search
+		BoxNode containingFunction = findContainingFunction( identifier );
+
+		if ( containingFunction != null ) {
+			// Search only within the containing function
+			List<BoxIdentifier> identifiers = containingFunction.getDescendantsOfType(
+			    BoxIdentifier.class,
+			    n -> n.getName().equalsIgnoreCase( varName ) );
+
+			for ( BoxIdentifier id : identifiers ) {
+				references.add( createLocationFromNode( id, currentDocURI, varName.length() ) );
+			}
+		} else {
+			// Search entire file for class-level variables
+			List<BoxIdentifier> identifiers = root.getDescendantsOfType(
+			    BoxIdentifier.class,
+			    n -> n.getName().equalsIgnoreCase( varName ) );
+
+			for ( BoxIdentifier id : identifiers ) {
+				references.add( createLocationFromNode( id, currentDocURI, varName.length() ) );
+			}
+		}
+
+		return references;
+	}
+
+	/**
+	 * Find all references to a function parameter within its function.
+	 *
+	 * @param argDecl            The argument declaration
+	 * @param currentDocURI      The current document URI
+	 * @param includeDeclaration Whether to include the declaration
+	 *
+	 * @return List of reference locations
+	 */
+	private List<Location> findParameterReferences( BoxArgumentDeclaration argDecl, URI currentDocURI, boolean includeDeclaration ) {
+		List<Location> references = new ArrayList<>();
+		String paramName = argDecl.getName();
+
+		// Find the containing function
+		BoxNode containingFunction = findContainingFunction( argDecl );
+
+		if ( containingFunction == null ) {
+			return references;
+		}
+
+		// Search for all identifiers with the parameter name within the function
+		List<BoxIdentifier> identifiers = containingFunction.getDescendantsOfType(
+		    BoxIdentifier.class,
+		    n -> n.getName().equalsIgnoreCase( paramName ) );
+
+		for ( BoxIdentifier id : identifiers ) {
+			references.add( createLocationFromNode( id, currentDocURI, paramName.length() ) );
+		}
+
+		// Include declaration if requested
+		if ( includeDeclaration ) {
+			references.add( createLocationFromNode( argDecl, currentDocURI, paramName.length() ) );
+		}
+
+		return references;
+	}
+
+	/**
+	 * Find references from a method invocation (user clicked on a method call).
+	 *
+	 * @param methodInvocation   The method invocation node
+	 * @param currentDocURI      The current document URI
+	 * @param includeDeclaration Whether to include the declaration
+	 *
+	 * @return List of reference locations
+	 */
+	private List<Location> findMethodInvocationReferences( BoxMethodInvocation methodInvocation, URI currentDocURI,
+	    boolean includeDeclaration ) {
+		List<Location> references = new ArrayList<>();
+		String methodName = methodInvocation.getName().getSourceText();
+
+		// Search across all files for method invocations with this name
+		Map<URI, FileParseResult> allFiles = new HashMap<>();
+		allFiles.putAll( openDocuments );
+		allFiles.putAll( parsedFiles );
+
+		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
+			URI			fileUri	= entry.getKey();
+			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
+
+			if ( rootOpt.isEmpty() ) {
+				continue;
+			}
+
+			BoxNode root = rootOpt.get();
+
+			// Find all method invocations with matching name
+			List<BoxMethodInvocation> invocations = root.getDescendantsOfType(
+			    BoxMethodInvocation.class,
+			    n -> n.getName().getSourceText().equalsIgnoreCase( methodName ) );
+
+			for ( BoxMethodInvocation inv : invocations ) {
+				references.add( createLocationFromMethodInvocation( inv, fileUri ) );
+			}
+		}
+
+		return references;
+	}
+
+	/**
+	 * Find the containing function for a node.
+	 */
+	private BoxNode findContainingFunction( BoxNode node ) {
+		BoxNode current = node.getParent();
+		while ( current != null ) {
+			if ( current instanceof BoxFunctionDeclaration ) {
+				return current;
+			}
+			current = current.getParent();
+		}
+		return null;
+	}
+
+	/**
+	 * Extract class name from URI (file name without extension).
+	 */
+	private String extractClassNameFromUri( URI uri ) {
+		String path = uri.getPath();
+		if ( path == null ) {
+			return null;
+		}
+		int lastSlash = path.lastIndexOf( '/' );
+		String fileName = lastSlash >= 0 ? path.substring( lastSlash + 1 ) : path;
+		int dotIndex = fileName.lastIndexOf( '.' );
+		return dotIndex > 0 ? fileName.substring( 0, dotIndex ) : fileName;
+	}
+
+	/**
+	 * Extract annotation value as string (for Find References).
+	 */
+	private String extractAnnotationValueForRefs( BoxAnnotation annotation ) {
+		BoxNode value = annotation.getValue();
+		if ( value instanceof BoxStringLiteral stringLiteral ) {
+			return stringLiteral.getValue();
+		} else if ( value instanceof BoxFQN fqn ) {
+			return fqn.getValue();
+		} else if ( value instanceof BoxIdentifier identifier ) {
+			return identifier.getName();
+		}
+		return null;
+	}
+
+	/**
+	 * Create a Location from a BoxNode.
+	 */
+	private Location createLocationFromNode( BoxNode node, URI fileUri, int nameLength ) {
+		Location location = new Location();
+		location.setUri( fileUri.toString() );
+
+		ortus.boxlang.compiler.ast.Position pos = node.getPosition();
+		if ( pos != null ) {
+			int startLine = pos.getStart().getLine() - 1; // Convert to 0-indexed
+			int startCol = pos.getStart().getColumn();
+			location.setRange( new Range(
+			    new Position( startLine, startCol ),
+			    new Position( startLine, startCol + nameLength ) ) );
+		}
+
+		return location;
+	}
+
+	/**
+	 * Create a Location from a BoxNew expression (pointing to class name).
+	 */
+	private Location createLocationFromNewExpression( BoxNew newExpr, URI fileUri ) {
+		Location location = new Location();
+		location.setUri( fileUri.toString() );
+
+		BoxNode expression = newExpr.getExpression();
+		if ( expression instanceof BoxFQN fqn ) {
+			ortus.boxlang.compiler.ast.Position pos = fqn.getPosition();
+			if ( pos != null ) {
+				int startLine = pos.getStart().getLine() - 1;
+				int startCol = pos.getStart().getColumn();
+				String className = fqn.getValue();
+				// Get simple name if FQN
+				if ( className.contains( "." ) ) {
+					className = className.substring( className.lastIndexOf( "." ) + 1 );
+				}
+				location.setRange( new Range(
+				    new Position( startLine, startCol ),
+				    new Position( startLine, startCol + className.length() ) ) );
+			}
+		}
+
+		return location;
+	}
+
+	/**
+	 * Create a Location from a BoxMethodInvocation.
+	 */
+	private Location createLocationFromMethodInvocation( BoxMethodInvocation inv, URI fileUri ) {
+		Location location = new Location();
+		location.setUri( fileUri.toString() );
+
+		BoxNode nameNode = inv.getName();
+		if ( nameNode != null ) {
+			ortus.boxlang.compiler.ast.Position pos = nameNode.getPosition();
+			if ( pos != null ) {
+				int startLine = pos.getStart().getLine() - 1;
+				int startCol = pos.getStart().getColumn();
+				location.setRange( new Range(
+				    new Position( startLine, startCol ),
+				    new Position( startLine, startCol + nameNode.getSourceText().length() ) ) );
+			}
+		}
+
+		return location;
+	}
+
+	/**
+	 * Create a Location from an annotation value.
+	 */
+	private Location createLocationFromAnnotationValue( BoxAnnotation annotation, URI fileUri ) {
+		Location location = new Location();
+		location.setUri( fileUri.toString() );
+
+		BoxNode value = annotation.getValue();
+		if ( value != null ) {
+			ortus.boxlang.compiler.ast.Position pos = value.getPosition();
+			if ( pos != null ) {
+				int startLine = pos.getStart().getLine() - 1;
+				int startCol = pos.getStart().getColumn();
+				location.setRange( new Range(
+				    new Position( startLine, startCol ),
+				    new Position( pos.getEnd().getLine() - 1, pos.getEnd().getColumn() ) ) );
+			}
+		}
+
+		return location;
+	}
+
+	/**
+	 * Create a Location from a return type node.
+	 */
+	private Location createLocationFromReturnType( BoxReturnType returnType, URI fileUri, int nameLength ) {
+		Location location = new Location();
+		location.setUri( fileUri.toString() );
+
+		ortus.boxlang.compiler.ast.Position pos = returnType.getPosition();
+		if ( pos != null ) {
+			int startLine = pos.getStart().getLine() - 1;
+			int startCol = pos.getStart().getColumn();
+			location.setRange( new Range(
+			    new Position( startLine, startCol ),
+			    new Position( startLine, startCol + nameLength ) ) );
+		}
+
+		return location;
+	}
+
+	/**
+	 * Create a Location from an argument declaration (for type reference).
+	 */
+	private Location createLocationFromArgumentType( BoxArgumentDeclaration arg, URI fileUri, int typeLength ) {
+		Location location = new Location();
+		location.setUri( fileUri.toString() );
+
+		ortus.boxlang.compiler.ast.Position pos = arg.getPosition();
+		if ( pos != null ) {
+			int startLine = pos.getStart().getLine() - 1;
+			int startCol = pos.getStart().getColumn();
+			location.setRange( new Range(
+			    new Position( startLine, startCol ),
+			    new Position( startLine, startCol + typeLength ) ) );
+		}
+
+		return location;
+	}
+
+	/**
+	 * Create a Location from a property declaration.
+	 */
+	private Location createLocationFromProperty( BoxProperty property, URI fileUri ) {
+		Location location = new Location();
+		location.setUri( fileUri.toString() );
+
+		ortus.boxlang.compiler.ast.Position pos = property.getPosition();
+		if ( pos != null ) {
+			int startLine = pos.getStart().getLine() - 1;
+			int startCol = pos.getStart().getColumn();
+			location.setRange( new Range(
+			    new Position( startLine, startCol ),
+			    new Position( pos.getEnd().getLine() - 1, pos.getEnd().getColumn() ) ) );
+		}
+
+		return location;
 	}
 
 	public List<Location> findMatchingFunctionDeclarations( URI docURI, String functionName ) {
@@ -1383,7 +2062,6 @@ public class ProjectContextProvider {
 		    .map( ( rootNode ) -> {
 			    FindReferenceTargetVisitor visitor = new FindReferenceTargetVisitor( position );
 			    rootNode.accept( visitor );
-
 			    return visitor.getReferenceTarget();
 		    } );
 

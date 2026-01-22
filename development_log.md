@@ -1,5 +1,88 @@
 # BoxLang LSP Development Log
 
+## Task 2.6: Find References - Core Implementation (Complete)
+
+**Date:** 2026-01-22
+
+### Summary
+
+Implemented Find References functionality for the BoxLang LSP. When the user triggers "Find References" on a symbol, the LSP searches across all open documents and indexed files to find all usages of that symbol. This includes support for:
+
+- **Classes/Interfaces**: Find all `new ClassName()` instantiations, `extends`/`implements` clauses, and type hints
+- **Methods/Functions**: Find all invocations of the method/function
+- **Properties**: Find all `variables.propertyName` and `this.propertyName` accesses
+- **Local Variables**: Find all usages within the containing function scope
+- **Function Parameters**: Find all references within the function body
+
+### Key Design Decisions
+
+- **On-demand scanning**: References are computed on-demand by searching all open documents and parsed files. This approach is slower but always accurate.
+- **Scoped variable references**: Local variable and parameter references are scoped to their containing function to avoid false positives
+- **Include declaration flag**: The `ReferenceContext.includeDeclaration` parameter is respected - when true, the declaration is included in results
+- **Case-insensitive matching**: BoxLang is case-insensitive, so all name comparisons use `equalsIgnoreCase()`
+
+### Changes Made
+
+#### New Files Created
+
+**Test Resource Files** (`src/test/resources/files/findReferencesTest/`)
+- `BaseEntity.bx` - Base class with id property and save() method
+- `User.bx` - User entity extending BaseEntity with username/email properties
+- `IUserService.bx` - User service interface
+- `UserService.bx` - User service implementation
+- `UserRepository.bx` - Repository with User references
+- `UserController.bx` - Controller with UserService dependency
+
+**`FindReferencesTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 12 comprehensive tests for Find References:
+  - `testFindReferencesToClass()` - Find all references to a class
+  - `testFindClassReferencesFromNewExpression()` - Find class refs from new expression
+  - `testFindReferencesToInterface()` - Find all interface references
+  - `testFindReferencesToMethodSameFile()` - Find method refs in same file
+  - `testFindReferencesToMethodAcrossFiles()` - Find method refs across files
+  - `testFindReferencesToMethodWithInheritance()` - Find inherited method refs
+  - `testFindReferencesToProperty()` - Find property references
+  - `testFindReferencesToLocalVariable()` - Find local variable references
+  - `testLocalVariableReferencesAreScopedToFunction()` - Verify scope boundaries
+  - `testFindReferencesOnNonSymbolReturnsEmpty()` - Handle non-symbol positions
+  - `testIncludeDeclarationFlag()` - Test includeDeclaration context flag
+  - `testFindReferencesToFunctionParameter()` - Find parameter references
+
+#### Modified Files
+
+**`FindReferenceTargetVisitor.java`**
+- Expanded from minimal function-only support to comprehensive symbol detection
+- Added visit methods for: BoxClass, BoxInterface, BoxFunctionDeclaration, BoxProperty, BoxArgumentDeclaration, BoxMethodInvocation, BoxFunctionInvocation, BoxIdentifier, BoxNew, BoxAnnotation, BoxDotAccess, BoxFQN
+- Added default `visit(BoxNode)` handler to ensure all children are visited
+- Fixed class/interface detection to only trigger on the declaration line itself
+
+**`ProjectContextProvider.java`**
+- Added new `findReferences(URI, Position, boolean)` method as the main entry point
+- Added helper methods for different reference types:
+  - `findFunctionReferences()` - Find function/method usages
+  - `findClassReferences()` - Find class usages (new, extends, implements, type hints)
+  - `findInterfaceReferences()` - Find interface usages
+  - `findPropertyReferences()` - Find property accesses
+  - `findVariableReferences()` - Find local variable usages (scoped)
+  - `findParameterReferences()` - Find function parameter usages
+  - `findMethodInvocationReferences()` - Find method call references
+- Added location creation helpers for different node types
+- Added `extractClassNameFromUri()` and other extraction utilities
+
+**`BoxLangTextDocumentService.java`**
+- Updated `references()` method to use new `findReferences()` with `includeDeclaration` parameter from ReferenceContext
+
+**`ReferenceTest.java`**
+- Updated test position to use correct column for function name (column 13 instead of 5)
+
+### Testing Notes
+
+- All 13 Find References tests pass
+- The references capability was already registered in LanguageServer.java (`setReferencesProvider(true)`)
+- 3 pre-existing test failures in ClassHoverTest are unrelated to this implementation
+
+---
+
 ## Task 2.5: Go to Definition - Imports (Complete)
 
 **Date:** 2026-01-22
