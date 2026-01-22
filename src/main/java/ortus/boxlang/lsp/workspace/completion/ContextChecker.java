@@ -11,7 +11,8 @@ public class ContextChecker {
 		var existingPrompt = facts.fileParseResult().readLine(
 		    facts.completionParams().getPosition().getLine() );
 
-		existingPrompt = existingPrompt.substring( 0, facts.completionParams().getPosition().getCharacter() );
+		int endIndex = Math.min( facts.completionParams().getPosition().getCharacter(), existingPrompt.length() );
+		existingPrompt = existingPrompt.substring( 0, endIndex );
 
 		return newPattern.matcher( existingPrompt ).find();
 	}
@@ -20,7 +21,8 @@ public class ContextChecker {
 		var existingPrompt = facts.fileParseResult().readLine(
 		    facts.completionParams().getPosition().getLine() );
 
-		existingPrompt = existingPrompt.substring( 0, facts.completionParams().getPosition().getCharacter() );
+		int endIndex = Math.min( facts.completionParams().getPosition().getCharacter(), existingPrompt.length() );
+		existingPrompt = existingPrompt.substring( 0, endIndex );
 
 		return importPattern.matcher( existingPrompt ).find();
 	}
