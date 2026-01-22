@@ -721,7 +721,7 @@ Find all usages of a symbol across the workspace.
 
 ---
 
-### 2.7 Find References - Include BXM Templates (Incomplete)
+### 2.7 Find References - Include BXM Templates (Complete)
 
 **Priority:** Medium  
 **Complexity:** Medium  

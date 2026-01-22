@@ -1,5 +1,56 @@
 # BoxLang LSP Development Log
 
+## Task 2.7: Find References - Include BXM Templates (Complete)
+
+**Date:** 2026-01-22
+
+### Summary
+
+Verified and tested that Find References functionality works correctly with BXM template files. The existing implementation already supported BXM templates because:
+
+1. `.bxm` files are already included in workspace scanning via `LSPTools.canWalkFile()`
+2. The BoxLang parser handles BXM template syntax and produces standard AST nodes
+3. The Find References implementation searches across all `openDocuments` and `parsedFiles` maps, which include BXM files
+4. Template expressions (inside `##` delimiters), `<bx:script>` blocks, and tag attributes all produce the same AST node types as regular code
+
+### Requirements Met
+
+- ✅ Parse `.bxm` files for BoxLang expressions (already supported by parser)
+- ✅ Find references within `##` expressions (verified with `testFindMethodReferencesInTemplateExpressions`)
+- ✅ Find references in tag attributes (verified with `testFindClassReferencesInTagAttribute`)
+- ✅ Handle the dual nature of BXM (HTML + BoxLang) - template files are correctly parsed and searched
+
+### Test Coverage
+
+Created 9 comprehensive tests for Find References in BXM templates:
+
+1. `testFindClassReferencesIncludesBxmTemplate()` - Verify class references in BXM are found
+2. `testFindClassReferencesFromBxmScriptBlock()` - Verify references in `<bx:script>` blocks
+3. `testFindMethodReferencesIncludesBxmTemplate()` - Verify method calls in BXM are found
+4. `testFindMethodReferencesInTemplateExpressions()` - Verify `#user.getDisplayName()#` style calls
+5. `testFindMethodReferencesInBxmScriptBlock()` - Verify method calls in script blocks
+6. `testFindPropertyReferencesInTemplateExpressions()` - Verify property access in templates
+7. `testFindClassReferencesInTagAttribute()` - Verify `<bx:set anotherUser = new User() />` works
+8. `testFindReferencesFromBxmFile()` - Find references when starting from a BXM file
+9. `testLocalVariableReferencesInBxmAreScoped()` - Verify variable scoping in templates
+
+### New Files Created
+
+**Test Resource Files:**
+- `src/test/resources/files/findReferencesTest/UserTemplate.bxm` - BXM template with various reference scenarios
+
+**Test Files:**
+- `src/test/java/ortus/boxlang/lsp/FindReferencesBxmTest.java` - Test class for BXM Find References
+
+### Technical Notes
+
+- The BoxLang compiler's parser automatically detects file type based on extension and produces appropriate AST nodes
+- BXM files produce a `BoxTemplate` root node which contains all expression nodes
+- The visitor pattern in `FindReferenceTargetVisitor` already handles `BoxTemplate` nodes via `visitChildren()`
+- No changes to the core Find References implementation were required
+
+---
+
 ## Task 2.6: Find References - Core Implementation (Complete)
 
 **Date:** 2026-01-22
