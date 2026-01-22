@@ -3,11 +3,16 @@ package ortus.boxlang.lsp.workspace.visitors;
 import java.util.HashMap;
 import java.util.Map;
 
+import ortus.boxlang.compiler.ast.BoxClass;
+import ortus.boxlang.compiler.ast.BoxInterface;
 import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.compiler.ast.BoxScript;
+import ortus.boxlang.compiler.ast.BoxTemplate;
 import ortus.boxlang.compiler.ast.expression.BoxAssignment;
 import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxNew;
+import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
 
 /**
@@ -36,6 +41,35 @@ public class VariableTypeCollectorVisitor extends VoidBoxVisitor {
 	public Map<String, String> getVariableTypes() {
 		return variableTypes;
 	}
+
+	// ============ Container node types - traverse into them ============
+
+	@Override
+	public void visit( BoxClass node ) {
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxInterface node ) {
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxScript node ) {
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxTemplate node ) {
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxFunctionDeclaration node ) {
+		visitChildren( node );
+	}
+
+	// ============ Target node types ============
 
 	@Override
 	public void visit( BoxAssignment node ) {
