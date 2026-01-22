@@ -622,7 +622,7 @@ Navigate from function/method call to its definition.
 
 ---
 
-### 2.3 Go to Definition - Classes and Interfaces (Incomplete)
+### 2.3 Go to Definition - Classes and Interfaces (Complete)
 
 **Priority:** High  
 **Complexity:** Low  

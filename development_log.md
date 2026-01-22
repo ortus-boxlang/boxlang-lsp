@@ -1,5 +1,72 @@
 # BoxLang LSP Development Log
 
+## Task 2.3: Go to Definition - Classes and Interfaces (Complete)
+
+**Date:** 2026-01-22
+
+### Summary
+
+Implemented go-to-definition functionality for class and interface references. When the user clicks "Go to Definition" on a class reference, the LSP navigates to the class/interface definition file. This includes support for:
+- `new ClassName()` expressions - navigate from instantiation to class definition
+- `extends="ClassName"` annotations - navigate to parent class
+- `implements="InterfaceName"` annotations - navigate to interface
+- Return type hints (`public User function...`) - navigate to class definition
+- Parameter type hints (`required User param`) - navigate to class definition
+
+### Changes Made
+
+#### New Files Created
+
+**Test Resource Files** (`src/test/resources/files/classDefinitionTest/`)
+- `IRepository.bx` - Generic repository interface
+- `AbstractEntity.bx` - Abstract base entity class
+- `User.bx` - User entity class extending AbstractEntity
+- `UserRepository.bx` - Repository implementing IRepository
+- `UserService.bx` - Comprehensive test class with various class reference scenarios
+
+**`ClassDefinitionTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 7 comprehensive tests for class/interface go-to-definition:
+  - `testGoToDefinitionOnNewExpression()` - `new User()` navigates to User.bx
+  - `testGoToDefinitionOnExtendsClause()` - `extends="AbstractEntity"` navigates to AbstractEntity.bx
+  - `testGoToDefinitionOnImplementsClause()` - `implements="IRepository"` navigates to IRepository.bx
+  - `testGoToDefinitionOnReturnTypeHint()` - `public User function` navigates to User.bx
+  - `testGoToDefinitionOnParameterTypeHint()` - `required User param` navigates to User.bx
+  - `testGoToDefinitionOnInterface()` - interface navigation from implements clause
+  - `testGoToDefinitionOnUnknownClassReturnsEmpty()` - unknown classes return empty
+
+#### Modified Files
+
+**`FindDefinitionTargetVisitor.java`**
+- Added visit methods for:
+  - `BoxNew` - for `new ClassName()` expressions
+  - `BoxFQN` - for class references in type contexts
+  - `BoxAnnotation` - for `extends` and `implements` annotations
+  - `BoxStringLiteral` - for string values in annotations
+  - `BoxReturnType` - for return type hints in function declarations
+  - `BoxArgumentDeclaration` - for parameter type hints
+- Added `isBuiltInType()` helper to filter out built-in types like string, numeric, etc.
+
+**`ProjectContextProvider.java`**
+- Added handler methods in `findDefinitionPossibiltiies()`:
+  - `findClassDefinition(BoxNew)` - handles `new ClassName()` navigation
+  - `findClassDefinitionFromAnnotation(BoxAnnotation)` - handles extends/implements
+  - `findClassDefinitionFromReturnType(BoxReturnType)` - handles return type hints
+  - `findClassDefinitionFromArgumentType(BoxArgumentDeclaration)` - handles parameter type hints
+  - `findClassDefinitionFromFQN(BoxFQN)` - handles BoxFQN class references
+  - `findClassDefinitionFromIdentifier(BoxIdentifier)` - handles identifier-based class references
+  - `findClassByNameAndGetLocation(String)` - shared lookup method using project index
+
+**`ImportCompletionRule.java`**
+- Fixed `StringIndexOutOfBoundsException` by adding bounds checking on line 47 and 62
+
+### Technical Notes
+
+- Class lookup uses `ProjectIndex.findClassByName()` which performs case-insensitive matching
+- FQN extraction handles both simple names and dot-separated paths
+- The implementation reuses the existing project indexing infrastructure
+
+---
+
 ## Task 2.2: Go to Definition - Functions and Methods (Complete)
 
 **Date:** 2026-01-21
