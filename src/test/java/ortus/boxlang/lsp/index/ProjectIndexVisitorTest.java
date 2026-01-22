@@ -299,7 +299,8 @@ class ProjectIndexVisitorTest extends BaseTest {
 		assertThat( methods ).hasSize( 1 );
 
 		IndexedMethod method = methods.get( 0 );
-		assertEquals( "KeyTestClass.myMethod", method.getKey() );
+		// Keys are lowercase for case-insensitive lookup
+		assertEquals( "keytestclass.mymethod", method.getKey() );
 	}
 
 	private ProjectIndexVisitor parseAndVisit( URI fileUri, Path workspaceRoot ) throws Exception {

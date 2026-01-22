@@ -348,7 +348,8 @@ public class ProjectIndex {
 	 * @return Optional containing the method, or empty if not found
 	 */
 	public Optional<IndexedMethod> findMethod( String className, String methodName ) {
-		String key = className + "." + methodName;
+		// Use lowercase key for case-insensitive lookup (BoxLang is case-insensitive)
+		String key = ( className + "." + methodName ).toLowerCase();
 		return Optional.ofNullable( methodsByKey.get( key ) );
 	}
 

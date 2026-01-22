@@ -19,12 +19,13 @@ public record IndexedMethod(
     String documentation ) {
 
 	/**
-	 * Get a unique key for this method in the form "ClassName.methodName" or just "methodName" for top-level functions.
+	 * Get a unique key for this method in the form "classname.methodname" or just "methodname" for top-level functions.
+	 * Keys are lowercase for case-insensitive lookup (BoxLang is case-insensitive).
 	 */
 	public String getKey() {
 		if ( containingClass != null && !containingClass.isEmpty() ) {
-			return containingClass + "." + name;
+			return ( containingClass + "." + name ).toLowerCase();
 		}
-		return name;
+		return name.toLowerCase();
 	}
 }
