@@ -279,7 +279,7 @@ Add warnings for code that is technically valid but potentially problematic.
 
 ---
 
-### 1.7 Hover - Built-in Functions (BIFs) (Incomplete)
+### 1.7 Hover - Built-in Functions (BIFs) (Skipped)
 
 **Priority:** High  
 **Complexity:** Low  
@@ -358,7 +358,7 @@ arrayAppend(arr, 4);
 
 ---
 
-### 1.8 Hover - User-Defined Functions and Methods (Incomplete)
+### 1.8 Hover - User-Defined Functions and Methods (Complete)
 
 **Priority:** High  
 **Complexity:** Medium  

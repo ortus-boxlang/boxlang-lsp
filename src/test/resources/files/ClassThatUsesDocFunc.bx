@@ -1,0 +1,7 @@
+class {
+    public function foo(){
+        var obj = new ClassWithDocFunc();
+
+        return obj.documentedFunction( 10, "Hello" );
+    }
+}

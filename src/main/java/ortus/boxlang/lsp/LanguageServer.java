@@ -40,6 +40,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			capabilities.setTextDocumentSync( TextDocumentSyncKind.Full );
 			capabilities.setDocumentSymbolProvider( true );
 			capabilities.setDefinitionProvider( true );
+			capabilities.setHoverProvider( true );
 			CompletionOptions completionOptions = new CompletionOptions();
 			capabilities.setReferencesProvider( true );
 

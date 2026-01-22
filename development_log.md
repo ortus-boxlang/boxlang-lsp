@@ -1,5 +1,122 @@
 # BoxLang LSP Development Log
 
+## Task 1.8: Hover - User-Defined Functions and Methods (Complete)
+
+**Date:** 2026-01-21
+
+### Summary
+
+Implemented hover support for user-defined functions and methods. When hovering over a function invocation, method call, or function declaration, the LSP displays the function signature and javadoc-style documentation. This includes cross-file support where hovering over a method call on an object resolves the object's type from `new ClassName()` assignments and looks up the method documentation from the project index.
+
+### Changes Made
+
+#### New Files Created
+
+**`FindHoverTargetVisitor.java`** (`src/main/java/ortus/boxlang/lsp/workspace/visitors/`)
+- AST visitor that finds the node under the cursor for hover information
+- Handles `BoxFunctionInvocation`, `BoxMethodInvocation`, `BoxFunctionDeclaration`, and `BoxIdentifier` nodes
+- Prioritizes more specific nodes (function invocations) over containing nodes (function declarations)
+
+**`VariableTypeCollectorVisitor.java`** (`src/main/java/ortus/boxlang/lsp/workspace/visitors/`)
+- Collects variable type information from assignments
+- Tracks variables assigned via `new ClassName()` expressions
+- Enables cross-file method lookup by resolving object types
+
+**`HoverTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 9 comprehensive tests for hover functionality:
+  - `testHoverOnFunctionInvocation()` - hover on function calls
+  - `testHoverOnDocumentedFunctionShowsDocumentation()` - documentation display
+  - `testHoverOnSimpleFunctionShowsDescription()` - simple descriptions
+  - `testHoverOnUndocumentedFunctionShowsSignatureOnly()` - undocumented functions
+  - `testHoverOnFunctionDefinition()` - hover on declarations
+  - `testHoverOnNonHoverablePositionReturnsNull()` - edge cases
+  - `testHoverShowsContainingClassForMethod()` - class name display
+  - `testHoverShowsAccessModifier()` - access modifier display
+  - `testCrossFileMethodHover()` - cross-file method lookup
+
+**Test Resource Files**
+- `hoverTestClass.bx` - Test class with documented and undocumented functions
+- `ClassWithDocFunc.bx` - Class with documented function for cross-file testing
+- `ClassThatUsesDocFunc.bx` - Class that uses the documented function
+
+#### Modified Files
+
+**`IndexedMethod.java`**
+- Added `documentation` field to store function documentation in the index
+
+**`ProjectIndexVisitor.java`**
+- Added `extractDocumentation()` method to extract javadoc-style documentation from function declarations
+- Added `cleanDocCommentDescription()` to clean up comment text
+- Added `cleanAnnotationValue()` to clean up annotation values
+- Documentation now stored during indexing for cross-file lookups
+
+**`BoxLangTextDocumentService.java`**
+- Added `hover()` method implementing `textDocument/hover` request
+- Returns hover information for the symbol at the cursor position
+
+**`LanguageServer.java`**
+- Enabled hover capability with `setHoverProvider(true)`
+
+**`ProjectContextProvider.java`**
+- Added `getHoverInfo()` method as the main entry point for hover
+- Added `buildHoverForFunction()` to build hover from AST nodes
+- Added `buildHoverForIndexedMethod()` to build hover from indexed methods
+- Added `buildFunctionSignature()` and `buildSignatureFromIndexedMethod()` for signatures
+- Added `formatDocumentationAnnotations()` and `formatIndexedMethodDocumentation()` for documentation formatting
+- Added `cleanDocCommentDescription()` and `getAnnotationValue()` helpers
+- Added `getClassNameFromUri()` to extract class names from file paths
+
+**`SemanticWarningDiagnosticVisitor.java`**
+- Fixed false positive where documentation comments were flagged as unreachable code
+- Added `BoxComment` and `BoxDocumentationAnnotation` to the skip list in `checkForSiblingsAfterTerminal()`
+
+### Hover Content Format
+
+The hover displays:
+```
+```boxlang
+(ClassName) accessModifier returnType function functionName(params)
+```
+
+Description from javadoc comment.
+
+**Parameters:**
+- param1 Description of param1
+- param2 Description of param2
+
+**@return** Description of return value
+
+**@deprecated** Deprecation notice
+```
+
+### Documentation Tags Supported
+
+- `@param` - Parameter descriptions
+- `@return` / `@returns` - Return value description
+- `@throws` / `@throw` - Exception descriptions
+- `@deprecated` - Deprecation notice
+- `@since` - Version information
+- `@author` - Author information
+
+### Cross-File Hover Flow
+
+1. User hovers over `obj.methodName()` in File A
+2. `VariableTypeCollectorVisitor` finds that `obj` was assigned via `new ClassName()`
+3. `ProjectIndex.findMethod("ClassName", "methodName")` looks up the method
+4. `buildHoverForIndexedMethod()` builds hover from the indexed method's documentation
+
+### Requirements Met
+
+- ✅ Identify function/method under cursor
+- ✅ Look up definition in index
+- ✅ Extract documentation comments (javadoc-style)
+- ✅ Display signature with type hints
+- ✅ Show parameter descriptions
+- ✅ Show return type information
+- ✅ Cross-file method lookup via variable type tracking
+
+---
+
 ## Task 1.6: Expand Diagnostics - Warnings (Complete)
 
 **Date:** 2026-01-21

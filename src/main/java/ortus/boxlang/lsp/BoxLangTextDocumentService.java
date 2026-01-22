@@ -25,6 +25,8 @@ import org.eclipse.lsp4j.DocumentFormattingParams;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.DocumentSymbolCapabilities;
 import org.eclipse.lsp4j.DocumentSymbolParams;
+import org.eclipse.lsp4j.Hover;
+import org.eclipse.lsp4j.HoverParams;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.RelatedFullDocumentDiagnosticReport;
@@ -236,6 +238,19 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 		List<Location>	locs	= ProjectContextProvider.getInstance().findFunctionUsages( docURI, params.getPosition() );
 		App.logger.info( "references returned " + locs.size() + ( locs.isEmpty() ? "" : " first=" + locs.get( 0 ).getRange() ) );
 		return CompletableFuture.completedFuture( locs );
+	}
+
+	/**
+	 * The hover request is sent from the client to the server to request hover
+	 * information at a given text document position.
+	 */
+	@JsonRequest
+	@Override
+	public CompletableFuture<Hover> hover( HoverParams params ) {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
+			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
+			return ProjectContextProvider.getInstance().getHoverInfo( docURI, params.getPosition() );
+		} );
 	}
 
 }

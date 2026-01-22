@@ -15,7 +15,8 @@ public record IndexedMethod(
     String returnTypeHint,
     List<IndexedParameter> parameters,
     String accessModifier,
-    List<String> modifiers ) {
+    List<String> modifiers,
+    String documentation ) {
 
 	/**
 	 * Get a unique key for this method in the form "ClassName.methodName" or just "methodName" for top-level functions.

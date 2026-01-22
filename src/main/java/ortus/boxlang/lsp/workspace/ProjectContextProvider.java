@@ -29,7 +29,10 @@ import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.FileSystemWatcher;
+import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.Location;
+import org.eclipse.lsp4j.MarkupContent;
+import org.eclipse.lsp4j.MarkupKind;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
@@ -48,9 +51,15 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import com.google.gson.JsonObject;
 
 import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.compiler.ast.IBoxDocumentableNode;
 import ortus.boxlang.compiler.ast.Point;
+import ortus.boxlang.compiler.ast.comment.BoxDocComment;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
+import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
+import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
+import ortus.boxlang.compiler.ast.statement.BoxDocumentationAnnotation;
+import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
 import ortus.boxlang.lsp.App;
 import ortus.boxlang.lsp.LSPTools;
@@ -62,8 +71,11 @@ import ortus.boxlang.lsp.workspace.codeLens.CodeLensRuleBook;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
 import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
+import ortus.boxlang.lsp.workspace.index.IndexedMethod;
 import ortus.boxlang.lsp.workspace.visitors.FindDefinitionTargetVisitor;
+import ortus.boxlang.lsp.workspace.visitors.FindHoverTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FindReferenceTargetVisitor;
+import ortus.boxlang.lsp.workspace.visitors.VariableTypeCollectorVisitor;
 import ortus.boxlang.runtime.async.executors.BoxExecutor;
 import ortus.boxlang.runtime.services.AsyncService;
 
@@ -514,6 +526,509 @@ public class ProjectContextProvider {
 			    return visitor.getDefinitionTarget();
 		    } );
 
+	}
+
+	/**
+	 * Get hover information for the symbol at the given position.
+	 *
+	 * @param docURI The document URI
+	 * @param position The cursor position
+	 *
+	 * @return Hover information or null if no hover is available
+	 */
+	public Hover getHoverInfo( URI docURI, Position position ) {
+		return getLatestFileParseResult( docURI )
+		    .flatMap( fpr -> fpr.findAstRoot() )
+		    .map( rootNode -> {
+			    FindHoverTargetVisitor visitor = new FindHoverTargetVisitor( position );
+			    rootNode.accept( visitor );
+			    BoxNode target = visitor.getHoverTarget();
+
+			    if ( target == null ) {
+				    return null;
+			    }
+
+			    // Handle function invocations - look up the function definition
+			    if ( target instanceof BoxFunctionInvocation fnInvocation ) {
+				    String functionName = fnInvocation.getName();
+				    // Find the function declaration in the same file
+				    return rootNode
+				        .getDescendantsOfType( BoxFunctionDeclaration.class,
+				            n -> n.getName().equalsIgnoreCase( functionName ) )
+				        .stream()
+				        .findFirst()
+				        .map( fnDecl -> buildHoverForFunction( fnDecl, getClassNameFromUri( docURI ) ) )
+				        .orElse( null );
+			    }
+
+			    // Handle function declarations directly
+			    if ( target instanceof BoxFunctionDeclaration fnDecl ) {
+				    return buildHoverForFunction( fnDecl, getClassNameFromUri( docURI ) );
+			    }
+
+			    // Handle method invocations
+			    if ( target instanceof BoxMethodInvocation methodInvocation ) {
+				    String methodName = methodInvocation.getName().getSourceText();
+
+				    // First, try to resolve the object's type using variable tracking
+				    BoxNode obj = methodInvocation.getObj();
+				    if ( obj instanceof BoxIdentifier objIdentifier ) {
+					    String varName = objIdentifier.getName();
+
+					    // Collect variable types from the AST
+					    VariableTypeCollectorVisitor typeCollector = new VariableTypeCollectorVisitor();
+					    rootNode.accept( typeCollector );
+					    String className = typeCollector.getVariableType( varName );
+
+					    if ( className != null ) {
+						    // Look up method in the project index
+						    var indexedMethodOpt = getIndex().findMethod( className, methodName );
+						    if ( indexedMethodOpt.isPresent() ) {
+							    return buildHoverForIndexedMethod( indexedMethodOpt.get() );
+						    }
+					    }
+				    }
+
+				    // Fall back to finding method in the same file
+				    return rootNode
+				        .getDescendantsOfType( BoxFunctionDeclaration.class,
+				            n -> n.getName().equalsIgnoreCase( methodName ) )
+				        .stream()
+				        .findFirst()
+				        .map( fnDecl -> buildHoverForFunction( fnDecl, getClassNameFromUri( docURI ) ) )
+				        .orElse( null );
+			    }
+
+			    return null;
+		    } )
+		    .orElse( null );
+	}
+
+	/**
+	 * Build hover content for a function declaration.
+	 */
+	private Hover buildHoverForFunction( BoxFunctionDeclaration fnDecl, String className ) {
+		StringBuilder content = new StringBuilder();
+
+		// Add function signature in code block
+		content.append( "```boxlang\n" );
+		content.append( buildFunctionSignature( fnDecl, className ) );
+		content.append( "\n```\n\n" );
+
+		// Add documentation if available
+		if ( fnDecl instanceof IBoxDocumentableNode documentableNode ) {
+			BoxDocComment docComment = documentableNode.getDocComment();
+			if ( docComment != null ) {
+				// Get the comment text (description)
+				String commentText = docComment.getCommentText();
+				if ( commentText != null && !commentText.isBlank() ) {
+					// Clean up the comment text
+					String cleanedDescription = cleanDocCommentDescription( commentText );
+					if ( !cleanedDescription.isBlank() ) {
+						content.append( cleanedDescription );
+						content.append( "\n\n" );
+					}
+				}
+
+				// Add documentation annotations (@param, @return, etc.)
+				List<BoxDocumentationAnnotation> annotations = docComment.getAnnotations();
+				if ( annotations != null && !annotations.isEmpty() ) {
+					content.append( formatDocumentationAnnotations( annotations ) );
+				}
+			}
+		}
+
+		Hover			hover			= new Hover();
+		MarkupContent	markupContent	= new MarkupContent();
+		markupContent.setKind( MarkupKind.MARKDOWN );
+		markupContent.setValue( content.toString().trim() );
+		hover.setContents( markupContent );
+
+		return hover;
+	}
+
+	/**
+	 * Build hover content from an indexed method (for cross-file lookups).
+	 */
+	private Hover buildHoverForIndexedMethod( IndexedMethod method ) {
+		StringBuilder content = new StringBuilder();
+
+		// Add function signature in code block
+		content.append( "```boxlang\n" );
+		content.append( buildSignatureFromIndexedMethod( method ) );
+		content.append( "\n```\n\n" );
+
+		// Add documentation if available
+		if ( method.documentation() != null && !method.documentation().isBlank() ) {
+			content.append( formatIndexedMethodDocumentation( method.documentation() ) );
+		}
+
+		Hover			hover			= new Hover();
+		MarkupContent	markupContent	= new MarkupContent();
+		markupContent.setKind( MarkupKind.MARKDOWN );
+		markupContent.setValue( content.toString().trim() );
+		hover.setContents( markupContent );
+
+		return hover;
+	}
+
+	/**
+	 * Build a function signature string from an IndexedMethod.
+	 */
+	private String buildSignatureFromIndexedMethod( IndexedMethod method ) {
+		StringBuilder sig = new StringBuilder();
+
+		// Add class name if available
+		if ( method.containingClass() != null && !method.containingClass().isEmpty() ) {
+			sig.append( "(" ).append( method.containingClass() ).append( ") " );
+		}
+
+		// Add access modifier
+		if ( method.accessModifier() != null && !method.accessModifier().isEmpty() ) {
+			sig.append( method.accessModifier() ).append( " " );
+		}
+
+		// Add return type
+		if ( method.returnTypeHint() != null && !method.returnTypeHint().isEmpty() ) {
+			sig.append( method.returnTypeHint() ).append( " " );
+		}
+
+		// Add function keyword and name
+		sig.append( "function " ).append( method.name() );
+
+		// Add parameters
+		sig.append( "(" );
+		List<String> paramStrings = new ArrayList<>();
+		for ( var param : method.parameters() ) {
+			StringBuilder paramStr = new StringBuilder();
+
+			if ( param.required() ) {
+				paramStr.append( "required " );
+			}
+
+			if ( param.typeHint() != null && !param.typeHint().isEmpty() ) {
+				paramStr.append( param.typeHint() ).append( " " );
+			}
+
+			paramStr.append( param.name() );
+
+			if ( param.defaultValue() != null ) {
+				paramStr.append( " = " ).append( param.defaultValue() );
+			}
+
+			paramStrings.add( paramStr.toString() );
+		}
+		sig.append( String.join( ", ", paramStrings ) );
+		sig.append( ")" );
+
+		return sig.toString();
+	}
+
+	/**
+	 * Format documentation from an indexed method.
+	 * The documentation is stored as raw text with @tags.
+	 */
+	private String formatIndexedMethodDocumentation( String documentation ) {
+		if ( documentation == null || documentation.isBlank() ) {
+			return "";
+		}
+
+		StringBuilder	sb		= new StringBuilder();
+		String[]		lines	= documentation.split( "\n" );
+
+		// Separate description from tags
+		StringBuilder	description			= new StringBuilder();
+		List<String>	paramTags			= new ArrayList<>();
+		String			returnTag			= null;
+		List<String>	throwsTags			= new ArrayList<>();
+		String			deprecatedTag		= null;
+		String			sinceTag			= null;
+		String			authorTag			= null;
+
+		for ( String line : lines ) {
+			String trimmed = line.trim();
+			if ( trimmed.startsWith( "@param" ) ) {
+				paramTags.add( trimmed.substring( 6 ).trim() );
+			} else if ( trimmed.startsWith( "@return" ) || trimmed.startsWith( "@returns" ) ) {
+				returnTag = trimmed.startsWith( "@returns" )
+				    ? trimmed.substring( 8 ).trim()
+				    : trimmed.substring( 7 ).trim();
+			} else if ( trimmed.startsWith( "@throws" ) || trimmed.startsWith( "@throw" ) ) {
+				throwsTags.add( trimmed.startsWith( "@throws" )
+				    ? trimmed.substring( 7 ).trim()
+				    : trimmed.substring( 6 ).trim() );
+			} else if ( trimmed.startsWith( "@deprecated" ) ) {
+				deprecatedTag = trimmed.substring( 11 ).trim();
+			} else if ( trimmed.startsWith( "@since" ) ) {
+				sinceTag = trimmed.substring( 6 ).trim();
+			} else if ( trimmed.startsWith( "@author" ) ) {
+				authorTag = trimmed.substring( 7 ).trim();
+			} else if ( !trimmed.startsWith( "@" ) ) {
+				if ( description.length() > 0 ) {
+					description.append( "\n" );
+				}
+				description.append( trimmed );
+			}
+		}
+
+		// Add description
+		if ( description.length() > 0 ) {
+			sb.append( description.toString().trim() );
+			sb.append( "\n\n" );
+		}
+
+		// Add parameters
+		if ( !paramTags.isEmpty() ) {
+			sb.append( "**Parameters:**\n" );
+			for ( String param : paramTags ) {
+				sb.append( "- " ).append( param ).append( "\n" );
+			}
+			sb.append( "\n" );
+		}
+
+		// Add return
+		if ( returnTag != null && !returnTag.isEmpty() ) {
+			sb.append( "**@return** " ).append( returnTag ).append( "\n\n" );
+		}
+
+		// Add throws
+		if ( !throwsTags.isEmpty() ) {
+			sb.append( "**Throws:**\n" );
+			for ( String throwsTag : throwsTags ) {
+				sb.append( "- " ).append( throwsTag ).append( "\n" );
+			}
+			sb.append( "\n" );
+		}
+
+		// Add deprecated
+		if ( deprecatedTag != null ) {
+			sb.append( "**@deprecated** " ).append( deprecatedTag ).append( "\n\n" );
+		}
+
+		// Add since
+		if ( sinceTag != null && !sinceTag.isEmpty() ) {
+			sb.append( "**@since** " ).append( sinceTag ).append( "\n\n" );
+		}
+
+		// Add author
+		if ( authorTag != null && !authorTag.isEmpty() ) {
+			sb.append( "**@author** " ).append( authorTag ).append( "\n\n" );
+		}
+
+		return sb.toString();
+	}
+
+	/**
+	 * Build a function signature string.
+	 */
+	private String buildFunctionSignature( BoxFunctionDeclaration fnDecl, String className ) {
+		StringBuilder sig = new StringBuilder();
+
+		// Add class name if available
+		if ( className != null && !className.isEmpty() ) {
+			sig.append( "(" ).append( className ).append( ") " );
+		}
+
+		// Add access modifier
+		var accessModifier = fnDecl.getAccessModifier();
+		if ( accessModifier != null ) {
+			sig.append( accessModifier.name().toLowerCase() ).append( " " );
+		}
+
+		// Add return type
+		var returnType = fnDecl.getType();
+		if ( returnType != null ) {
+			sig.append( returnType.toString() ).append( " " );
+		}
+
+		// Add function keyword and name
+		sig.append( "function " ).append( fnDecl.getName() );
+
+		// Add parameters
+		sig.append( "(" );
+		List<String> paramStrings = new ArrayList<>();
+		for ( BoxNode child : fnDecl.getChildren() ) {
+			if ( child instanceof BoxArgumentDeclaration arg ) {
+				StringBuilder paramStr = new StringBuilder();
+
+				// Check for required annotation
+				boolean isRequired = arg.getAnnotations().stream()
+				    .anyMatch( a -> a.getKey().getValue().equalsIgnoreCase( "required" ) );
+
+				if ( isRequired ) {
+					paramStr.append( "required " );
+				}
+
+				// Add type
+				if ( arg.getType() != null ) {
+					paramStr.append( arg.getType().toString() ).append( " " );
+				}
+
+				// Add name
+				paramStr.append( arg.getName() );
+
+				// Add default value
+				if ( arg.getValue() != null ) {
+					paramStr.append( " = " ).append( arg.getValue().getSourceText() );
+				}
+
+				paramStrings.add( paramStr.toString() );
+			}
+		}
+		sig.append( String.join( ", ", paramStrings ) );
+		sig.append( ")" );
+
+		return sig.toString();
+	}
+
+	/**
+	 * Clean up a documentation comment description by removing leading asterisks and extra whitespace.
+	 */
+	private String cleanDocCommentDescription( String commentText ) {
+		if ( commentText == null ) {
+			return "";
+		}
+
+		// Split into lines and clean each line
+		String[] lines = commentText.split( "\n" );
+		StringBuilder cleaned = new StringBuilder();
+
+		for ( String line : lines ) {
+			// Remove leading whitespace, asterisks, and trailing whitespace
+			String trimmed = line.trim();
+			if ( trimmed.startsWith( "*" ) ) {
+				trimmed = trimmed.substring( 1 ).trim();
+			}
+
+			// Skip lines that start with @ (documentation tags)
+			if ( trimmed.startsWith( "@" ) ) {
+				continue;
+			}
+
+			// Skip empty lines at the start
+			if ( cleaned.length() == 0 && trimmed.isEmpty() ) {
+				continue;
+			}
+
+			if ( cleaned.length() > 0 ) {
+				cleaned.append( "\n" );
+			}
+			cleaned.append( trimmed );
+		}
+
+		return cleaned.toString().trim();
+	}
+
+	/**
+	 * Format documentation annotations (@param, @return, etc.) as markdown.
+	 */
+	private String formatDocumentationAnnotations( List<BoxDocumentationAnnotation> annotations ) {
+		StringBuilder sb = new StringBuilder();
+
+		// Group annotations by type
+		List<BoxDocumentationAnnotation>	paramAnnotations		= new ArrayList<>();
+		BoxDocumentationAnnotation			returnAnnotation		= null;
+		List<BoxDocumentationAnnotation>	throwsAnnotations		= new ArrayList<>();
+		BoxDocumentationAnnotation			deprecatedAnnotation	= null;
+		BoxDocumentationAnnotation			sinceAnnotation			= null;
+		BoxDocumentationAnnotation			authorAnnotation		= null;
+
+		for ( BoxDocumentationAnnotation annotation : annotations ) {
+			String key = annotation.getKey().getValue().toLowerCase();
+			switch ( key ) {
+				case "param" :
+					paramAnnotations.add( annotation );
+					break;
+				case "return" :
+				case "returns" :
+					returnAnnotation = annotation;
+					break;
+				case "throws" :
+				case "throw" :
+					throwsAnnotations.add( annotation );
+					break;
+				case "deprecated" :
+					deprecatedAnnotation = annotation;
+					break;
+				case "since" :
+					sinceAnnotation = annotation;
+					break;
+				case "author" :
+					authorAnnotation = annotation;
+					break;
+			}
+		}
+
+		// Format parameters
+		if ( !paramAnnotations.isEmpty() ) {
+			sb.append( "**Parameters:**\n" );
+			for ( BoxDocumentationAnnotation param : paramAnnotations ) {
+				String value = getAnnotationValue( param );
+				sb.append( "- " ).append( value ).append( "\n" );
+			}
+			sb.append( "\n" );
+		}
+
+		// Format return
+		if ( returnAnnotation != null ) {
+			String value = getAnnotationValue( returnAnnotation );
+			sb.append( "**@return** " ).append( value ).append( "\n\n" );
+		}
+
+		// Format throws
+		if ( !throwsAnnotations.isEmpty() ) {
+			sb.append( "**Throws:**\n" );
+			for ( BoxDocumentationAnnotation throwsAnn : throwsAnnotations ) {
+				String value = getAnnotationValue( throwsAnn );
+				sb.append( "- " ).append( value ).append( "\n" );
+			}
+			sb.append( "\n" );
+		}
+
+		// Format deprecated
+		if ( deprecatedAnnotation != null ) {
+			String value = getAnnotationValue( deprecatedAnnotation );
+			sb.append( "**@deprecated** " ).append( value != null ? value : "" ).append( "\n\n" );
+		}
+
+		// Format since
+		if ( sinceAnnotation != null ) {
+			String value = getAnnotationValue( sinceAnnotation );
+			sb.append( "**@since** " ).append( value ).append( "\n\n" );
+		}
+
+		// Format author
+		if ( authorAnnotation != null ) {
+			String value = getAnnotationValue( authorAnnotation );
+			sb.append( "**@author** " ).append( value ).append( "\n\n" );
+		}
+
+		return sb.toString();
+	}
+
+	/**
+	 * Get the string value from a documentation annotation.
+	 */
+	private String getAnnotationValue( BoxDocumentationAnnotation annotation ) {
+		if ( annotation.getValue() == null ) {
+			return "";
+		}
+		return annotation.getValue().getSourceText();
+	}
+
+	/**
+	 * Extract the class name from a file URI.
+	 */
+	private String getClassNameFromUri( URI docURI ) {
+		if ( docURI == null ) {
+			return null;
+		}
+		Path	path		= Paths.get( docURI );
+		String	fileName	= path.getFileName().toString();
+		if ( fileName.contains( "." ) ) {
+			return fileName.substring( 0, fileName.lastIndexOf( "." ) );
+		}
+		return fileName;
 	}
 
 	private void publishDiagnostics( URI docURI ) {

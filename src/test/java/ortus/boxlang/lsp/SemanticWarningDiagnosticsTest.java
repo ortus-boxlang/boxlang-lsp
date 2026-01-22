@@ -241,6 +241,37 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 	}
 
 	@Test
+	void testNoUnreachableCodeWarningForDocComment() throws Exception {
+		String code = """
+		              class extends="Something" {
+		                  property name="AnotherThing";
+
+		                  /**
+		                   * Greets with the given greeting
+		                   * @param greeting The greeting to use
+		                   * @return A greeting message
+		                   */
+		                  public string function greet( string greeting ) {
+		                      return greeting & ", " & this.name;
+		                  }
+		              }
+		              """;
+
+		Path testFile = createTestFile( "DocCommentNotUnreachable.bx", code );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic unreachable = diagnostics.stream()
+		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( unreachable ).isNull();
+	}
+
+	@Test
 	void testNoUnreachableCodeWarningForConditionalReturn() throws Exception {
 		String code = """
 		              class {

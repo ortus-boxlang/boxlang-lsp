@@ -32,6 +32,7 @@ import org.eclipse.lsp4j.DiagnosticTag;
 import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.BoxScript;
+import ortus.boxlang.compiler.ast.comment.BoxComment;
 import ortus.boxlang.compiler.ast.expression.BoxAssignment;
 import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
@@ -43,6 +44,7 @@ import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxBreak;
 import ortus.boxlang.compiler.ast.statement.BoxContinue;
 import ortus.boxlang.compiler.ast.statement.BoxAccessModifier;
+import ortus.boxlang.compiler.ast.statement.BoxDocumentationAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxImport;
 import ortus.boxlang.compiler.ast.statement.BoxReturn;
@@ -212,8 +214,11 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 			// There are statements after this terminal statement
 			BoxNode nextNode = siblings.get( nodeIndex + 1 );
 
-			// Don't warn about catch blocks or annotations that follow
-			if ( nextNode instanceof BoxTryCatch || nextNode instanceof BoxAnnotation ) {
+			// Don't warn about catch blocks, annotations, comments, or documentation that follow
+			if ( nextNode instanceof BoxTryCatch
+			    || nextNode instanceof BoxAnnotation
+			    || nextNode instanceof BoxComment
+			    || nextNode instanceof BoxDocumentationAnnotation ) {
 				return;
 			}
 

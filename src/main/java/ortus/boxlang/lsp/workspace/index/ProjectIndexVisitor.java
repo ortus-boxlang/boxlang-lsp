@@ -13,11 +13,14 @@ import org.eclipse.lsp4j.Range;
 import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxInterface;
 import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.compiler.ast.IBoxDocumentableNode;
+import ortus.boxlang.compiler.ast.comment.BoxDocComment;
 import ortus.boxlang.compiler.ast.expression.BoxArrayLiteral;
 import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
+import ortus.boxlang.compiler.ast.statement.BoxDocumentationAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
@@ -121,6 +124,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		List<BoxAnnotation>		annotations		= findAnnotations( node );
 		String					accessModifier	= extractAccessModifier( annotations );
 		List<String>			modifiers		= extractFunctionModifiers( annotations );
+		String					documentation	= extractDocumentation( node );
 
 		IndexedMethod			indexedMethod	= new IndexedMethod(
 		    name,
@@ -130,7 +134,8 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		    returnTypeHint,
 		    parameters,
 		    accessModifier,
-		    modifiers
+		    modifiers,
+		    documentation
 		);
 
 		indexedMethods.add( indexedMethod );
@@ -439,5 +444,130 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		}
 
 		return values;
+	}
+
+	/**
+	 * Extract documentation from a documentable node (like BoxFunctionDeclaration).
+	 * Returns a formatted string containing the description and all documentation annotations.
+	 */
+	private String extractDocumentation( BoxFunctionDeclaration node ) {
+		if ( !( node instanceof IBoxDocumentableNode documentableNode ) ) {
+			return null;
+		}
+
+		BoxDocComment docComment = documentableNode.getDocComment();
+		if ( docComment == null ) {
+			return null;
+		}
+
+		StringBuilder doc = new StringBuilder();
+
+		// Get the comment text (description)
+		String commentText = docComment.getCommentText();
+		if ( commentText != null && !commentText.isBlank() ) {
+			// Clean up the comment text
+			String cleanedDescription = cleanDocCommentDescription( commentText );
+			if ( !cleanedDescription.isBlank() ) {
+				doc.append( cleanedDescription );
+			}
+		}
+
+		// Add documentation annotations (@param, @return, etc.)
+		List<BoxDocumentationAnnotation> annotations = docComment.getAnnotations();
+		if ( annotations != null && !annotations.isEmpty() ) {
+			for ( BoxDocumentationAnnotation annotation : annotations ) {
+				if ( doc.length() > 0 ) {
+					doc.append( "\n" );
+				}
+				String key = annotation.getKey().getValue();
+				String value = "";
+				if ( annotation.getValue() != null ) {
+					value = annotation.getValue().getSourceText();
+					// Clean up the value - it may contain the tag prefix again
+					String tagPrefix = "@" + key + " ";
+					if ( value.startsWith( tagPrefix ) ) {
+						value = value.substring( tagPrefix.length() );
+					}
+					// Remove trailing asterisks and whitespace from multiline comments
+					value = cleanAnnotationValue( value );
+				}
+				doc.append( "@" ).append( key ).append( " " ).append( value );
+			}
+		}
+
+		return doc.length() > 0 ? doc.toString() : null;
+	}
+
+	/**
+	 * Clean up an annotation value by removing trailing asterisks and extra whitespace.
+	 */
+	private String cleanAnnotationValue( String value ) {
+		if ( value == null ) {
+			return "";
+		}
+
+		// Split into lines and clean each line
+		String[]		lines	= value.split( "\n" );
+		StringBuilder	cleaned	= new StringBuilder();
+
+		for ( String line : lines ) {
+			String trimmed = line.trim();
+			// Remove leading asterisks
+			if ( trimmed.startsWith( "*" ) ) {
+				trimmed = trimmed.substring( 1 ).trim();
+			}
+			// Skip lines that are just asterisks or empty
+			if ( trimmed.isEmpty() || trimmed.equals( "*" ) ) {
+				continue;
+			}
+			// Skip lines that start with @ (next annotation)
+			if ( trimmed.startsWith( "@" ) ) {
+				break;
+			}
+			if ( cleaned.length() > 0 ) {
+				cleaned.append( " " );
+			}
+			cleaned.append( trimmed );
+		}
+
+		return cleaned.toString().trim();
+	}
+
+	/**
+	 * Clean up a documentation comment description by removing leading asterisks and extra whitespace.
+	 */
+	private String cleanDocCommentDescription( String commentText ) {
+		if ( commentText == null ) {
+			return "";
+		}
+
+		// Split into lines and clean each line
+		String[]		lines	= commentText.split( "\n" );
+		StringBuilder	cleaned	= new StringBuilder();
+
+		for ( String line : lines ) {
+			// Remove leading whitespace, asterisks, and trailing whitespace
+			String trimmed = line.trim();
+			if ( trimmed.startsWith( "*" ) ) {
+				trimmed = trimmed.substring( 1 ).trim();
+			}
+
+			// Skip lines that start with @ (documentation tags)
+			if ( trimmed.startsWith( "@" ) ) {
+				continue;
+			}
+
+			// Skip empty lines at the start
+			if ( cleaned.length() == 0 && trimmed.isEmpty() ) {
+				continue;
+			}
+
+			if ( cleaned.length() > 0 ) {
+				cleaned.append( "\n" );
+			}
+			cleaned.append( trimmed );
+		}
+
+		return cleaned.toString().trim();
 	}
 }
