@@ -58,6 +58,7 @@ import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.IBoxDocumentableNode;
 import ortus.boxlang.compiler.ast.Point;
 import ortus.boxlang.compiler.ast.comment.BoxDocComment;
+import ortus.boxlang.compiler.ast.expression.BoxDotAccess;
 import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
@@ -84,6 +85,7 @@ import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
 import ortus.boxlang.lsp.workspace.index.IndexedClass;
 import ortus.boxlang.lsp.workspace.index.IndexedMethod;
 import ortus.boxlang.lsp.workspace.index.IndexedParameter;
+import ortus.boxlang.lsp.workspace.index.IndexedProperty;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 import ortus.boxlang.lsp.workspace.visitors.FindDefinitionTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FindHoverTargetVisitor;
@@ -595,12 +597,26 @@ public class ProjectContextProvider {
 				        } else if ( node instanceof BoxFQN fqn ) {
 					        // Handle type hints (return type, parameter type, variable type)
 					        return findClassDefinitionFromFQN( fqn );
+				        } else if ( node instanceof BoxDotAccess dotAccess ) {
+					        // Handle property access via scoped access (variables.x, this.x)
+					        return findPropertyDefinition( rootNode, dotAccess, docURI );
 				        } else if ( node instanceof BoxIdentifier identifier ) {
-					        // Handle variable identifiers - resolve to declaration site
+					        // First, check if this identifier is part of a property access expression
+					        // (e.g., the 'username' part of 'variables.username')
+					        List<Location> propertyAccessLocations = findPropertyDefinitionAtPosition( rootNode, pos, docURI );
+					        if ( !propertyAccessLocations.isEmpty() ) {
+						        return propertyAccessLocations;
+					        }
+
 					        // Also check if this identifier is a class reference in type context
 					        List<Location> classLocations = findClassDefinitionFromIdentifier( identifier );
 					        if ( !classLocations.isEmpty() ) {
 						        return classLocations;
+					        }
+					        // Check if this identifier is a property reference
+					        List<Location> propertyLocations = findPropertyDefinitionFromIdentifier( rootNode, identifier, docURI );
+					        if ( !propertyLocations.isEmpty() ) {
+						        return propertyLocations;
 					        }
 					        return findVariableDefinition( rootNode, identifier, docURI );
 				        }
@@ -642,6 +658,229 @@ public class ProjectContextProvider {
 		}
 
 		return locations;
+	}
+
+	/**
+	 * Find the definition location for a property from a BoxDotAccess node.
+	 * Handles `variables.propertyName` and `this.propertyName` access patterns.
+	 *
+	 * @param rootNode  The AST root node
+	 * @param dotAccess The BoxDotAccess node representing the property access
+	 * @param docURI    The document URI
+	 *
+	 * @return List containing the property definition location, or empty list if not found
+	 */
+	private List<Location> findPropertyDefinition( BoxNode rootNode, BoxDotAccess dotAccess, URI docURI ) {
+		List<Location> locations = new ArrayList<>();
+
+		// Extract the property name from the access part
+		String propertyName = null;
+		if ( dotAccess.getAccess() instanceof BoxIdentifier propId ) {
+			propertyName = propId.getName();
+		}
+
+		if ( propertyName == null ) {
+			return locations;
+		}
+
+		// First, look for property in the same file
+		List<Location> sameFileLocations = findPropertyInSameFile( rootNode, propertyName, docURI );
+		if ( !sameFileLocations.isEmpty() ) {
+			return sameFileLocations;
+		}
+
+		// If not found, check inherited properties via the project index
+		return findPropertyInInheritanceChain( rootNode, propertyName, docURI );
+	}
+
+	/**
+	 * Find property definition at a specific position using getDescendantsOfType.
+	 * This is a fallback for when the visitor pattern doesn't traverse to BoxDotAccess nodes.
+	 *
+	 * @param rootNode The AST root node
+	 * @param pos      The cursor position
+	 * @param docURI   The document URI
+	 *
+	 * @return List containing the property definition location, or empty list if not found
+	 */
+	private List<Location> findPropertyDefinitionAtPosition( BoxNode rootNode, Position pos, URI docURI ) {
+		int line = pos.getLine() + 1; // Convert to 1-indexed
+		int column = pos.getCharacter();
+
+		// Find all BoxDotAccess nodes in the AST
+		List<BoxDotAccess> dotAccesses = rootNode.getDescendantsOfType( BoxDotAccess.class );
+
+		for ( BoxDotAccess dotAccess : dotAccesses ) {
+			// Check if cursor is within this BoxDotAccess
+			if ( !BLASTTools.containsPosition( dotAccess, line, column ) ) {
+				continue;
+			}
+
+			// Check if this is a scoped property access (variables.x, this.x)
+			BoxNode context = dotAccess.getContext();
+			String scopeName = null;
+
+			if ( context instanceof BoxScope scope ) {
+				scopeName = scope.getName();
+			} else if ( context instanceof BoxIdentifier scopeId ) {
+				scopeName = scopeId.getName();
+			}
+
+			if ( scopeName != null ) {
+				String lowerScopeName = scopeName.toLowerCase();
+				if ( lowerScopeName.equals( "variables" ) || lowerScopeName.equals( "this" ) ) {
+					// Check if cursor is on the property name (the access part)
+					if ( dotAccess.getAccess() != null && BLASTTools.containsPosition( dotAccess.getAccess(), line, column ) ) {
+						// Extract property name and find definition
+						return findPropertyDefinition( rootNode, dotAccess, docURI );
+					}
+				}
+			}
+		}
+
+		return new ArrayList<>();
+	}
+
+	/**
+	 * Find the definition location for a property from an unqualified identifier.
+	 * This handles cases where properties are accessed without a scope prefix within a class.
+	 *
+	 * @param rootNode   The AST root node
+	 * @param identifier The BoxIdentifier node
+	 * @param docURI     The document URI
+	 *
+	 * @return List containing the property definition location, or empty list if not found
+	 */
+	private List<Location> findPropertyDefinitionFromIdentifier( BoxNode rootNode, BoxIdentifier identifier, URI docURI ) {
+		String propertyName = identifier.getName();
+
+		// Check if this identifier is the access part of a BoxDotAccess (e.g., 'foo' in 'a.foo')
+		// In that case, we should only resolve if the receiver is 'variables' or 'this'
+		// (which is handled by findPropertyDefinitionAtPosition)
+		BoxNode parent = identifier.getParent();
+		if ( parent instanceof BoxDotAccess dotAccess && dotAccess.getAccess() == identifier ) {
+			// Check if the receiver is 'variables' or 'this'
+			BoxNode context = dotAccess.getContext();
+			String scopeName = null;
+			if ( context instanceof BoxScope scope ) {
+				scopeName = scope.getName();
+			} else if ( context instanceof BoxIdentifier scopeId ) {
+				scopeName = scopeId.getName();
+			}
+
+			// Only allow property lookup if the receiver is 'variables' or 'this'
+			if ( scopeName == null ) {
+				return new ArrayList<>();
+			}
+			String lowerScopeName = scopeName.toLowerCase();
+			if ( !lowerScopeName.equals( "variables" ) && !lowerScopeName.equals( "this" ) ) {
+				// Unknown receiver - can't determine the type, so don't resolve
+				return new ArrayList<>();
+			}
+		}
+
+		// First, look for property in the same file
+		List<Location> sameFileLocations = findPropertyInSameFile( rootNode, propertyName, docURI );
+		if ( !sameFileLocations.isEmpty() ) {
+			return sameFileLocations;
+		}
+
+		// If not found, check inherited properties via the project index
+		return findPropertyInInheritanceChain( rootNode, propertyName, docURI );
+	}
+
+	/**
+	 * Find a property declaration in the same file.
+	 *
+	 * @param rootNode     The AST root node
+	 * @param propertyName The property name to find
+	 * @param docURI       The document URI
+	 *
+	 * @return List containing the property definition location, or empty list if not found
+	 */
+	private List<Location> findPropertyInSameFile( BoxNode rootNode, String propertyName, URI docURI ) {
+		List<Location> locations = new ArrayList<>();
+
+		// Find all property declarations in the file
+		List<BoxProperty> properties = rootNode.getDescendantsOfType( BoxProperty.class );
+
+		for ( BoxProperty property : properties ) {
+			// Extract property name from annotations
+			String declaredName = extractPropertyName( property );
+			if ( declaredName != null && declaredName.equalsIgnoreCase( propertyName ) ) {
+				Location location = new Location();
+				location.setUri( docURI.toString() );
+
+				var propPos = property.getPosition();
+				if ( propPos != null ) {
+					location.setRange( positionToRange( propPos ) );
+					locations.add( location );
+				}
+				return locations; // Return first match
+			}
+		}
+
+		return locations;
+	}
+
+	/**
+	 * Find a property declaration in parent classes via the project index.
+	 *
+	 * @param rootNode     The AST root node
+	 * @param propertyName The property name to find
+	 * @param docURI       The document URI
+	 *
+	 * @return List containing the property definition location, or empty list if not found
+	 */
+	private List<Location> findPropertyInInheritanceChain( BoxNode rootNode, String propertyName, URI docURI ) {
+		List<Location> locations = new ArrayList<>();
+
+		// Get the class name from the current document
+		String className = getClassNameFromUri( docURI );
+		if ( className == null ) {
+			return locations;
+		}
+
+		// Find the class in the index to get its parent
+		Optional<IndexedClass> currentClass = getIndex().findClassByName( className );
+		if ( currentClass.isEmpty() ) {
+			return locations;
+		}
+
+		// Walk up the inheritance chain
+		String parentClassName = currentClass.get().extendsClass();
+		while ( parentClassName != null && !parentClassName.isEmpty() ) {
+			// Look for the property in the parent class via the index
+			Optional<IndexedProperty> indexedProperty = getIndex().findProperty( parentClassName, propertyName );
+			if ( indexedProperty.isPresent() ) {
+				Location location = new Location();
+				location.setUri( indexedProperty.get().fileUri() );
+				location.setRange( indexedProperty.get().location() );
+				locations.add( location );
+				return locations;
+			}
+
+			// Move to the next parent
+			Optional<IndexedClass> parentClass = getIndex().findClassByName( parentClassName );
+			if ( parentClass.isEmpty() ) {
+				break;
+			}
+			parentClassName = parentClass.get().extendsClass();
+		}
+
+		return locations;
+	}
+
+	/**
+	 * Extract the property name from a BoxProperty node.
+	 *
+	 * @param property The BoxProperty node
+	 *
+	 * @return The property name, or null if not found
+	 */
+	private String extractPropertyName( BoxProperty property ) {
+		// Use BLASTTools.getPropertyName for consistency
+		return BLASTTools.getPropertyName( property );
 	}
 
 	/**
@@ -779,6 +1018,15 @@ public class ProjectContextProvider {
 	private List<Location> findClassDefinitionFromIdentifier( BoxIdentifier identifier ) {
 		String name = identifier.getName();
 		if ( name == null || name.isEmpty() ) {
+			return new ArrayList<>();
+		}
+
+		// Check if this identifier is the access part of a BoxDotAccess (e.g., 'foo' in 'a.foo')
+		// In that case, we should NOT try to resolve it as a class name - it's a property/method access
+		BoxNode parent = identifier.getParent();
+		if ( parent instanceof BoxDotAccess dotAccess && dotAccess.getAccess() == identifier ) {
+			// This identifier is the accessed member of a dot expression
+			// Don't try to resolve it as a class name
 			return new ArrayList<>();
 		}
 

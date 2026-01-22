@@ -7,11 +7,13 @@ import ortus.boxlang.compiler.ast.BoxInterface;
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.BoxScript;
 import ortus.boxlang.compiler.ast.BoxTemplate;
+import ortus.boxlang.compiler.ast.expression.BoxDotAccess;
 import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxNew;
+import ortus.boxlang.compiler.ast.expression.BoxScope;
 import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
@@ -107,6 +109,48 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 		if ( this.definitionTarget == null ) {
 			this.definitionTarget = node;
 		}
+	}
+
+	/**
+	 * Visit dot access expressions (property access) for go-to-definition on properties.
+	 * This enables navigating from `variables.propertyName` or `this.propertyName` to the property declaration.
+	 */
+	@Override
+	public void visit( BoxDotAccess node ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
+			return;
+		}
+
+		// Check if this is a scoped property access (variables.x, this.x)
+		BoxNode context = node.getContext();
+		if ( context instanceof BoxScope scope ) {
+			String scopeName = scope.getName().toLowerCase();
+			if ( scopeName.equals( "variables" ) || scopeName.equals( "this" ) ) {
+				// Check if cursor is on the property name (the access part)
+				if ( node.getAccess() != null && BLASTTools.containsPosition( node.getAccess(), line, column ) ) {
+					// Set the BoxDotAccess as target so we have full context
+					this.definitionTarget = node;
+					return;
+				}
+			}
+		}
+
+		// Also check for BoxIdentifier context (e.g., variables as identifier)
+		if ( context instanceof BoxIdentifier scopeId ) {
+			String scopeName = scopeId.getName().toLowerCase();
+			if ( scopeName.equals( "variables" ) || scopeName.equals( "this" ) ) {
+				// Check if cursor is on the property name (the access part)
+				if ( node.getAccess() != null && BLASTTools.containsPosition( node.getAccess(), line, column ) ) {
+					// Set the BoxDotAccess as target so we have full context
+					this.definitionTarget = node;
+					return;
+				}
+			}
+		}
+
+		// Otherwise, visit children for other targets
+		visitChildren( node );
 	}
 
 	/**

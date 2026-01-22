@@ -644,7 +644,7 @@ Navigate from class/interface reference to its definition file.
 
 ---
 
-### 2.4 Go to Definition - Properties (Incomplete)
+### 2.4 Go to Definition - Properties (Complete)
 
 **Priority:** Medium  
 **Complexity:** Medium  
@@ -654,7 +654,8 @@ Navigate from property access to its declaration.
 
 **Requirements:**
 
-- Identify property access at cursor (`this.propertyName` or `object.propertyName`)
+- Identify property access at cursor (`variables.propertyName` or `propertyName`)
+  - Properties are considered private within a BoxLang class so you shouldn't naviagte across files for properties unless it is inheritance based
 - Resolve the object's type
 - Find property declaration in class
 - Handle inherited properties
@@ -730,7 +731,7 @@ Ensure Find References searches template files as well.
 **Requirements:**
 
 - Parse `.bxm` files for BoxLang expressions
-- Find references within `${}` expressions or equivalent
+- Find references within `##` expressions or equivalent
 - Find references in tag attributes
 - Handle the dual nature of BXM (HTML + BoxLang)
 

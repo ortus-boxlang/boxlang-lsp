@@ -170,7 +170,7 @@ public class ProjectIndex {
 			List<IndexedProperty> properties = visitor.getIndexedProperties();
 			propertiesByFileUri.put( fileUriStr, properties );
 			for ( IndexedProperty indexedProperty : properties ) {
-				String key = indexedProperty.containingClass() + "." + indexedProperty.name();
+				String key = indexedProperty.containingClass().toLowerCase() + "." + indexedProperty.name().toLowerCase();
 				propertiesByKey.put( key, indexedProperty );
 				if ( indexedProperty.containingClass() != null ) {
 					propertiesByClassName.computeIfAbsent( indexedProperty.containingClass().toLowerCase(), k -> new ArrayList<>() )
@@ -225,7 +225,7 @@ public class ProjectIndex {
 		List<IndexedProperty> oldProperties = propertiesByFileUri.remove( fileUriStr );
 		if ( oldProperties != null ) {
 			for ( IndexedProperty oldProperty : oldProperties ) {
-				String key = oldProperty.containingClass() + "." + oldProperty.name();
+				String key = oldProperty.containingClass().toLowerCase() + "." + oldProperty.name().toLowerCase();
 				propertiesByKey.remove( key );
 				if ( oldProperty.containingClass() != null ) {
 					List<IndexedProperty> byClass = propertiesByClassName.get( oldProperty.containingClass().toLowerCase() );
@@ -362,7 +362,7 @@ public class ProjectIndex {
 	 * @return Optional containing the property, or empty if not found
 	 */
 	public Optional<IndexedProperty> findProperty( String className, String propertyName ) {
-		String key = className + "." + propertyName;
+		String key = className.toLowerCase() + "." + propertyName.toLowerCase();
 		return Optional.ofNullable( propertiesByKey.get( key ) );
 	}
 
@@ -781,7 +781,7 @@ public class ProjectIndex {
 						if ( indexedProperty == null ) {
 							continue;
 						}
-						String key = indexedProperty.containingClass() + "." + indexedProperty.name();
+						String key = indexedProperty.containingClass().toLowerCase() + "." + indexedProperty.name().toLowerCase();
 						propertiesByKey.put( key, indexedProperty );
 						if ( indexedProperty.containingClass() != null ) {
 							propertiesByClassName.computeIfAbsent( indexedProperty.containingClass().toLowerCase(), k -> new ArrayList<>() )

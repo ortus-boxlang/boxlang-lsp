@@ -1,5 +1,65 @@
 # BoxLang LSP Development Log
 
+## Task 2.4: Go to Definition - Properties (Complete)
+
+**Date:** 2026-01-22
+
+### Summary
+
+Implemented go-to-definition functionality for property references. When the user clicks "Go to Definition" on a property access, the LSP navigates to the property declaration. This includes support for:
+- `variables.propertyName` - scoped property access
+- `this.propertyName` - this-scoped property access
+- Unqualified `propertyName` access within a class method
+- Inherited properties (navigates to parent class property declaration)
+
+### Key Design Decisions
+
+- Properties are considered private in BoxLang, so property navigation only works within the same class or through inheritance
+- Unknown receivers (e.g., `a.foo` where `a` is undefined) return empty results instead of incorrectly matching to classes
+- Case-insensitive property lookup to match BoxLang semantics
+
+### Changes Made
+
+#### New Files Created
+
+**Test Resource Files** (`src/test/resources/files/propertyDefinitionTest/`)
+- `BaseEntity.bx` - Base class with `id` and `createdAt` properties
+- `User.bx` - User class extending BaseEntity with username, email, age properties
+- `UserConsumer.bx` - Test class for external property access scenarios
+
+**`PropertyDefinitionTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 8 comprehensive tests for property go-to-definition:
+  - `testGoToDefinitionOnVariablesScopedProperty()` - `variables.username` navigation
+  - `testGoToDefinitionOnThisScopedProperty()` - `this.age` navigation
+  - `testGoToDefinitionOnUnqualifiedProperty()` - unqualified `email` navigation
+  - `testGoToDefinitionOnInheritedProperty()` - `variables.id` to parent class
+  - `testGoToDefinitionOnUnqualifiedPropertyInReturn()` - property in return statement
+  - `testGoToDefinitionOnPropertyInSetter()` - property in setter method
+  - `testGoToDefinitionOnUnknownPropertyReturnsEmpty()` - unknown property handling
+  - `testGoToDefinitionOnUnknownReceiverReturnsEmpty()` - unknown receiver handling
+
+#### Modified Files
+
+**`FindDefinitionTargetVisitor.java`**
+- Added `BoxDotAccess` visit method to capture property access expressions
+- Handles both `BoxScope` and `BoxIdentifier` context types for `variables` and `this`
+
+**`ProjectContextProvider.java`**
+- Added handler methods in `findDefinitionPossibiltiies()`:
+  - `findPropertyDefinition(BoxDotAccess)` - handles scoped property access
+  - `findPropertyDefinitionAtPosition()` - fallback using getDescendantsOfType
+  - `findPropertyDefinitionFromIdentifier()` - handles unqualified property access
+  - `findPropertyInSameFile()` - finds property in current file
+  - `findPropertyInInheritanceChain()` - finds property in parent classes
+- Updated `findClassDefinitionFromIdentifier()` to skip identifiers that are part of dot access
+- Updated `findPropertyDefinitionFromIdentifier()` to only resolve when receiver is `variables` or `this`
+
+**`ProjectIndex.java`**
+- Fixed `findProperty()` to use case-insensitive keys (lowercase)
+- Fixed property key generation during indexing and cache loading to use lowercase
+
+---
+
 ## Task 2.3: Go to Definition - Classes and Interfaces (Complete)
 
 **Date:** 2026-01-22
