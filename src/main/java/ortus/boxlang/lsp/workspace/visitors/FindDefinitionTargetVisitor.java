@@ -2,10 +2,15 @@ package ortus.boxlang.lsp.workspace.visitors;
 
 import org.eclipse.lsp4j.Position;
 
+import ortus.boxlang.compiler.ast.BoxClass;
+import ortus.boxlang.compiler.ast.BoxInterface;
 import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.compiler.ast.BoxScript;
+import ortus.boxlang.compiler.ast.BoxTemplate;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
+import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
 import ortus.boxlang.lsp.workspace.BLASTTools;
 
@@ -30,6 +35,36 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 		return definitionTarget;
 	}
 
+	// ============ Container node types - traverse into them ============
+
+	@Override
+	public void visit( BoxClass node ) {
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxInterface node ) {
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxScript node ) {
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxTemplate node ) {
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxFunctionDeclaration node ) {
+		visitChildren( node );
+	}
+
+	// ============ Target node types - check position and set target ============
+
+	@Override
 	public void visit( BoxMethodInvocation node ) {
 		if ( !BLASTTools.containsPosition( node, line, column ) ) {
 			visitChildren( node );
@@ -39,6 +74,7 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 		this.definitionTarget = node;
 	}
 
+	@Override
 	public void visit( BoxFunctionInvocation node ) {
 		if ( !BLASTTools.containsPosition( node, line, column ) ) {
 			visitChildren( node );
@@ -52,6 +88,7 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 	 * Visit variable identifiers for go-to-definition on local variables.
 	 * This enables navigating from variable usage to its declaration.
 	 */
+	@Override
 	public void visit( BoxIdentifier node ) {
 		if ( !BLASTTools.containsPosition( node, line, column ) ) {
 			visitChildren( node );
