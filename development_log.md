@@ -1,5 +1,108 @@
 # BoxLang LSP Development Log
 
+## Task 2.9: Document Symbols - Hierarchical Improvements (Complete)
+
+**Date:** 2026-01-22
+
+### Summary
+
+Enhanced the document outline (document symbols) with better hierarchy, proper symbol kinds, detail strings, and consistent ordering. When users view the document outline in their IDE, they see a hierarchical view of classes/interfaces containing their properties and methods.
+
+### Features Implemented
+
+1. **Interface Support**
+   - Added `BoxInterface` visitor to generate symbols for interfaces
+   - Interfaces use `SymbolKind.Interface`
+   - Interface methods are children of the interface symbol
+
+2. **Property Improvements**
+   - Changed `SymbolKind.Field` to `SymbolKind.Property` (matches LSP specification)
+   - Added detail string showing property type hint (e.g., "numeric", "string")
+   - Properties are nested as children of their containing class
+
+3. **Method Improvements**
+   - Added detail string showing return type and parameter summary
+   - Detail format: `returnType (param1Type param1, param2Type param2)`
+   - Constructor (`init`) uses `SymbolKind.Constructor`
+   - Non-constructor methods use `SymbolKind.Method`
+   - Standalone functions use `SymbolKind.Function`
+
+4. **Nested Function Support**
+   - Functions now support nested functions as children
+   - Inner functions appear as children of outer functions
+
+5. **Consistent Ordering**
+   - Symbols sorted within classes: properties first, then constructor, then methods
+   - Secondary sort by name (case-insensitive)
+
+### Changes Made
+
+#### Modified Files
+
+**`DocumentSymbolBoxNodeVisitor.java`**
+- Added `visit(BoxInterface)` method for interface support
+- Changed `SymbolKind.Field` to `SymbolKind.Property` for properties
+- Added `getPropertyTypeHint()` to extract type from property annotations
+- Updated `visit(BoxFunctionDeclaration)` to:
+  - Use `SymbolKind.Constructor` for `init` method
+  - Build detail string with `buildFunctionDetail()`
+  - Support nested functions with children list
+- Added `sortClassChildren()` for consistent ordering
+- Added `getSymbolSortOrder()` helper for sort order
+- Renamed `inClass()` to `inClassOrInterface()`
+
+**`OutlineTest.java`**
+- Converted from JUnit 4 to JUnit 5
+- Updated expectations from `SymbolKind.Field` to `SymbolKind.Property`
+- Extended `BaseTest` for proper initialization
+
+#### New Files Created
+
+**Test Resource Files** (`src/test/resources/files/documentSymbolsTest/`)
+- `UserClass.bx` - Class with properties, constructor, and methods
+- `IUserService.bx` - Interface with method declarations
+- `helperFunctions.bxs` - Script file with standalone functions
+- `template.bxm` - BXM template with functions
+
+**`DocumentSymbolsHierarchyTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 15 comprehensive tests covering:
+  - `testClassContainsMethodsAndProperties()` - Hierarchy verification
+  - `testPropertiesUsePropertyKind()` - Property symbol kind
+  - `testPropertyDetailIncludesTypeHint()` - Property detail string
+  - `testMethodsUseMethodKind()` - Method symbol kind
+  - `testMethodDetailIncludesReturnType()` - Method detail string
+  - `testConstructorUsesConstructorKind()` - Constructor handling
+  - `testInterfaceUsesInterfaceKind()` - Interface support
+  - `testInterfaceContainsMethods()` - Interface hierarchy
+  - `testStandaloneFunctionsUseFunctionKind()` - Standalone functions
+  - `testStandaloneFunctionDetailIncludesReturnType()` - Function details
+  - `testBxmTemplateProvidesFunctions()` - BXM template support
+  - `testPropertiesBeforeMethods()` - Ordering verification
+  - `testSymbolsHaveValidRanges()` - Location verification
+
+### Requirements Met
+
+- ✅ Proper parent/child nesting (class contains methods, properties)
+- ✅ `SymbolKind.Class` for classes
+- ✅ `SymbolKind.Interface` for interfaces
+- ✅ `SymbolKind.Method` for methods
+- ✅ `SymbolKind.Property` for properties
+- ✅ `SymbolKind.Function` for standalone functions
+- ✅ `SymbolKind.Constructor` for constructors (init)
+- ✅ Detail string with type hints and parameter summary
+- ✅ Consistent ordering (properties, constructor, methods)
+- ✅ Support all three file types (.bx, .bxs, .bxm)
+
+### Technical Notes
+
+- `BoxInterface` follows the same pattern as `BoxClass` for hierarchy
+- Property type is extracted from the `type` annotation
+- Function detail builds a compact signature: `returnType (paramType param, ...)`
+- Sort order: Properties (0) → Constructor (1) → Method (2) → Function (3)
+- Nested functions are supported via the symbol stack mechanism
+
+---
+
 ## Task 2.8: Workspace Symbols (Complete)
 
 **Date:** 2026-01-22

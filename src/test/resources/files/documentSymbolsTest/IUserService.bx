@@ -1,0 +1,10 @@
+/**
+ * Interface for user service operations.
+ */
+interface IUserService {
+
+	public UserClass function getUser( required numeric id );
+	public array function getAllUsers();
+	public void function saveUser( required UserClass user );
+
+}
