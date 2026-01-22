@@ -1,0 +1,66 @@
+/**
+ * Class that uses ServiceClass for testing cross-file go-to-definition.
+ */
+class {
+
+	/**
+	 * Test function that uses the service class.
+	 */
+	function doSomething() {
+		// Create instance of ServiceClass
+		var service = new ServiceClass();
+
+		// Call methods on the service - go-to-definition should work here
+		var user = service.getUserById( 123 );
+
+		// Call another method
+		var newUser = service.createUser( "John", "john@example.com" );
+
+		return user;
+	}
+
+	/**
+	 * Test function using inherited methods.
+	 */
+	function testInheritedMethod() {
+		// Create instance of ChildClass
+		var child = new ChildClass();
+
+		// This should navigate to ChildClass.getGreeting() (override)
+		var greeting = child.getGreeting();
+
+		// This should navigate to BaseClass.logMessage() (inherited)
+		var logged = child.logMessage( "test" );
+
+		return greeting & " - " & logged;
+	}
+
+	/**
+	 * Call a function defined in this same file.
+	 */
+	function localFunctionCaller() {
+		// This calls a UDF in the same file - should navigate to helperFunction below
+		var result = helperFunction( "test input" );
+		return result;
+	}
+
+	/**
+	 * A helper function for same-file go-to-definition testing.
+	 *
+	 * @param input The input to process
+	 *
+	 * @return The processed result
+	 */
+	function helperFunction( required string input ) {
+		return "Processed: " & input;
+	}
+
+	/**
+	 * Test calling a local function without explicit instance.
+	 */
+	function anotherCaller() {
+		// Call local function - this should navigate to helperFunction
+		return helperFunction( "another test" );
+	}
+
+}

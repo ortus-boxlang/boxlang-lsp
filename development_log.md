@@ -1,5 +1,90 @@
 # BoxLang LSP Development Log
 
+## Task 2.2: Go to Definition - Functions and Methods (Complete)
+
+**Date:** 2026-01-21
+
+### Summary
+
+Implemented go-to-definition functionality for function and method invocations. When the user clicks "Go to Definition" on a function call or method invocation, the LSP navigates to the function/method definition. This includes support for:
+- Same-file function invocations (UDFs)
+- Cross-file method invocations (via project index)
+- `this.methodName()` invocations
+- Inherited methods (walking up the inheritance chain)
+- BIFs return no result (no source to navigate to)
+
+### Changes Made
+
+#### New Files Created
+
+**Test Resource Files** (`src/test/resources/files/functionDefinitionTest/`)
+- `BaseClass.bx` - Base class with `logMessage()` and `getGreeting()` methods
+- `ChildClass.bx` - Extends BaseClass, overrides `getGreeting()`, has `multiGreet()` using `this.getGreeting()`
+- `ServiceClass.bx` - Service class with `getUserById()`, `createUser()`, `sanitizeInput()` methods
+- `ClassThatUsesService.bx` - Test file with various method invocation scenarios
+
+**`FunctionDefinitionTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 7 comprehensive tests for function/method go-to-definition:
+  - `testSameFileFunctionInvocation()` - go-to-definition on function call in same file
+  - `testAnotherSameFileFunctionCall()` - another same-file function call test
+  - `testCrossFileMethodInvocation()` - go-to-definition on `service.getUserById()` navigates to ServiceClass.bx
+  - `testOverriddenMethodGoesToOverride()` - `child.getGreeting()` navigates to ChildClass override
+  - `testInheritedMethodGoesToParent()` - `child.logMessage()` navigates to BaseClass (inherited)
+  - `testBIFReturnsNoResult()` - BIFs like `trim()` return empty (no source)
+  - `testThisMethodInvocation()` - `this.getGreeting()` navigates to method in same file
+
+#### Modified Files
+
+**`ProjectContextProvider.java`**
+- Updated `findDefinitionPossibiltiies()` to handle `BoxMethodInvocation` nodes
+- Added `findMethodDefinition()` method:
+  - Handles `this.methodName()` calls (both `BoxScope` and `BoxIdentifier` for "this")
+  - Resolves receiver type using `VariableTypeCollectorVisitor`
+  - Looks up method in project index
+  - Walks inheritance chain for inherited methods
+- Added `findMethodInClassHierarchy()` method:
+  - First tries direct lookup in the class
+  - If not found, walks up the inheritance chain using `InheritanceGraph.getAncestors()`
+  - Returns location of first matching method found
+- Added `createLocationFromIndexedMethod()` helper to create LSP Location from IndexedMethod
+- Added `extractSimpleNameFromFQN()` helper to get simple class name from FQN
+
+### Go to Definition Flow for Methods
+
+1. User triggers "Go to Definition" at cursor position on a method invocation
+2. `FindDefinitionTargetVisitor` finds the `BoxMethodInvocation` node at that position
+3. `findMethodDefinition()` extracts the method name and receiver object
+4. For `this.method()` calls:
+   - Looks for method in the same file via `findMatchingFunctionDeclarations()`
+5. For `obj.method()` calls:
+   - Uses `VariableTypeCollectorVisitor` to resolve `obj`'s type from `new ClassName()` assignments
+   - Calls `findMethodInClassHierarchy()` to find the method definition
+6. `findMethodInClassHierarchy()`:
+   - First checks if method exists directly on the class via `ProjectIndex.findMethod()`
+   - If not found, gets ancestor classes via `InheritanceGraph.getAncestors()`
+   - Walks up the inheritance chain checking each ancestor for the method
+   - Returns location of first matching method
+7. Returns `Location` pointing to the method definition
+
+### Technical Notes
+
+- **BoxScope vs BoxIdentifier for `this`**: The `this` keyword can be represented as either `BoxScope` with name "this" or `BoxIdentifier` with name "this" depending on context. The implementation handles both cases.
+- **Inheritance chain walking**: Uses `InheritanceGraph.getAncestors()` which returns ancestors in order from immediate parent to root. This ensures we find the method in the nearest ancestor.
+- **BIF handling**: Built-in functions have no source location, so go-to-definition returns an empty list for BIFs.
+- **Case sensitivity**: Method lookups are case-insensitive to match BoxLang semantics.
+
+### Requirements Met
+
+- ✅ Navigate from function invocation to definition in same file
+- ✅ Navigate from method invocation to definition in another file
+- ✅ Navigate `this.method()` to method definition in same class
+- ✅ Navigate to inherited methods (walk up inheritance chain)
+- ✅ Handle overridden methods (navigate to the override, not base)
+- ✅ BIFs return no result (no source to navigate to)
+- ✅ Handle both static and instance methods
+
+---
+
 ## Task 2.1: Go to Definition - Local Variables (Complete)
 
 **Date:** 2026-01-21

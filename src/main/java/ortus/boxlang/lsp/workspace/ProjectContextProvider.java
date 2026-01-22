@@ -566,17 +566,16 @@ public class ProjectContextProvider {
 			    return findDefinitionTarget( docURI, pos )
 			        .map( ( node ) -> {
 				        if ( node instanceof BoxFunctionInvocation fnUse ) {
-					        // should only be able to find function definitions in these locations
-					        // same file
-					        // global - should this be found? or what should we show?
-					        // parent class
+					        // Find function definitions in these locations:
+					        // 1. Same file
+					        // 2. BIFs - return empty (no source to navigate to)
 					        return findMatchingFunctionDeclarations( docURI, fnUse.getName() );
-				        } else if ( node instanceof BoxMethodInvocation ) {
-					        // should only be able to find function definitions in these locations
-					        // the type being accessed
-					        // a parent of the type being accessed
-					        // member function versions of BIFs if the type matches
-					        // this -> same rules as BoxFunctionInvocation
+				        } else if ( node instanceof BoxMethodInvocation methodInvocation ) {
+					        // Find method definitions:
+					        // 1. Resolve the receiver type (obj in obj.method())
+					        // 2. Look up method in that class via project index
+					        // 3. If not found, walk up inheritance chain
+					        return findMethodDefinition( rootNode, methodInvocation, docURI );
 				        } else if ( node instanceof BoxIdentifier identifier ) {
 					        // Handle variable identifiers - resolve to declaration site
 					        return findVariableDefinition( rootNode, identifier, docURI );
@@ -619,6 +618,139 @@ public class ProjectContextProvider {
 		}
 
 		return locations;
+	}
+
+	/**
+	 * Find the definition location for a method invocation.
+	 * Uses VariableTypeCollectorVisitor to resolve the receiver type,
+	 * then looks up the method in the project index.
+	 * Walks up the inheritance chain if the method is not found in the immediate class.
+	 *
+	 * @param rootNode         The AST root node
+	 * @param methodInvocation The method invocation node
+	 * @param docURI           The document URI
+	 *
+	 * @return List containing the definition location, or empty list if not found
+	 */
+	private List<Location> findMethodDefinition( BoxNode rootNode, BoxMethodInvocation methodInvocation, URI docURI ) {
+		List<Location>	locations	= new ArrayList<>();
+		String			methodName	= methodInvocation.getName().getSourceText();
+
+		// Get the receiver object
+		BoxNode obj = methodInvocation.getObj();
+
+		// Handle `this.methodName()` - look in the same file first
+		// The `this` keyword can be represented as BoxScope or BoxIdentifier
+		boolean isThisReceiver = false;
+		if ( obj instanceof BoxScope scope && "this".equalsIgnoreCase( scope.getName() ) ) {
+			isThisReceiver = true;
+		} else if ( obj instanceof BoxIdentifier identifier && "this".equalsIgnoreCase( identifier.getName() ) ) {
+			isThisReceiver = true;
+		}
+
+		if ( isThisReceiver ) {
+			// Look for method in the same file
+			List<Location> sameFileLocations = findMatchingFunctionDeclarations( docURI, methodName );
+			if ( !sameFileLocations.isEmpty() ) {
+				return sameFileLocations;
+			}
+		}
+
+		// Resolve the receiver type for obj.method() calls
+		String className = null;
+
+		if ( obj instanceof BoxIdentifier objIdentifier && !isThisReceiver ) {
+			// Collect variable types from the AST
+			VariableTypeCollectorVisitor typeCollector = new VariableTypeCollectorVisitor();
+			rootNode.accept( typeCollector );
+			className = typeCollector.getVariableType( objIdentifier.getName() );
+		}
+
+		if ( className == null ) {
+			// Could not determine receiver type
+			return locations;
+		}
+
+		// Look up the method in the project index, walking up the inheritance chain
+		Location methodLocation = findMethodInClassHierarchy( className, methodName );
+		if ( methodLocation != null ) {
+			locations.add( methodLocation );
+		}
+
+		return locations;
+	}
+
+	/**
+	 * Find a method in a class or its ancestors.
+	 * Walks up the inheritance chain until the method is found.
+	 *
+	 * @param className  The starting class name
+	 * @param methodName The method name to find
+	 *
+	 * @return The Location of the method definition, or null if not found
+	 */
+	private Location findMethodInClassHierarchy( String className, String methodName ) {
+		ProjectIndex index = getIndex();
+
+		// First, try to find the method in the immediate class
+		var methodOpt = index.findMethod( className, methodName );
+		if ( methodOpt.isPresent() ) {
+			IndexedMethod method = methodOpt.get();
+			return createLocationFromIndexedMethod( method );
+		}
+
+		// Find the class to get its FQN for inheritance lookup
+		var classOpt = index.findClassByName( className );
+		if ( classOpt.isEmpty() ) {
+			return null;
+		}
+
+		String classFQN = classOpt.get().fullyQualifiedName();
+
+		// Walk up the inheritance chain
+		List<String> ancestors = index.getInheritanceGraph().getAncestors( classFQN );
+		for ( String ancestorFQN : ancestors ) {
+			// Extract simple class name from FQN
+			String ancestorSimpleName = extractSimpleNameFromFQN( ancestorFQN );
+
+			// Try to find the method in this ancestor
+			methodOpt = index.findMethod( ancestorSimpleName, methodName );
+			if ( methodOpt.isPresent() ) {
+				IndexedMethod method = methodOpt.get();
+				return createLocationFromIndexedMethod( method );
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Create an LSP Location from an IndexedMethod.
+	 */
+	private Location createLocationFromIndexedMethod( IndexedMethod method ) {
+		if ( method.fileUri() == null || method.location() == null ) {
+			return null;
+		}
+
+		Location location = new Location();
+		location.setUri( method.fileUri() );
+		location.setRange( method.location() );
+		return location;
+	}
+
+	/**
+	 * Extract the simple class name from a fully qualified name.
+	 * e.g., "models.services.UserService" -> "UserService"
+	 */
+	private String extractSimpleNameFromFQN( String fqn ) {
+		if ( fqn == null || fqn.isEmpty() ) {
+			return fqn;
+		}
+		int lastDot = fqn.lastIndexOf( '.' );
+		if ( lastDot >= 0 && lastDot < fqn.length() - 1 ) {
+			return fqn.substring( lastDot + 1 );
+		}
+		return fqn;
 	}
 
 	public List<CompletionItem> getAvailableCompletions( URI docURI, CompletionParams params ) {
