@@ -249,7 +249,7 @@ Allow users to enable/disable specific checks since dynamic typing makes some ch
 
 ---
 
-### 1.6 Expand Diagnostics - Warnings (Incomplete)
+### 1.6 Expand Diagnostics - Warnings (Complete)
 
 **Priority:** Medium  
 **Complexity:** Medium  

@@ -31,9 +31,14 @@ public class UnusedVariablesTest {
 		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 		assertFalse( diagnostics.isEmpty(), "Diagnostics should not be empty." );
-		assertEquals( 1, diagnostics.size(), "Diagnostics should contain 1 item." );
-		Diagnostic d = diagnostics.get( 0 );
-		assertEquals( "Variable [bar] is declared but never used.", d.getMessage() );
+		// File now generates 2 diagnostics: unused variable + unreachable code after return
+		assertEquals( 2, diagnostics.size(), "Diagnostics should contain 2 items (unused variable + unreachable code)." );
+		Diagnostic unusedVar = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "bar" ) )
+		    .findFirst()
+		    .orElse( null );
+		assertNotNull( unusedVar, "Should have unused variable diagnostic" );
+		assertEquals( "Variable [bar] is declared but never used.", unusedVar.getMessage() );
 	}
 
 	@Test

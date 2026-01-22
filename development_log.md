@@ -1,5 +1,134 @@
 # BoxLang LSP Development Log
 
+## Task 1.6: Expand Diagnostics - Warnings (Complete)
+
+**Date:** 2026-01-21
+
+### Summary
+
+Implemented warning diagnostics for code that is technically valid but potentially problematic. This includes detection of empty catch blocks, unreachable code, shadowed variables, missing return statements, unused private methods, and unused imports. Each warning type has its own configurable rule ID.
+
+### Changes Made
+
+#### New Files Created
+
+**`SemanticWarningDiagnosticVisitor.java`** (`src/main/java/ortus/boxlang/lsp/workspace/visitors/`)
+- Extends `SourceCodeVisitor` to integrate with the existing diagnostic infrastructure
+- Detects empty catch blocks in try-catch statements
+- Detects unreachable code after `return`, `throw`, `break`, `continue` statements
+- Detects shadowed variables (local variable with `var` keyword shadows function parameter)
+- Detects missing return statements in functions with non-void return type hints
+- Detects unused private methods within a class
+- Detects unused imports (tracks import names vs identifier/FQN usage)
+- Uses `DiagnosticTag.Unnecessary` for unused code warnings
+
+**Individual Rule Files** (`src/main/java/ortus/boxlang/lsp/lint/rules/`)
+- `EmptyCatchBlockRule.java` - Rule ID: `emptyCatchBlock`
+- `UnreachableCodeRule.java` - Rule ID: `unreachableCode`
+- `ShadowedVariableRule.java` - Rule ID: `shadowedVariable`
+- `MissingReturnStatementRule.java` - Rule ID: `missingReturnStatement`
+- `UnusedPrivateMethodRule.java` - Rule ID: `unusedPrivateMethod`
+- `UnusedImportRule.java` - Rule ID: `unusedImport`
+
+**`SemanticWarningDiagnosticsTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 16 comprehensive tests covering all warning scenarios
+- Tests for empty catch blocks and non-empty catch blocks
+- Tests for unreachable code after return, throw, break, continue
+- Tests for conditional returns (no false positives)
+- Tests for shadowed variables and non-shadowed variables
+- Tests for missing return statements and functions with returns
+- Tests for void functions (no missing return warning)
+- Tests for unused and used private methods
+- Tests for unused and used imports
+
+#### Modified Files
+
+**`SourceCodeVisitorService.java`**
+- Added import for `SemanticWarningDiagnosticVisitor`
+- Registered `SemanticWarningDiagnosticVisitor` in static initializer
+
+**`App.java`**
+- Added imports for individual warning rule classes
+- Registered all six warning rules in `DiagnosticRuleRegistry`
+
+**`UnusedVariablesTest.java`**
+- Updated test to expect 2 diagnostics (unused variable + unreachable code)
+- The test file `unusedVariablesTest1.bx` has code after a return statement
+
+### Diagnostics Implemented
+
+| Rule ID | Severity | Message Pattern | Tags |
+|---------|----------|-----------------|------|
+| `emptyCatchBlock` | Warning | "Empty catch block. Consider logging or handling the exception." | - |
+| `unreachableCode` | Warning | "Unreachable code after X statement." | `Unnecessary` |
+| `shadowedVariable` | Warning | "Variable 'X' shadows a function parameter." | - |
+| `missingReturnStatement` | Warning | "Function 'X' has return type 'Y' but may not return a value." | - |
+| `unusedPrivateMethod` | Warning | "Private method 'X' is never called." | `Unnecessary` |
+| `unusedImport` | Warning | "Import 'X' is never used." | `Unnecessary` |
+
+### Configuration
+
+Each rule can be configured independently via `.bxlint.json`:
+
+```json
+{
+  "diagnostics": {
+    "emptyCatchBlock": {
+      "enabled": true,
+      "severity": "warning"
+    },
+    "unreachableCode": {
+      "enabled": true,
+      "severity": "warning"
+    },
+    "shadowedVariable": {
+      "enabled": true,
+      "severity": "warning"
+    },
+    "missingReturnStatement": {
+      "enabled": true,
+      "severity": "warning"
+    },
+    "unusedPrivateMethod": {
+      "enabled": true,
+      "severity": "warning"
+    },
+    "unusedImport": {
+      "enabled": true,
+      "severity": "warning"
+    }
+  }
+}
+```
+
+### Requirements Met
+
+- ✅ Empty catch blocks
+- ✅ Unreachable code after `return`, `throw`, `break`, `continue`
+- ✅ Shadowed variables (local shadows parameter)
+- ✅ Missing return statement when return type hint is present
+- ✅ Unused private methods
+- ✅ Unused imports
+
+### Design Notes
+
+- **BoxLang syntax**: Return types come BEFORE the `function` keyword (e.g., `string function getName()`)
+- **Access modifiers**: BoxLang uses `getAccessModifier()` on `BoxFunctionDeclaration` for `public`/`private` keywords
+- **Import tracking**: Tracks both `BoxIdentifier` nodes and `BoxFQN` nodes to detect import usage
+- **New expressions**: `new ClassName()` is represented as `BoxNew` containing a `BoxFQN`
+
+### Requirements Deferred
+
+The following requirements were not implemented in this task:
+
+- Unused local variables (already implemented by `UnusedVariableDiagnosticVisitor`)
+- Unused function parameters (already implemented by `UnusedVariableDiagnosticVisitor`)
+- Deprecated BIF usage (requires BIF metadata)
+- Deprecated method usage (requires annotation support)
+- Implicit variable creation (requires scope analysis)
+
+---
+
 ## Task 1.5: Expand Diagnostics - Semantic Errors (Complete)
 
 **Date:** 2026-01-21
