@@ -68,15 +68,11 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 		}
 	}
 
-	// Maps variable names (lowercase) to their info within the current function
-	private final Map<String, VariableInfo>								localVariables	= new HashMap<>();
-	// Maps parameter names (lowercase) to their info
-	private final Map<String, VariableInfo>								parameters		= new HashMap<>();
-	// Maps property names (lowercase) to their info
+	// Maps property names (lowercase) to their info (class-level scope)
 	private final Map<String, VariableInfo>								properties		= new HashMap<>();
 	// The current function being visited
 	private BoxFunctionDeclaration										currentFunction	= null;
-	// Maps function to its local variable info
+	// Maps function to its variable info (includes both parameters and local variables)
 	private final Map<BoxFunctionDeclaration, Map<String, VariableInfo>>	functionVariables;
 
 	public VariableScopeCollectorVisitor() {
@@ -84,7 +80,9 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 	}
 
 	/**
-	 * Get variable info by name, searching in order: local, arguments, properties.
+	 * Get variable info by name, searching in order: function-local (params + locals), properties.
+	 * Variables are properly scoped to their containing function - parameters from other functions
+	 * are not visible.
 	 *
 	 * @param variableName The variable name (case-insensitive)
 	 * @param containingFunction The function context (may be null for class-level)
@@ -94,7 +92,7 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 	public VariableInfo getVariableInfo( String variableName, BoxFunctionDeclaration containingFunction ) {
 		String lowerName = variableName.toLowerCase();
 
-		// First check local variables in the function context
+		// First check variables in the function context (includes both parameters and local variables)
 		if ( containingFunction != null ) {
 			Map<String, VariableInfo> funcVars = functionVariables.get( containingFunction );
 			if ( funcVars != null && funcVars.containsKey( lowerName ) ) {
@@ -102,17 +100,7 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 			}
 		}
 
-		// Check the global local variables map (fallback for when function context doesn't match)
-		if ( localVariables.containsKey( lowerName ) ) {
-			return localVariables.get( lowerName );
-		}
-
-		// Then check parameters
-		if ( parameters.containsKey( lowerName ) ) {
-			return parameters.get( lowerName );
-		}
-
-		// Finally check properties
+		// Then check properties (class-level scope, visible from all functions)
 		if ( properties.containsKey( lowerName ) ) {
 			return properties.get( lowerName );
 		}
@@ -224,9 +212,7 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 		    node
 		);
 
-		parameters.put( name.toLowerCase(), info );
-
-		// Also add to the function's local map so it can be found in context
+		// Add to the function's variable map - parameters are scoped to their function only
 		if ( currentFunction != null ) {
 			functionVariables.get( currentFunction ).put( name.toLowerCase(), info );
 		}
@@ -267,32 +253,55 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 
 	@Override
 	public void visit( BoxAssignment node ) {
-		// Check if this is a var-scoped assignment
+		// Check if this is a var-scoped assignment (explicit local)
 		boolean isVarScoped = node.getModifiers().stream()
 		    .anyMatch( m -> m == BoxAssignmentModifier.VAR );
 
-		if ( isVarScoped && node.getLeft() instanceof BoxIdentifier identifier ) {
+		if ( node.getLeft() instanceof BoxIdentifier identifier ) {
 			String	name			= identifier.getName();
+			String	lowerName		= name.toLowerCase();
 			String	inferredType	= inferTypeFromExpression( node.getRight() );
 			int		line			= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
 
-			VariableInfo info = new VariableInfo(
-			    name,
-			    VariableScope.LOCAL,
-			    null, // No explicit type hint for var declarations
-			    inferredType,
-			    line,
-			    false,
-			    null,
-			    node
-			);
+			if ( isVarScoped ) {
+				// Explicit var declaration - always local scope
+				VariableInfo info = new VariableInfo(
+				    name,
+				    VariableScope.LOCAL,
+				    null, // No explicit type hint for var declarations
+				    inferredType,
+				    line,
+				    false,
+				    null,
+				    node
+				);
 
-			if ( currentFunction != null ) {
-				functionVariables.get( currentFunction ).put( name.toLowerCase(), info );
+				if ( currentFunction != null ) {
+					functionVariables.get( currentFunction ).put( lowerName, info );
+				}
+			} else if ( currentFunction != null ) {
+				// Implicit assignment (no var keyword)
+				// In BoxLang, this becomes local UNLESS there's a property or higher scope variable
+				// Check if this variable already exists in properties
+				if ( !properties.containsKey( lowerName ) ) {
+					// Not a property, so it's an implicit local variable
+					// Only add if not already tracked in this function
+					Map<String, VariableInfo> funcVars = functionVariables.get( currentFunction );
+					if ( !funcVars.containsKey( lowerName ) ) {
+						VariableInfo info = new VariableInfo(
+						    name,
+						    VariableScope.LOCAL,
+						    null,
+						    inferredType,
+						    line,
+						    false,
+						    null,
+						    node
+						);
+						funcVars.put( lowerName, info );
+					}
+				}
 			}
-
-			// Also add to a global lookup by name for easier access
-			localVariables.put( name.toLowerCase(), info );
 		}
 
 		// Handle scoped assignments like variables.foo or this.bar
