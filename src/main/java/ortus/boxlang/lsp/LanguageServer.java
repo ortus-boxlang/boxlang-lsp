@@ -59,6 +59,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			    CodeActionKind.SourceFixAll,
 			    CodeActionKind.RefactorRewrite
 			) ) );
+			capabilities.setWorkspaceSymbolProvider( true );
 
 			// TODO add an initialize method to ProjectContextProvider to pass in workspace folders
 			// and other client capabilities as needed

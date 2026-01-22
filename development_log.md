@@ -1,5 +1,103 @@
 # BoxLang LSP Development Log
 
+## Task 2.8: Workspace Symbols (Complete)
+
+**Date:** 2026-01-22
+
+### Summary
+
+Implemented workspace symbols functionality that allows users to search for symbols across the entire workspace. When the user opens the workspace symbol picker (typically Cmd+T or Ctrl+T), they can search for classes, interfaces, methods, functions, and properties by name.
+
+### Features Implemented
+
+1. **Fuzzy Matching**
+   - Supports case-insensitive matching
+   - Exact match, prefix match, and substring (contains) match
+   - Scoring system ensures best matches appear first
+
+2. **Symbol Kinds**
+   - Classes (SymbolKind.Class)
+   - Interfaces (SymbolKind.Interface)
+   - Methods (SymbolKind.Method)
+   - Functions (SymbolKind.Function for standalone functions)
+   - Properties (SymbolKind.Property)
+
+3. **Scoring/Ranking**
+   - Exact matches: 1000 points
+   - Prefix matches: 500 points
+   - Substring matches: 100 points
+   - Results sorted by score (descending), then by name length (shorter first)
+
+4. **Container Names**
+   - Methods include their containing class name
+   - Properties include their containing class name
+   - Standalone functions have no container
+
+5. **Empty Query Handling**
+   - Returns all symbols (limited to 200 results)
+   - Useful for browsing all available symbols
+
+### Changes Made
+
+#### Modified Files
+
+**`BoxLangWorkspaceService.java`**
+- Added `symbol()` method implementing `workspace/symbol` request
+- Added `calculateScore()` method for fuzzy matching
+- Added `createClassSymbol()` for creating class/interface symbols
+- Added `createMethodSymbol()` for creating method/function symbols
+- Added `createPropertySymbol()` for creating property symbols
+- Added `ScoredSymbol` record for sorting by score
+- Added `MAX_RESULTS` constant (200) to limit results
+
+**`LanguageServer.java`**
+- Added `setWorkspaceSymbolProvider(true)` to server capabilities
+
+#### New Files Created
+
+**Test Resource Files** (`src/test/resources/files/workspaceSymbolsTest/`)
+- `UserEntity.bx` - User entity class with id, username, email properties
+- `IUserRepository.bx` - Interface for repository operations
+- `UserRepository.bx` - Repository implementation with methods
+- `UserService.bx` - Service class with business logic
+
+**`WorkspaceSymbolsTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 16 comprehensive tests covering:
+  - `testSearchClassByExactName()` - Exact class name search
+  - `testSearchInterface()` - Interface search
+  - `testSearchMethod()` - Method search
+  - `testSearchProperty()` - Property search
+  - `testFuzzyMatchPrefix()` - Prefix matching (e.g., "User" matches "UserEntity")
+  - `testFuzzyMatchSubstring()` - Substring matching (e.g., "Repo" matches "UserRepository")
+  - `testCaseInsensitiveMatch()` - Case-insensitive search
+  - `testMethodContainerName()` - Methods include class name
+  - `testPropertyContainerName()` - Properties include class name
+  - `testExactMatchRanksHigher()` - Scoring verification
+  - `testPrefixMatchRanksHigher()` - Prefix ranking verification
+  - `testEmptyQueryReturnsSymbols()` - Empty query handling
+  - `testSymbolKindsPresent()` - All symbol kinds returned
+  - `testSymbolsHaveValidLocations()` - Location verification
+
+### Requirements Met
+
+- ✅ Support fuzzy matching (case-insensitive exact, prefix, and contains)
+- ✅ Return results quickly (use index - leverages existing ProjectIndex)
+- ✅ Include symbol kind in results (Class, Interface, Method, Function, Property)
+- ✅ Include container name (class for methods and properties)
+- ✅ Handle empty query (returns all symbols, limited to 200)
+- ✅ Exact matches rank first
+- ✅ Prefix matches before substring matches
+- ✅ Shorter names rank higher (secondary sort criteria)
+
+### Technical Notes
+
+- Uses the existing `ProjectIndex` for fast symbol lookup
+- Results are limited to 200 to prevent overwhelming the UI
+- Scoring algorithm: exact=1000, prefix=500, contains=100
+- The LSP returns `Either<List<SymbolInformation>, List<WorkspaceSymbol>>` - we use the left (SymbolInformation) format for broader client compatibility
+
+---
+
 ## Task 2.7: Find References - Include BXM Templates (Complete)
 
 **Date:** 2026-01-22
