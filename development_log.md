@@ -10,13 +10,15 @@ Implemented go-to-definition functionality for import statements. When the user 
 - Simple imports (`import ClassName;`) - navigate to class definition
 - Aliased imports (`import ClassName as Alias;`) - navigate to original class definition
 - Interface imports - navigate to interface definition
+- Package-qualified imports (`import subpackage.ClassName;`) - navigate using FQN lookup
 - Java imports (`import java:java.util.ArrayList;`) - return empty (no source to navigate to)
 
 ### Key Design Decisions
 
 - Import navigation always resolves to the original class, even when clicking on the alias part of an aliased import
 - Java imports (prefixed with `java:`) return empty results since there's no source file to navigate to
-- The implementation reuses the existing `findClassByNameAndGetLocation()` method for consistent class lookups
+- **Package-qualified imports use FQN lookup**: For imports like `import subpackage.Item;`, the resolution uses fully-qualified name (FQN) lookup instead of simple name lookup. This ensures that `import subpackage.Item;` does NOT match `Item.bx` in the root folder - it only matches `subpackage/Item.bx`
+- Simple imports (no package path) use simple name lookup for backwards compatibility
 
 ### Changes Made
 
@@ -28,15 +30,20 @@ Implemented go-to-definition functionality for import statements. When the user 
 - `UserServiceImpl.bx` - Class with simple imports for testing
 - `AliasedImports.bx` - Class with aliased imports for testing
 - `JavaImports.bx` - Class with Java imports for testing
+- `Item.bx` - Root-level Item class (for testing package resolution)
+- `MainClass.bx` - Class with package-qualified imports for testing
+- `subpackage/SubThing.bx` - Class in subpackage for testing FQN resolution
 
 **`ImportDefinitionTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
-- 6 comprehensive tests for import go-to-definition:
+- 8 comprehensive tests for import go-to-definition:
   - `testGoToDefinitionOnSimpleImport()` - `import UserEntity;` navigation
   - `testGoToDefinitionOnInterfaceImport()` - `import IUserService;` navigation
   - `testGoToDefinitionOnAliasedImportClassName()` - class name part of aliased import
   - `testGoToDefinitionOnAliasedImportAlias()` - alias part of aliased import
   - `testGoToDefinitionOnJavaImportReturnsEmpty()` - Java imports return empty
   - `testGoToDefinitionOnUnknownImportReturnsEmpty()` - unknown imports return empty
+  - `testGoToDefinitionOnPackageQualifiedImportNotMatchingRoot()` - `import subpackage.Item;` does NOT match root `Item.bx`
+  - `testGoToDefinitionOnPackageQualifiedImportExists()` - `import subpackage.SubThing;` resolves correctly
 
 #### Modified Files
 
@@ -48,7 +55,8 @@ Implemented go-to-definition functionality for import statements. When the user 
 - Added import for `BoxImport`
 - Added `BoxImport` handler in `findDefinitionPossibiltiies()` method
 - Added `findClassDefinitionFromImport(BoxImport)` method to resolve import to class location
-- Added `extractClassNameFromImport(BoxImport)` method to extract class name from import expression
+- Added `findClassByFQNAndGetLocation(String)` method for FQN-based class lookup with case-insensitive fallback
+- Import resolution logic: package-qualified imports (containing `.`) use FQN lookup; simple imports use name lookup
 
 ### Requirements Met
 
@@ -56,8 +64,10 @@ Implemented go-to-definition functionality for import statements. When the user 
 - ✅ Resolve import path to actual file
 - ✅ Handle simple imports (import ClassName;)
 - ✅ Handle aliased imports (import ClassName as Alias;)
+- ✅ Handle package-qualified imports (import subpackage.ClassName;)
 - ✅ Handle Java imports (return empty - no source available)
 - ✅ Handle unknown imports (return empty)
+- ✅ Prevent incorrect matching (subpackage.Item does NOT match root Item.bx)
 
 ---
 

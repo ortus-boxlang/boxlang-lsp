@@ -965,65 +965,88 @@ public class ProjectContextProvider {
 
 	/**
 	 * Find the definition location for a class from a BoxImport node.
-	 * Handles import statements like `import ClassName;` and `import ClassName as Alias;`
+	 * Handles import statements like `import ClassName;` and `import package.ClassName;`
 	 *
 	 * Note: Java imports (e.g., `import java:java.util.ArrayList;`) return empty
 	 * since there's no source file to navigate to.
+	 *
+	 * For package-qualified imports (e.g., `import subpackage.Item;`), looks up by FQN only.
+	 * This ensures that `import subpackage.Item;` does NOT match `Item.bx` in the root folder.
 	 *
 	 * @param importNode The BoxImport node representing the import statement
 	 *
 	 * @return List containing the class definition location, or empty list if not found
 	 */
 	private List<Location> findClassDefinitionFromImport( BoxImport importNode ) {
-		// Extract the class/interface name from the import expression
-		String className = extractClassNameFromImport( importNode );
-		if ( className == null ) {
+		if ( importNode.getExpression() == null ) {
+			return new ArrayList<>();
+		}
+
+		String fullPath = importNode.getExpression().getSourceText();
+		if ( fullPath == null || fullPath.isEmpty() ) {
 			return new ArrayList<>();
 		}
 
 		// Check if this is a Java import (contains "java:" prefix)
 		// Java imports don't have source to navigate to
-		if ( importNode.getExpression() != null ) {
-			String fullPath = importNode.getExpression().getSourceText();
-			if ( fullPath != null && fullPath.toLowerCase().startsWith( "java:" ) ) {
-				// Java import - no source to navigate to
-				return new ArrayList<>();
-			}
+		if ( fullPath.toLowerCase().startsWith( "java:" ) ) {
+			return new ArrayList<>();
 		}
 
-		return findClassByNameAndGetLocation( className );
+		// Check if this is a package-qualified import (contains a dot)
+		// e.g., `import subpackage.Item;`
+		if ( fullPath.contains( "." ) ) {
+			// Use FQN lookup - this ensures we don't match the wrong class
+			// e.g., `import subpackage.Item;` should NOT match `Item.bx` in root
+			return findClassByFQNAndGetLocation( fullPath );
+		}
+
+		// Simple import (no package path) - use simple name lookup
+		// e.g., `import Item;`
+		return findClassByNameAndGetLocation( fullPath );
 	}
 
 	/**
-	 * Extract the class name from a BoxImport node.
-	 * Handles both simple imports (`import ClassName;`) and aliased imports (`import ClassName as Alias;`).
-	 * For aliased imports, returns the original class name (not the alias).
+	 * Look up a class/interface by FQN in the project index and return its location.
+	 * FQN lookup is case-insensitive to match BoxLang semantics.
 	 *
-	 * @param importNode The BoxImport node
+	 * @param fqn The fully qualified name to look up (e.g., "subpackage.Item")
 	 *
-	 * @return The class name to look up, or null if not extractable
+	 * @return List containing the definition location, or empty list if not found
 	 */
-	private String extractClassNameFromImport( BoxImport importNode ) {
-		if ( importNode.getExpression() == null ) {
-			return null;
+	private List<Location> findClassByFQNAndGetLocation( String fqn ) {
+		if ( fqn == null || fqn.isEmpty() ) {
+			return new ArrayList<>();
 		}
 
-		String fullPath = importNode.getExpression().getSourceText();
-		if ( fullPath == null || fullPath.isEmpty() ) {
-			return null;
+		ProjectIndex index = getIndex();
+
+		// Try exact FQN match first
+		var classOpt = index.findClassByFQN( fqn );
+
+		// If not found, try case-insensitive search through all classes
+		if ( classOpt.isEmpty() ) {
+			String lowerFqn = fqn.toLowerCase();
+			classOpt = index.getAllClasses().stream()
+			    .filter( c -> c.fullyQualifiedName() != null && c.fullyQualifiedName().toLowerCase().equals( lowerFqn ) )
+			    .findFirst();
 		}
 
-		// Get the last part after the last dot or colon
-		// This handles both `import ClassName;` and `import java:java.util.ArrayList;`
-		int lastDot = fullPath.lastIndexOf( '.' );
-		int lastColon = fullPath.lastIndexOf( ':' );
-		int lastSeparator = Math.max( lastDot, lastColon );
-
-		if ( lastSeparator >= 0 && lastSeparator < fullPath.length() - 1 ) {
-			return fullPath.substring( lastSeparator + 1 );
+		if ( classOpt.isEmpty() ) {
+			return new ArrayList<>();
 		}
 
-		return fullPath;
+		IndexedClass indexedClass = classOpt.get();
+
+		if ( indexedClass.fileUri() == null || indexedClass.location() == null ) {
+			return new ArrayList<>();
+		}
+
+		Location location = new Location();
+		location.setUri( indexedClass.fileUri() );
+		location.setRange( indexedClass.location() );
+
+		return List.of( location );
 	}
 
 	/**

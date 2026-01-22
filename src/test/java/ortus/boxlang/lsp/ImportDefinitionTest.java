@@ -7,12 +7,14 @@ import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextDocumentItem;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.stream.Stream;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
@@ -33,19 +35,32 @@ public class ImportDefinitionTest extends BaseTest {
 		svc			= new BoxLangTextDocumentService();
 		provider	= ProjectContextProvider.getInstance();
 		index		= new ProjectIndex();
+		// Use absolute path for proper FQN computation (relativize requires consistent path types)
+		testDir		= Paths.get( "src/test/resources/files/importDefinitionTest" ).toAbsolutePath();
+		// Initialize the index with the test directory as workspace root for proper FQN computation
+		index.initialize( testDir );
 		provider.setIndex( index );
-		testDir		= Paths.get( "src/test/resources/files/importDefinitionTest" );
 
-		// Index all test files
-		for ( Path file : Files.list( testDir ).filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
-			index.indexFile( file.toUri() );
+		// Index all test files recursively (including subdirectories)
+		try ( Stream<Path> paths = Files.walk( testDir ) ) {
+			for ( Path file : paths.filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
+				index.indexFile( file.toUri() );
+			}
 		}
 
-		// Open all test files in the LSP
-		for ( Path file : Files.list( testDir ).filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
-			svc.didOpen( new DidOpenTextDocumentParams(
-			    new TextDocumentItem( file.toUri().toString(), "boxlang", 1, Files.readString( file ) ) ) );
+		// Open all test files in the LSP recursively
+		try ( Stream<Path> paths = Files.walk( testDir ) ) {
+			for ( Path file : paths.filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
+				svc.didOpen( new DidOpenTextDocumentParams(
+				    new TextDocumentItem( file.toUri().toString(), "boxlang", 1, Files.readString( file ) ) ) );
+			}
 		}
+	}
+
+	@AfterEach
+	void tearDown() {
+		// Reset the shared ProjectContextProvider's index to avoid affecting other tests
+		provider.setIndex( new ProjectIndex() );
 	}
 
 	/**
@@ -228,5 +243,56 @@ public class ImportDefinitionTest extends BaseTest {
 		} finally {
 			Files.deleteIfExists( tempFile );
 		}
+	}
+
+	/**
+	 * Test go-to-definition on package-qualified import that doesn't exist.
+	 * `import subpackage.Item;` should NOT match Item.bx in root folder.
+	 * It should return empty because subpackage/Item.bx doesn't exist.
+	 */
+	@Test
+	void testGoToDefinitionOnPackageQualifiedImportNotMatchingRoot() throws Exception {
+		Path	testFilePath	= testDir.resolve( "MainClass.bx" );
+		String	testFileUri		= testFilePath.toUri().toString();
+
+		// Position at 'Item' in `import subpackage.Item;` on line 4 (0-indexed: 3)
+		DefinitionParams params = new DefinitionParams();
+		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
+		params.setPosition( new Position( 3, 18 ) ); // Position within 'Item'
+
+		var result = svc.definition( params ).get();
+
+		// Should return empty - subpackage/Item.bx doesn't exist
+		// Should NOT match Item.bx in root folder
+		if ( result != null && result.getLeft() != null ) {
+			assertThat( result.getLeft().size() ).isEqualTo( 0 );
+		}
+	}
+
+	/**
+	 * Test go-to-definition on package-qualified import that exists.
+	 * `import subpackage.SubThing;` should resolve to subpackage/SubThing.bx
+	 */
+	@Test
+	void testGoToDefinitionOnPackageQualifiedImportExists() throws Exception {
+		Path	testFilePath	= testDir.resolve( "MainClass.bx" );
+		String	testFileUri		= testFilePath.toUri().toString();
+		Path	subThingPath	= testDir.resolve( "subpackage/SubThing.bx" );
+		String	subThingUri		= subThingPath.toUri().toString();
+
+		// Position at 'SubThing' in `import subpackage.SubThing;` on line 5 (0-indexed: 4)
+		DefinitionParams params = new DefinitionParams();
+		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
+		params.setPosition( new Position( 4, 18 ) ); // Position within 'SubThing'
+
+		var result = svc.definition( params ).get();
+
+		assertThat( result ).isNotNull();
+		assertThat( result.getLeft() ).isNotNull();
+		assertThat( result.getLeft().size() ).isGreaterThan( 0 );
+
+		var def = result.getLeft().get( 0 );
+		// Should navigate to subpackage/SubThing.bx
+		assertThat( def.getUri() ).isEqualTo( subThingUri );
 	}
 }
