@@ -886,9 +886,8 @@ Build a system to accurately determine the completion context at cursor position
 | `implements` | Implementation | Interface names |
 | `import` | Import | Package/class paths |
 | `func(` | Argument | Parameter hints, local vars |
-| `var x:` | Type hint | Type names |
 | `<bx:` | BXM tag | Tag names |
-| `${` | Template expr | Variables, functions |
+| `#` | Template expr | Variables, functions |
 | Plain identifier | General | Keywords, variables, functions, classes |
 
 **Implementation:**
@@ -1187,7 +1186,7 @@ Complete variables and functions inside BXM expressions.
 
 **Requirements:**
 
-- Detect when cursor is inside `${}` or equivalent
+- Detect when cursor is inside `##` or equivalent
 - Complete variables in template scope
 - Complete functions
 - Handle nested expressions
