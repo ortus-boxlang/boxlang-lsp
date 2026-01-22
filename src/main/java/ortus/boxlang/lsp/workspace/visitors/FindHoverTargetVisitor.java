@@ -3,16 +3,23 @@ package ortus.boxlang.lsp.workspace.visitors;
 import org.eclipse.lsp4j.Position;
 
 import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.compiler.ast.expression.BoxDotAccess;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
+import ortus.boxlang.compiler.ast.expression.BoxScope;
+import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
+import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
 import ortus.boxlang.lsp.workspace.BLASTTools;
 
 /**
  * Visitor to find the AST node at a given cursor position for hover information.
- * This visitor looks for function invocations, method invocations, and function declarations.
+ * This visitor looks for function invocations, method invocations, function declarations,
+ * variable identifiers, and properties.
+ *
+ * The visitor traverses the AST and finds the most specific node at the cursor position.
  */
 public class FindHoverTargetVisitor extends VoidBoxVisitor {
 
@@ -34,6 +41,7 @@ public class FindHoverTargetVisitor extends VoidBoxVisitor {
 	@Override
 	public void visit( BoxFunctionDeclaration node ) {
 		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
 			return;
 		}
 
@@ -50,6 +58,7 @@ public class FindHoverTargetVisitor extends VoidBoxVisitor {
 	@Override
 	public void visit( BoxMethodInvocation node ) {
 		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
 			return;
 		}
 
@@ -60,6 +69,7 @@ public class FindHoverTargetVisitor extends VoidBoxVisitor {
 	@Override
 	public void visit( BoxFunctionInvocation node ) {
 		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
 			return;
 		}
 
@@ -68,13 +78,67 @@ public class FindHoverTargetVisitor extends VoidBoxVisitor {
 	}
 
 	@Override
-	public void visit( BoxIdentifier node ) {
+	public void visit( BoxArgumentDeclaration node ) {
 		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
 			return;
 		}
 
-		// For now, we'll capture identifiers but may want to resolve them to functions
-		// This allows hover on variable references that might be function references
+		// Parameter declarations have priority over generic identifiers
+		this.hoverTarget = node;
+	}
+
+	@Override
+	public void visit( BoxProperty node ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
+			return;
+		}
+
+		// Property declarations
+		this.hoverTarget = node;
+	}
+
+	@Override
+	public void visit( BoxDotAccess node ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
+			return;
+		}
+
+		// Check if cursor is on the scope prefix (e.g., "variables", "this", "local")
+		if ( node.getContext() instanceof BoxIdentifier scopeId ) {
+			if ( BLASTTools.containsPosition( scopeId, line, column ) ) {
+				// Cursor is on the scope keyword
+				this.hoverTarget = scopeId;
+				return;
+			}
+		}
+
+		// Otherwise, visit children for the accessed property
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxScope node ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
+			return;
+		}
+
+		// Scope keywords (variables, local, this, arguments, etc.)
+		// Set as target for hover on scope
+		this.hoverTarget = node;
+	}
+
+	@Override
+	public void visit( BoxIdentifier node ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
+			return;
+		}
+
+		// Identifiers represent variables - capture them for hover
 		// Only set if no more specific target found
 		if ( this.hoverTarget == null ) {
 			this.hoverTarget = node;

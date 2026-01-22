@@ -1,5 +1,147 @@
 # BoxLang LSP Development Log
 
+## Task 1.9: Hover - Variables (Complete)
+
+**Date:** 2026-01-21
+
+### Summary
+
+Implemented hover support for variables showing scope information, inferred types, and declaration details. When hovering over a variable identifier, the LSP displays the variable's scope (local, arguments, variables, this, property), inferred type from literal assignments, and for function parameters, shows required status and default values. Additionally, hovering over scope keywords (e.g., `variables`, `local`, `this`, `arguments`) displays helpful descriptions of each scope.
+
+### Changes Made
+
+#### New Files Created
+
+**`VariableScopeCollectorVisitor.java`** (`src/main/java/ortus/boxlang/lsp/workspace/visitors/`)
+- Collects variable scope and type information from assignments and declarations
+- Tracks variables in different scopes: local (var), arguments, this, variables, property
+- Infers types from literal assignments (string, numeric, boolean, array, struct)
+- Infers types from `new ClassName()` expressions
+- Provides `VariableInfo` record with: name, scope, typeHint, inferredType, declarationLine, isRequired, defaultValue, declarationNode
+- Provides `VariableScope` enum: LOCAL, ARGUMENTS, VARIABLES, THIS, PROPERTY, UNKNOWN
+- Provides scope keyword descriptions via `getScopeKeywordInfo()`
+
+**`VariableHoverTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 9 comprehensive tests for variable hover functionality:
+  - `testHoverOnLocalVariableDeclaration()` - hover on var declarations
+  - `testHoverOnLocalVariableUsage()` - hover on variable references
+  - `testHoverOnFunctionParameter()` - hover on parameter usage
+  - `testHoverOnParameterWithDefaultValue()` - hover showing default values
+  - `testHoverOnScopedVariableAccess()` - hover on `variables` scope keyword
+  - `testHoverShowsInferredTypeFromLiteral()` - hover showing inferred numeric type
+  - `testHoverShowsDeclarationLine()` - hover showing where variable was declared
+  - `testHoverOnThisScope()` - hover on `this` scope keyword
+  - `testHoverOnProperty()` - hover on property declarations
+
+**Test Resource Files**
+- `variableHoverTest.bx` - Test class with various variable scenarios (local vars, parameters, scoped access, properties)
+
+#### Modified Files
+
+**`FindHoverTargetVisitor.java`**
+- Added `visit(BoxScope)` method to handle scope keywords (variables, local, this, arguments, etc.)
+- Added `visit(BoxArgumentDeclaration)` method for function parameter declarations
+- Added `visit(BoxProperty)` method for property declarations
+- Added `visit(BoxDotAccess)` method to handle scoped property access (e.g., `variables.instanceVar`)
+- Added proper AST traversal with `visitChildren()` calls for all visit methods
+
+**`ProjectContextProvider.java`**
+- Added handling for `BoxScope` nodes in `getHoverInfo()` to show scope keyword descriptions
+- Added handling for `BoxIdentifier` nodes in `getHoverInfo()` to show variable information
+- Added handling for `BoxArgumentDeclaration` nodes for parameter hover
+- Added handling for `BoxProperty` nodes for property hover
+- Added `buildHoverForVariable()` method to format variable hover content
+- Added `buildHoverForParameter()` method to format parameter hover content
+- Added `buildHoverForProperty()` method to format property hover content
+- Added `buildHoverForScopeKeyword()` method to format scope keyword descriptions
+
+### Hover Content Format
+
+**For Variables:**
+```
+**localVar** (local variable)
+
+**Type:** string (inferred)
+
+**Declared at:** line 8
+```
+
+**For Function Parameters:**
+```
+**name** (function parameter)
+
+**Type:** string
+
+**Required:** Yes
+
+**Declared at:** line 15
+```
+
+**For Parameters with Defaults:**
+```
+**age** (function parameter)
+
+**Type:** numeric
+
+**Default:** 18
+
+**Declared at:** line 15
+```
+
+**For Scope Keywords:**
+```
+**variables** scope
+
+The instance scope containing private variables of the class. Variables in this scope are accessible within the class but not from outside.
+```
+
+### Scope Keyword Descriptions
+
+| Keyword | Description |
+|---------|-------------|
+| `variables` | Instance scope containing private variables of the class |
+| `local` | Function-local scope for variables declared with `var` |
+| `this` | Public scope for variables accessible from outside the class |
+| `arguments` | Function arguments scope containing parameters passed to the function |
+| `request` | Request scope available for the duration of an HTTP request |
+| `session` | Session scope available for the duration of a user's session |
+| `application` | Application scope shared across all requests |
+| `server` | Server scope shared across all applications |
+| `cgi` | CGI scope containing CGI environment variables |
+| `form` | Form scope containing form field values |
+| `url` | URL scope containing URL query string parameters |
+| `cookie` | Cookie scope containing cookie values |
+
+### Type Inference
+
+The hover system infers types from literal assignments:
+- String literals → `string`
+- Numeric literals → `numeric`
+- Boolean literals (`true`/`false`) → `boolean`
+- Array literals → `array`
+- Struct literals → `struct`
+- `new ClassName()` expressions → `ClassName`
+
+### Technical Details
+
+- **BoxScope AST node**: Discovered that scope keywords are represented as `BoxScope` nodes, not `BoxIdentifier` nodes
+- **Required parameter detection**: Uses `BoxArgumentDeclaration.getRequired()` method directly (not annotations)
+- **VoidBoxVisitor pattern**: Must explicitly call `visitChildren()` to traverse the AST; it doesn't happen automatically
+- **BoxDotAccess positions**: The position of `variables.instanceVar` starts at `.instanceVar`; the `variables` part is a child `BoxScope` node with its own position
+
+### Requirements Met
+
+- ✅ Identify variable under cursor
+- ✅ Determine variable scope (local, arguments, this, variables, property)
+- ✅ Find declaration/assignment site
+- ✅ Show inferred type when possible
+- ✅ Show scope information
+- ✅ Show required status for parameters
+- ✅ Show default values for parameters
+- ✅ Hover on scope keywords shows scope descriptions
+
+---
+
 ## Task 1.8: Hover - User-Defined Functions and Methods (Complete)
 
 **Date:** 2026-01-21

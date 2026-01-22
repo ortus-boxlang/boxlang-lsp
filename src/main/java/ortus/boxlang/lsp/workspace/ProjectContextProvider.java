@@ -57,9 +57,11 @@ import ortus.boxlang.compiler.ast.comment.BoxDocComment;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
+import ortus.boxlang.compiler.ast.expression.BoxScope;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxDocumentationAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
+import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
 import ortus.boxlang.lsp.App;
 import ortus.boxlang.lsp.LSPTools;
@@ -75,6 +77,9 @@ import ortus.boxlang.lsp.workspace.index.IndexedMethod;
 import ortus.boxlang.lsp.workspace.visitors.FindDefinitionTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FindHoverTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FindReferenceTargetVisitor;
+import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor;
+import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor.VariableInfo;
+import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor.VariableScope;
 import ortus.boxlang.lsp.workspace.visitors.VariableTypeCollectorVisitor;
 import ortus.boxlang.runtime.async.executors.BoxExecutor;
 import ortus.boxlang.runtime.services.AsyncService;
@@ -599,6 +604,55 @@ public class ProjectContextProvider {
 				        .orElse( null );
 			    }
 
+			    // Handle function parameter declarations
+			    if ( target instanceof BoxArgumentDeclaration argDecl ) {
+				    return buildHoverForParameter( argDecl );
+			    }
+
+			    // Handle property declarations
+			    if ( target instanceof BoxProperty property ) {
+				    return buildHoverForProperty( property );
+			    }
+
+			    // Handle scope keywords (variables, local, this, arguments, etc.)
+			    if ( target instanceof BoxScope scopeNode ) {
+				    String scopeName = scopeNode.getName();
+				    VariableScopeCollectorVisitor scopeCollector = new VariableScopeCollectorVisitor();
+				    VariableInfo scopeInfo = scopeCollector.getScopeKeywordInfo( scopeName );
+				    if ( scopeInfo != null ) {
+					    return buildHoverForScopeKeyword( scopeInfo );
+				    }
+			    }
+
+			    // Handle variable identifiers
+			    if ( target instanceof BoxIdentifier identifier ) {
+				    // Collect variable scope information
+				    VariableScopeCollectorVisitor scopeCollector = new VariableScopeCollectorVisitor();
+				    rootNode.accept( scopeCollector );
+
+				    String varName = identifier.getName();
+
+				    // First check if this is a scope keyword
+				    if ( scopeCollector.isScopeKeyword( varName ) ) {
+					    VariableInfo scopeInfo = scopeCollector.getScopeKeywordInfo( varName );
+					    if ( scopeInfo != null ) {
+						    return buildHoverForScopeKeyword( scopeInfo );
+					    }
+				    }
+
+				    // Find the containing function for context
+				    BoxFunctionDeclaration containingFunc = identifier.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+
+				    // Look up variable info
+				    VariableInfo varInfo = scopeCollector.getVariableInfo( varName, containingFunc );
+				    if ( varInfo != null ) {
+					    return buildHoverForVariable( varInfo );
+				    }
+
+				    // No variable info found - return null
+				    return null;
+			    }
+
 			    return null;
 		    } )
 		    .orElse( null );
@@ -661,6 +715,261 @@ public class ProjectContextProvider {
 		// Add documentation if available
 		if ( method.documentation() != null && !method.documentation().isBlank() ) {
 			content.append( formatIndexedMethodDocumentation( method.documentation() ) );
+		}
+
+		Hover			hover			= new Hover();
+		MarkupContent	markupContent	= new MarkupContent();
+		markupContent.setKind( MarkupKind.MARKDOWN );
+		markupContent.setValue( content.toString().trim() );
+		hover.setContents( markupContent );
+
+		return hover;
+	}
+
+	/**
+	 * Build hover content for a variable.
+	 */
+	private Hover buildHoverForVariable( VariableInfo varInfo ) {
+		StringBuilder content = new StringBuilder();
+
+		// Add variable signature in code block
+		content.append( "```boxlang\n" );
+		content.append( buildVariableSignature( varInfo ) );
+		content.append( "\n```\n\n" );
+
+		// Add scope information
+		content.append( "**Scope:** " ).append( varInfo.scope().getDisplayName() ).append( "\n\n" );
+
+		// Add type information if available
+		if ( varInfo.typeHint() != null && !varInfo.typeHint().isEmpty() ) {
+			content.append( "**Type:** `" ).append( varInfo.typeHint() ).append( "`\n\n" );
+		} else if ( varInfo.inferredType() != null && !varInfo.inferredType().isEmpty() ) {
+			content.append( "**Type:** `" ).append( varInfo.inferredType() ).append( "` (inferred)\n\n" );
+		}
+
+		// Add declaration line if available
+		if ( varInfo.declarationLine() > 0 ) {
+			content.append( "**Declared:** line " ).append( varInfo.declarationLine() ).append( "\n\n" );
+		}
+
+		// For parameters, add required and default info
+		if ( varInfo.scope() == VariableScope.ARGUMENTS ) {
+			if ( varInfo.isRequired() ) {
+				content.append( "**Required:** yes\n\n" );
+			}
+			if ( varInfo.defaultValue() != null && !varInfo.defaultValue().isEmpty() ) {
+				content.append( "**Default:** `" ).append( varInfo.defaultValue() ).append( "`\n\n" );
+			}
+		}
+
+		Hover			hover			= new Hover();
+		MarkupContent	markupContent	= new MarkupContent();
+		markupContent.setKind( MarkupKind.MARKDOWN );
+		markupContent.setValue( content.toString().trim() );
+		hover.setContents( markupContent );
+
+		return hover;
+	}
+
+	/**
+	 * Build a variable signature string.
+	 */
+	private String buildVariableSignature( VariableInfo varInfo ) {
+		StringBuilder sig = new StringBuilder();
+
+		// Add scope prefix
+		sig.append( "(" ).append( varInfo.scope().getDisplayName() ).append( ") " );
+
+		// Add type if available
+		if ( varInfo.typeHint() != null && !varInfo.typeHint().isEmpty() ) {
+			sig.append( varInfo.typeHint() ).append( " " );
+		} else if ( varInfo.inferredType() != null && !varInfo.inferredType().isEmpty() ) {
+			sig.append( varInfo.inferredType() ).append( " " );
+		}
+
+		// Add variable name
+		sig.append( varInfo.name() );
+
+		return sig.toString();
+	}
+
+	/**
+	 * Build hover content for a function parameter declaration.
+	 */
+	private Hover buildHoverForParameter( BoxArgumentDeclaration argDecl ) {
+		StringBuilder content = new StringBuilder();
+
+		// Add parameter signature in code block
+		content.append( "```boxlang\n" );
+
+		// Build signature
+		StringBuilder sig = new StringBuilder();
+		sig.append( "(argument) " );
+
+		// Check for required annotation
+		boolean isRequired = argDecl.getAnnotations().stream()
+		    .anyMatch( a -> a.getKey().getValue().equalsIgnoreCase( "required" ) );
+
+		if ( isRequired ) {
+			sig.append( "required " );
+		}
+
+		// Add type
+		if ( argDecl.getType() != null ) {
+			sig.append( argDecl.getType().toString() ).append( " " );
+		}
+
+		// Add name
+		sig.append( argDecl.getName() );
+
+		// Add default value
+		if ( argDecl.getValue() != null ) {
+			sig.append( " = " ).append( argDecl.getValue().getSourceText() );
+		}
+
+		content.append( sig.toString() );
+		content.append( "\n```\n\n" );
+
+		// Add scope info
+		content.append( "**Scope:** arguments (function parameter)\n\n" );
+
+		// Add type if available
+		if ( argDecl.getType() != null ) {
+			content.append( "**Type:** `" ).append( argDecl.getType().toString() ).append( "`\n\n" );
+		}
+
+		// Add required status
+		if ( isRequired ) {
+			content.append( "**Required:** yes\n\n" );
+		} else {
+			content.append( "**Required:** no\n\n" );
+		}
+
+		// Add default value if present
+		if ( argDecl.getValue() != null ) {
+			content.append( "**Default:** `" ).append( argDecl.getValue().getSourceText() ).append( "`\n\n" );
+		}
+
+		Hover			hover			= new Hover();
+		MarkupContent	markupContent	= new MarkupContent();
+		markupContent.setKind( MarkupKind.MARKDOWN );
+		markupContent.setValue( content.toString().trim() );
+		hover.setContents( markupContent );
+
+		return hover;
+	}
+
+	/**
+	 * Build hover content for a property declaration.
+	 */
+	private Hover buildHoverForProperty( BoxProperty property ) {
+		StringBuilder content = new StringBuilder();
+
+		// Extract property info from annotations
+		String	name		= null;
+		String	type		= null;
+		String	defaultVal	= null;
+
+		for ( var annotation : property.getAnnotations() ) {
+			String key = annotation.getKey().getValue().toLowerCase();
+			if ( key.equals( "name" ) && annotation.getValue() != null ) {
+				name = annotation.getValue().getSourceText().replace( "\"", "" ).replace( "'", "" );
+			} else if ( key.equals( "type" ) && annotation.getValue() != null ) {
+				type = annotation.getValue().getSourceText().replace( "\"", "" ).replace( "'", "" );
+			} else if ( key.equals( "default" ) && annotation.getValue() != null ) {
+				defaultVal = annotation.getValue().getSourceText();
+			}
+		}
+
+		if ( name == null ) {
+			name = "property";
+		}
+
+		// Add property signature in code block
+		content.append( "```boxlang\n" );
+		content.append( "(property) " );
+		if ( type != null ) {
+			content.append( type ).append( " " );
+		}
+		content.append( name );
+		content.append( "\n```\n\n" );
+
+		// Add scope info
+		content.append( "**Scope:** variables (instance property)\n\n" );
+
+		// Add type if available
+		if ( type != null ) {
+			content.append( "**Type:** `" ).append( type ).append( "`\n\n" );
+		}
+
+		// Add default value if present
+		if ( defaultVal != null ) {
+			content.append( "**Default:** `" ).append( defaultVal ).append( "`\n\n" );
+		}
+
+		Hover			hover			= new Hover();
+		MarkupContent	markupContent	= new MarkupContent();
+		markupContent.setKind( MarkupKind.MARKDOWN );
+		markupContent.setValue( content.toString().trim() );
+		hover.setContents( markupContent );
+
+		return hover;
+	}
+
+	/**
+	 * Build hover content for a scope keyword (variables, local, this, arguments, etc.).
+	 */
+	private Hover buildHoverForScopeKeyword( VariableInfo scopeInfo ) {
+		StringBuilder content = new StringBuilder();
+
+		String scopeName = scopeInfo.name();
+
+		content.append( "```boxlang\n" );
+		content.append( scopeName ).append( " (scope)" );
+		content.append( "\n```\n\n" );
+
+		// Add description based on scope
+		switch ( scopeName.toLowerCase() ) {
+			case "variables" :
+				content.append( "The **variables** scope contains instance-level variables for the component. " );
+				content.append( "These are private to the component instance unless accessed via public methods.\n\n" );
+				break;
+			case "local" :
+				content.append( "The **local** scope contains function-local variables. " );
+				content.append( "Variables declared with `var` are automatically placed in this scope.\n\n" );
+				break;
+			case "this" :
+				content.append( "The **this** scope provides access to public properties and methods of the component instance.\n\n" );
+				break;
+			case "arguments" :
+				content.append( "The **arguments** scope contains all parameters passed to the current function.\n\n" );
+				break;
+			case "request" :
+				content.append( "The **request** scope contains variables available for the duration of a single HTTP request.\n\n" );
+				break;
+			case "session" :
+				content.append( "The **session** scope contains variables available for the duration of a user session.\n\n" );
+				break;
+			case "application" :
+				content.append( "The **application** scope contains variables shared across all users of the application.\n\n" );
+				break;
+			case "server" :
+				content.append( "The **server** scope contains variables shared across all applications on the server.\n\n" );
+				break;
+			case "cgi" :
+				content.append( "The **cgi** scope contains CGI environment variables for the current request.\n\n" );
+				break;
+			case "form" :
+				content.append( "The **form** scope contains form field values submitted via POST.\n\n" );
+				break;
+			case "url" :
+				content.append( "The **url** scope contains URL query string parameters.\n\n" );
+				break;
+			case "cookie" :
+				content.append( "The **cookie** scope contains HTTP cookie values.\n\n" );
+				break;
+			default :
+				content.append( "Built-in scope.\n\n" );
 		}
 
 		Hover			hover			= new Hover();
