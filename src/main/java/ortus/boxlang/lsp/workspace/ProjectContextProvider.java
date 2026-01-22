@@ -89,6 +89,7 @@ import ortus.boxlang.lsp.workspace.visitors.FindSignatureHelpTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor;
 import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor.VariableInfo;
 import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor.VariableScope;
+import ortus.boxlang.lsp.workspace.visitors.VariableDefinitionResolver;
 import ortus.boxlang.lsp.workspace.visitors.VariableTypeCollectorVisitor;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.async.executors.BoxExecutor;
@@ -559,25 +560,65 @@ public class ProjectContextProvider {
 	}
 
 	public List<Location> findDefinitionPossibiltiies( URI docURI, Position pos ) {
-		return findDefinitionTarget( docURI, pos )
-		    .map( ( node ) -> {
-			    if ( node instanceof BoxFunctionInvocation fnUse ) {
-				    // should only be able to find function definitions in these locations
-				    // same file
-				    // global - should this be found? or what should we show?
-				    // parent class
-				    return findMatchingFunctionDeclarations( docURI, fnUse.getName() );
-			    } else if ( node instanceof BoxMethodInvocation ) {
-				    // should only be able to find function definitions in these locations
-				    // the type being accessed
-				    // a parent of the type being accessed
-				    // member function versions of BIFs if the type matches
-				    // this -> same rules as BoxFunctionInvocation
-			    }
+		return getLatestFileParseResult( docURI )
+		    .flatMap( fpr -> fpr.findAstRoot() )
+		    .map( rootNode -> {
+			    return findDefinitionTarget( docURI, pos )
+			        .map( ( node ) -> {
+				        if ( node instanceof BoxFunctionInvocation fnUse ) {
+					        // should only be able to find function definitions in these locations
+					        // same file
+					        // global - should this be found? or what should we show?
+					        // parent class
+					        return findMatchingFunctionDeclarations( docURI, fnUse.getName() );
+				        } else if ( node instanceof BoxMethodInvocation ) {
+					        // should only be able to find function definitions in these locations
+					        // the type being accessed
+					        // a parent of the type being accessed
+					        // member function versions of BIFs if the type matches
+					        // this -> same rules as BoxFunctionInvocation
+				        } else if ( node instanceof BoxIdentifier identifier ) {
+					        // Handle variable identifiers - resolve to declaration site
+					        return findVariableDefinition( rootNode, identifier, docURI );
+				        }
 
-			    return new ArrayList<Location>();
+				        return new ArrayList<Location>();
+			        } )
+			        .orElseGet( () -> new ArrayList<Location>() );
 		    } )
 		    .orElseGet( () -> new ArrayList<Location>() );
+	}
+
+	/**
+	 * Find the definition location for a variable identifier.
+	 * Uses VariableDefinitionResolver to properly handle scoping rules.
+	 *
+	 * @param rootNode   The AST root node
+	 * @param identifier The variable identifier to find definition for
+	 * @param docURI     The document URI
+	 *
+	 * @return List containing the definition location, or empty list if not found
+	 */
+	private List<Location> findVariableDefinition( BoxNode rootNode, BoxIdentifier identifier, URI docURI ) {
+		List<Location> locations = new ArrayList<>();
+
+		// Use the VariableDefinitionResolver to find the declaration
+		VariableDefinitionResolver resolver = new VariableDefinitionResolver( identifier );
+		resolver.resolve( rootNode );
+
+		var declaration = resolver.getResolvedDeclaration();
+		if ( declaration != null && declaration.declarationNode() != null ) {
+			Location location = new Location();
+			location.setUri( docURI.toString() );
+
+			var declPos = declaration.declarationNode().getPosition();
+			if ( declPos != null ) {
+				location.setRange( positionToRange( declPos ) );
+				locations.add( location );
+			}
+		}
+
+		return locations;
 	}
 
 	public List<CompletionItem> getAvailableCompletions( URI docURI, CompletionParams params ) {

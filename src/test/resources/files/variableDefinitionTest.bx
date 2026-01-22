@@ -1,0 +1,87 @@
+/**
+ * Test file for go-to-definition on local variables.
+ */
+class {
+    property name="instanceProperty" type="string";
+
+    function testLocalVariableUsage() {
+        var localVar = "hello";
+        var anotherVar = 42;
+
+        // Usage of localVar - go to definition should point to line 8
+        return localVar & anotherVar;
+    }
+
+    function testParameterUsage(required string userName, numeric age = 25) {
+        // Usage of userName - go to definition should point to the parameter on line 15
+        var greeting = "Hello, " & userName;
+
+        // Usage of age - should go to parameter on line 15
+        return greeting & ". You are " & age & " years old.";
+    }
+
+    function testShadowedVariable(string name) {
+        // Parameter 'name' is on line 23
+        var result = name;
+
+        // This shadows the parameter (var name on line 27)
+        var name = "shadowed";
+
+        // This 'name' should go to the local var on line 27
+        return name & " was " & result;
+    }
+
+    function testVariableInLoop() {
+        var total = 0;
+
+        for (var i = 0; i < 10; i++) {
+            // 'i' should go to line 36
+            total = total + i;
+        }
+
+        // 'total' should go to line 34
+        return total;
+    }
+
+    function testInstancePropertyAccess() {
+        // Access to this.instanceProperty (property on line 5)
+        this.instanceProperty = "test";
+
+        // Return uses property
+        return this.instanceProperty;
+    }
+
+    function testScopedVariableAssignment() {
+        // Assign to variables scope (line 53)
+        variables.scopedVar = "scoped value";
+
+        // Usage should go to line 53
+        return variables.scopedVar;
+    }
+
+    function testMultipleDeclarations() {
+        var x = 1;
+        var y = 2;
+        var z = 3;
+
+        // Each should go to its declaration
+        return x + y + z;
+    }
+
+    function testDeepNestedVariable() {
+        var outer = 10;
+
+        if (outer > 5) {
+            var inner = 20;
+
+            if (inner > 15) {
+                var deepest = 30;
+
+                // Should go to line 74
+                return deepest + inner + outer;
+            }
+        }
+
+        return outer;
+    }
+}

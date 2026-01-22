@@ -1,5 +1,93 @@
 # BoxLang LSP Development Log
 
+## Task 2.1: Go to Definition - Local Variables (Complete)
+
+**Date:** 2026-01-21
+
+### Summary
+
+Implemented go-to-definition functionality for local variables. When the user clicks "Go to Definition" on a variable identifier, the LSP navigates to the variable's declaration site. This includes support for:
+- Local variables declared with `var` keyword
+- Function parameters
+- Shadowed variables (correctly resolving to the nearest declaration)
+- Variables in loops (including for-loop initialization variables)
+- Deeply nested variables within conditional blocks
+
+### Changes Made
+
+#### New Files Created
+
+**`VariableDefinitionResolver.java`** (`src/main/java/ortus/boxlang/lsp/workspace/visitors/`)
+- Resolves variable usages to their declaration sites
+- Uses `getDescendantsOfType()` for reliable AST traversal
+- Collects declarations: function parameters, local variables (var), properties, scoped assignments
+- Implements proper scoping rules:
+  - Function parameters are scoped to their containing function only
+  - Local variables shadow parameters with the same name
+  - Later declarations shadow earlier ones within the same scope
+- Record types: `VariableDeclaration` (name, declarationNode, type, declarationLine)
+- Enum: `DeclarationType` (PARAMETER, LOCAL_VAR, PROPERTY, SCOPED_VAR)
+
+**`VariableDefinitionTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 9 comprehensive tests for variable definition navigation:
+  - `testLocalVariableUsage()` - basic local variable go-to-definition
+  - `testParameterUsage()` - function parameter go-to-definition
+  - `testShadowedVariableGoesToLocalDeclaration()` - shadowed variables resolve to local var
+  - `testParameterBeforeShadowing()` - parameter access before it's shadowed
+  - `testLoopVariableDefinition()` - for-loop variable (var i = 0)
+  - `testOuterVariableFromLoop()` - variable declared outside loop
+  - `testUnknownVariableReturnsEmpty()` - edge case for unknown variables
+  - `testMultipleVariablesOnSameLine()` - multiple variables in return statement
+  - `testDeepNestedVariableDefinition()` - deeply nested variable access
+
+**Test Resource Files**
+- `variableDefinitionTest.bx` - Test class with various variable scenarios
+
+#### Modified Files
+
+**`FindDefinitionTargetVisitor.java`**
+- Added `visit(BoxIdentifier)` method to handle variable identifiers
+- Variable identifiers are now recognized as valid definition targets
+- Imports added: `BoxIdentifier`
+
+**`ProjectContextProvider.java`**
+- Updated `findDefinitionPossibiltiies()` to handle `BoxIdentifier` nodes
+- Added `findVariableDefinition()` method that uses `VariableDefinitionResolver`
+- Import added: `VariableDefinitionResolver`
+
+### Go to Definition Flow
+
+1. User triggers "Go to Definition" at a cursor position
+2. `FindDefinitionTargetVisitor` finds the AST node at that position
+3. If it's a `BoxIdentifier`, `findVariableDefinition()` is called
+4. `VariableDefinitionResolver` collects all variable declarations in the file
+5. Resolver finds the declaration that:
+   - Has the same name (case-insensitive)
+   - Is in the same function scope (or class-level for properties)
+   - Is declared before the usage position
+   - Is the closest match (handles shadowing)
+6. Returns `Location` pointing to the declaration site
+
+### Scope Rules Implemented
+
+- **Function Parameters**: Declared at the parameter position in function signature
+- **Local Variables**: Declared at first `var` assignment
+- **Shadowed Variables**: The closest declaration before usage takes precedence
+- **Properties**: Class-level properties accessible from all functions
+- **Scoped Assignments**: `variables.foo` and `this.bar` treated as class-level
+
+### Requirements Met
+
+- ✅ Identify variable at cursor position
+- ✅ Determine variable scope
+- ✅ Find declaration site within current function/scope
+- ✅ Return location of first assignment or formal declaration
+- ✅ Handle shadowed variables correctly (find the right scope's declaration)
+- ✅ Function parameters declared in the function signature
+- ✅ Local variables declared at first assignment with `var`
+
+---
+
 ## Task 1.12: Document Sync Improvements (Complete)
 
 **Date:** 2026-01-21
