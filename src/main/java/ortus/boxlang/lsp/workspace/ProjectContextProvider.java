@@ -64,7 +64,10 @@ import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxNew;
 import ortus.boxlang.compiler.ast.expression.BoxScope;
+import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
+import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
+import ortus.boxlang.compiler.ast.statement.BoxReturnType;
 import ortus.boxlang.compiler.ast.statement.BoxDocumentationAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
@@ -577,8 +580,28 @@ public class ProjectContextProvider {
 					        // 2. Look up method in that class via project index
 					        // 3. If not found, walk up inheritance chain
 					        return findMethodDefinition( rootNode, methodInvocation, docURI );
+				        } else if ( node instanceof BoxNew newExpr ) {
+					        // Handle class instantiation - navigate to class definition
+					        return findClassDefinition( newExpr );
+				        } else if ( node instanceof BoxAnnotation annotation ) {
+					        // Handle extends/implements annotations - navigate to class/interface definition
+					        return findClassDefinitionFromAnnotation( annotation );
+				        } else if ( node instanceof BoxReturnType returnType ) {
+					        // Handle return type hints - navigate to class definition
+					        return findClassDefinitionFromReturnType( returnType );
+				        } else if ( node instanceof BoxArgumentDeclaration argDecl ) {
+					        // Handle parameter type hints - navigate to class definition
+					        return findClassDefinitionFromArgumentType( argDecl );
+				        } else if ( node instanceof BoxFQN fqn ) {
+					        // Handle type hints (return type, parameter type, variable type)
+					        return findClassDefinitionFromFQN( fqn );
 				        } else if ( node instanceof BoxIdentifier identifier ) {
 					        // Handle variable identifiers - resolve to declaration site
+					        // Also check if this identifier is a class reference in type context
+					        List<Location> classLocations = findClassDefinitionFromIdentifier( identifier );
+					        if ( !classLocations.isEmpty() ) {
+						        return classLocations;
+					        }
 					        return findVariableDefinition( rootNode, identifier, docURI );
 				        }
 
@@ -619,6 +642,180 @@ public class ProjectContextProvider {
 		}
 
 		return locations;
+	}
+
+	/**
+	 * Find the definition location for a class from a new expression.
+	 * e.g., `new User()` -> navigate to User.bx
+	 *
+	 * @param newExpr The BoxNew node representing the class instantiation
+	 *
+	 * @return List containing the class definition location, or empty list if not found
+	 */
+	private List<Location> findClassDefinition( BoxNew newExpr ) {
+		String className = extractClassNameFromNew( newExpr );
+		if ( className == null ) {
+			return new ArrayList<>();
+		}
+
+		return findClassByNameAndGetLocation( className );
+	}
+
+	/**
+	 * Find the definition location for a class/interface from an annotation.
+	 * Handles `extends="ClassName"` and `implements="InterfaceName"` annotations.
+	 *
+	 * @param annotation The BoxAnnotation node
+	 *
+	 * @return List containing the class/interface definition location, or empty list if not found
+	 */
+	private List<Location> findClassDefinitionFromAnnotation( BoxAnnotation annotation ) {
+		String key = annotation.getKey().getValue().toLowerCase();
+
+		if ( !key.equals( "extends" ) && !key.equals( "implements" ) ) {
+			return new ArrayList<>();
+		}
+
+		// Extract class/interface name from annotation value
+		String className = null;
+		if ( annotation.getValue() instanceof BoxStringLiteral strLiteral ) {
+			className = strLiteral.getValue();
+		} else if ( annotation.getValue() instanceof BoxFQN fqn ) {
+			className = extractClassNameFromFQN( fqn );
+		} else if ( annotation.getValue() != null ) {
+			className = annotation.getValue().getSourceText();
+			// Clean up quotes if present
+			className = className.replace( "\"", "" ).replace( "'", "" );
+		}
+
+		if ( className == null || className.isEmpty() ) {
+			return new ArrayList<>();
+		}
+
+		// Handle comma-separated list for implements
+		if ( className.contains( "," ) ) {
+			// Find which class name the cursor is on (we'll use the first one for now)
+			// In a more sophisticated implementation, we'd track cursor position within the string
+			String[] classes = className.split( "," );
+			className = classes[ 0 ].trim();
+		}
+
+		return findClassByNameAndGetLocation( className );
+	}
+
+	/**
+	 * Find the definition location for a class from a BoxFQN node.
+	 * Handles type hints in return types, parameter types, and variable types.
+	 *
+	 * @param fqn The BoxFQN node representing the class reference
+	 *
+	 * @return List containing the class definition location, or empty list if not found
+	 */
+	private List<Location> findClassDefinitionFromFQN( BoxFQN fqn ) {
+		String className = extractClassNameFromFQN( fqn );
+		if ( className == null ) {
+			return new ArrayList<>();
+		}
+
+		return findClassByNameAndGetLocation( className );
+	}
+
+	/**
+	 * Find the definition location for a class from a BoxReturnType node.
+	 * Handles return type hints in function declarations.
+	 *
+	 * @param returnType The BoxReturnType node
+	 *
+	 * @return List containing the class definition location, or empty list if not found
+	 */
+	private List<Location> findClassDefinitionFromReturnType( BoxReturnType returnType ) {
+		String fqn = returnType.getFqn();
+		if ( fqn == null || fqn.isEmpty() ) {
+			return new ArrayList<>();
+		}
+
+		// Extract just the class name (last part of FQN)
+		String className = fqn;
+		int lastDot = fqn.lastIndexOf( '.' );
+		if ( lastDot >= 0 && lastDot < fqn.length() - 1 ) {
+			className = fqn.substring( lastDot + 1 );
+		}
+
+		return findClassByNameAndGetLocation( className );
+	}
+
+	/**
+	 * Find the definition location for a class from a BoxArgumentDeclaration node.
+	 * Handles parameter type hints in function declarations.
+	 *
+	 * @param argDecl The BoxArgumentDeclaration node
+	 *
+	 * @return List containing the class definition location, or empty list if not found
+	 */
+	private List<Location> findClassDefinitionFromArgumentType( BoxArgumentDeclaration argDecl ) {
+		String type = argDecl.getType();
+		if ( type == null || type.isEmpty() ) {
+			return new ArrayList<>();
+		}
+
+		// Extract just the class name (last part if it's a FQN)
+		String className = type;
+		int lastDot = type.lastIndexOf( '.' );
+		if ( lastDot >= 0 && lastDot < type.length() - 1 ) {
+			className = type.substring( lastDot + 1 );
+		}
+
+		return findClassByNameAndGetLocation( className );
+	}
+
+	/**
+	 * Find the definition location for a class from a BoxIdentifier.
+	 * This handles cases where the class name appears as an identifier (e.g., in type hints).
+	 *
+	 * @param identifier The BoxIdentifier node
+	 *
+	 * @return List containing the class definition location, or empty list if not found
+	 */
+	private List<Location> findClassDefinitionFromIdentifier( BoxIdentifier identifier ) {
+		String name = identifier.getName();
+		if ( name == null || name.isEmpty() ) {
+			return new ArrayList<>();
+		}
+
+		// Check if this identifier matches a known class name
+		return findClassByNameAndGetLocation( name );
+	}
+
+	/**
+	 * Look up a class/interface by name in the project index and return its location.
+	 *
+	 * @param className The class or interface name to look up
+	 *
+	 * @return List containing the definition location, or empty list if not found
+	 */
+	private List<Location> findClassByNameAndGetLocation( String className ) {
+		if ( className == null || className.isEmpty() ) {
+			return new ArrayList<>();
+		}
+
+		ProjectIndex index = getIndex();
+		var classOpt = index.findClassByName( className );
+
+		if ( classOpt.isEmpty() ) {
+			return new ArrayList<>();
+		}
+
+		IndexedClass indexedClass = classOpt.get();
+
+		if ( indexedClass.fileUri() == null || indexedClass.location() == null ) {
+			return new ArrayList<>();
+		}
+
+		Location location = new Location();
+		location.setUri( indexedClass.fileUri() );
+		location.setRange( indexedClass.location() );
+
+		return List.of( location );
 	}
 
 	/**

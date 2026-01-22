@@ -1,0 +1,18 @@
+/**
+ * User entity class.
+ *
+ * @author Claude
+ */
+class extends="AbstractEntity" {
+    property name="username" type="string";
+    property name="email" type="string";
+
+    public function getUsername() {
+        return variables.username;
+    }
+
+    public function setUsername(required string username) {
+        variables.username = username;
+        return this;
+    }
+}

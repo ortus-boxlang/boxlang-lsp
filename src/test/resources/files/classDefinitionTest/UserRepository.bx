@@ -1,0 +1,29 @@
+/**
+ * Repository for user entities.
+ *
+ * @author Claude
+ */
+class implements="IRepository" {
+    public function findById(required numeric id) {
+        // Lookup logic here
+        return new User();
+    }
+
+    public function save(required any entity) {
+        // Save logic here
+    }
+
+    public function delete(required numeric id) {
+        // Delete logic here
+    }
+
+    /**
+     * Find a user by username.
+     *
+     * @param username The username to search for
+     * @return The user entity or null
+     */
+    public function findByUsername(required string username) {
+        return new User();
+    }
+}

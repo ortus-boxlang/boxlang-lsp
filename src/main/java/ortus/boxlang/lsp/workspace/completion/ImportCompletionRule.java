@@ -44,7 +44,7 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 		int				line			= facts.completionParams().getPosition().getLine();
 		int				character		= facts.completionParams().getPosition().getCharacter();
 
-		existingPrompt = existingPrompt.substring( 0, character );
+		existingPrompt = existingPrompt.substring( 0, Math.min( character, existingPrompt.length() ) );
 
 		String					afterImportPrompt	= getAfterImportText( existingPrompt );
 		List<CompletionItem>	options				= new ArrayList<CompletionItem>();
@@ -59,7 +59,7 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 		options.add( a );
 		TextEdit	te	= new TextEdit();
 		Range		r	= new Range();
-		r.setStart( new Position( line, character - 1 ) );
+		r.setStart( new Position( line, Math.max( 0, character - 1 ) ) );
 		r.setEnd( new Position( line, character ) );
 
 		te.setRange( r );
