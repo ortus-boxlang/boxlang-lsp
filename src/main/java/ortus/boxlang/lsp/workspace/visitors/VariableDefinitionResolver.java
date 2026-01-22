@@ -59,12 +59,16 @@ public class VariableDefinitionResolver {
 	// Class-level declarations (properties)
 	private final List<VariableDeclaration>						classDeclarations;
 
+	// Template-level declarations (variables outside functions, e.g., in BXM templates)
+	private final List<VariableDeclaration>						templateDeclarations;
+
 	public VariableDefinitionResolver( BoxIdentifier targetIdentifier ) {
 		this.targetIdentifier		= targetIdentifier;
 		this.targetLine				= targetIdentifier.getPosition().getStart().getLine();
 		this.targetColumn			= targetIdentifier.getPosition().getStart().getColumn();
 		this.functionDeclarations	= new HashMap<>();
 		this.classDeclarations		= new ArrayList<>();
+		this.templateDeclarations	= new ArrayList<>();
 	}
 
 	/**
@@ -173,18 +177,40 @@ public class VariableDefinitionResolver {
 
 		if ( isVarScoped && node.getLeft() instanceof BoxIdentifier identifier ) {
 			BoxFunctionDeclaration containingFunc = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+			String	name	= identifier.getName();
+			int		line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+
+			VariableDeclaration decl = new VariableDeclaration(
+			    name,
+			    node,
+			    DeclarationType.LOCAL_VAR,
+			    line
+			);
+
 			if ( containingFunc != null ) {
+				functionDeclarations.computeIfAbsent( containingFunc, k -> new ArrayList<>() ).add( decl );
+			} else {
+				// Template-level variable declaration (e.g., in BXM template script blocks)
+				templateDeclarations.add( decl );
+			}
+		}
+
+		// Handle unscoped assignments in template context (e.g., x = "value" without var keyword)
+		if ( !isVarScoped && node.getLeft() instanceof BoxIdentifier identifier ) {
+			BoxFunctionDeclaration containingFunc = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+			if ( containingFunc == null ) {
+				// Template-level assignment without var keyword
 				String	name	= identifier.getName();
 				int		line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
 
 				VariableDeclaration decl = new VariableDeclaration(
 				    name,
 				    node,
-				    DeclarationType.LOCAL_VAR,
+				    DeclarationType.SCOPED_VAR, // Treat as scoped var since it's template-level
 				    line
 				);
 
-				functionDeclarations.computeIfAbsent( containingFunc, k -> new ArrayList<>() ).add( decl );
+				templateDeclarations.add( decl );
 			}
 		}
 
@@ -224,51 +250,68 @@ public class VariableDefinitionResolver {
 			// Look in the function's declarations
 			List<VariableDeclaration> declarations = functionDeclarations.get( containingFunction );
 			if ( declarations != null ) {
-				// Find the declaration that is:
-				// 1. Before the target usage
-				// 2. Closest to the target usage (handles shadowing)
-				VariableDeclaration bestMatch = null;
-
-				for ( VariableDeclaration decl : declarations ) {
-					if ( decl.name().equalsIgnoreCase( targetName ) ) {
-						// Check if this declaration is before the target usage
-						if ( decl.declarationLine() <= targetLine ) {
-							// For same-line declarations, check column position
-							if ( decl.declarationLine() == targetLine ) {
-								// Get the declaration column
-								int declCol = decl.declarationNode().getPosition().getStart().getColumn();
-								if ( declCol > targetColumn ) {
-									continue; // Declaration is after usage
-								}
-							}
-
-							// Check if this is a better match than what we have
-							if ( bestMatch == null ) {
-								bestMatch = decl;
-							} else {
-								// Prefer the declaration closest to (but before) the usage
-								// This handles shadowing - the later declaration shadows the earlier one
-								if ( decl.declarationLine() > bestMatch.declarationLine() ) {
-									bestMatch = decl;
-								}
-							}
-						}
-					}
-				}
-
+				VariableDeclaration bestMatch = findBestMatchingDeclaration( declarations, targetName );
 				if ( bestMatch != null ) {
 					resolvedDeclaration = bestMatch;
 					return;
 				}
 			}
+		} else {
+			// Not inside a function - check template-level declarations
+			// This handles BXM templates where variables are defined in <bx:script> blocks
+			VariableDeclaration bestMatch = findBestMatchingDeclaration( templateDeclarations, targetName );
+			if ( bestMatch != null ) {
+				resolvedDeclaration = bestMatch;
+				return;
+			}
 		}
 
-		// If not found in function scope, check class-level declarations
+		// If not found in function or template scope, check class-level declarations
 		for ( VariableDeclaration decl : classDeclarations ) {
 			if ( decl.name().equalsIgnoreCase( targetName ) ) {
 				resolvedDeclaration = decl;
 				return;
 			}
 		}
+	}
+
+	/**
+	 * Find the best matching declaration from a list.
+	 * The "best" match is the one that:
+	 * 1. Has the same name (case-insensitive)
+	 * 2. Is declared before the target usage
+	 * 3. Is closest to the target usage (handles shadowing)
+	 */
+	private VariableDeclaration findBestMatchingDeclaration( List<VariableDeclaration> declarations, String targetName ) {
+		VariableDeclaration bestMatch = null;
+
+		for ( VariableDeclaration decl : declarations ) {
+			if ( decl.name().equalsIgnoreCase( targetName ) ) {
+				// Check if this declaration is before the target usage
+				if ( decl.declarationLine() <= targetLine ) {
+					// For same-line declarations, check column position
+					if ( decl.declarationLine() == targetLine ) {
+						// Get the declaration column
+						int declCol = decl.declarationNode().getPosition().getStart().getColumn();
+						if ( declCol > targetColumn ) {
+							continue; // Declaration is after usage
+						}
+					}
+
+					// Check if this is a better match than what we have
+					if ( bestMatch == null ) {
+						bestMatch = decl;
+					} else {
+						// Prefer the declaration closest to (but before) the usage
+						// This handles shadowing - the later declaration shadows the earlier one
+						if ( decl.declarationLine() > bestMatch.declarationLine() ) {
+							bestMatch = decl;
+						}
+					}
+				}
+			}
+		}
+
+		return bestMatch;
 	}
 }

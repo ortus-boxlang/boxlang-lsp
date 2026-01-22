@@ -13,12 +13,34 @@ Verified and tested that Find References functionality works correctly with BXM 
 3. The Find References implementation searches across all `openDocuments` and `parsedFiles` maps, which include BXM files
 4. Template expressions (inside `##` delimiters), `<bx:script>` blocks, and tag attributes all produce the same AST node types as regular code
 
+### Bug Fix: Go to Definition for Template-Level Variables
+
+Fixed a bug where Go to Definition would not work for variables defined in `<bx:script>` blocks and used in `<bx:output>` template expressions. The issue was that `VariableDefinitionResolver` only collected and resolved variables that were inside `BoxFunctionDeclaration` nodes.
+
+**Example that now works:**
+```html
+<bx:script>
+    y = "what"
+</bx:script>
+
+<bx:output>
+    #y#  <!-- Go to Definition now navigates to the assignment above -->
+</bx:output>
+```
+
+**Changes to `VariableDefinitionResolver.java`:**
+- Added `templateDeclarations` list to store variables declared outside functions (template-level scope)
+- Updated `collectAssignment()` to add variables to `templateDeclarations` when there's no containing function
+- Updated `resolveTarget()` to check `templateDeclarations` when the target identifier is not inside a function
+- Extracted common logic into `findBestMatchingDeclaration()` helper method
+
 ### Requirements Met
 
 - ✅ Parse `.bxm` files for BoxLang expressions (already supported by parser)
 - ✅ Find references within `##` expressions (verified with `testFindMethodReferencesInTemplateExpressions`)
 - ✅ Find references in tag attributes (verified with `testFindClassReferencesInTagAttribute`)
 - ✅ Handle the dual nature of BXM (HTML + BoxLang) - template files are correctly parsed and searched
+- ✅ Go to Definition works for template-level variables across different template blocks
 
 ### Test Coverage
 
@@ -34,20 +56,28 @@ Created 9 comprehensive tests for Find References in BXM templates:
 8. `testFindReferencesFromBxmFile()` - Find references when starting from a BXM file
 9. `testLocalVariableReferencesInBxmAreScoped()` - Verify variable scoping in templates
 
+Created 3 additional tests for template-level variable support:
+
+1. `testVariableReferencesAcrossTemplateBlocks()` - Find References works across script and output blocks
+2. `testVariableReferencesFromOutputExpression()` - Find References from `#y#` finds the assignment
+3. `testGoToDefinitionFromOutputExpression()` - Go to Definition from `#y#` navigates to the assignment
+
 ### New Files Created
 
 **Test Resource Files:**
 - `src/test/resources/files/findReferencesTest/UserTemplate.bxm` - BXM template with various reference scenarios
+- `src/test/resources/files/bxmVariableTest.bxm` - Simple BXM template for variable scope testing
 
 **Test Files:**
 - `src/test/java/ortus/boxlang/lsp/FindReferencesBxmTest.java` - Test class for BXM Find References
+- `src/test/java/ortus/boxlang/lsp/BxmVariableScopeTest.java` - Test class for template-level variable support
 
 ### Technical Notes
 
 - The BoxLang compiler's parser automatically detects file type based on extension and produces appropriate AST nodes
 - BXM files produce a `BoxTemplate` root node which contains all expression nodes
 - The visitor pattern in `FindReferenceTargetVisitor` already handles `BoxTemplate` nodes via `visitChildren()`
-- No changes to the core Find References implementation were required
+- Template-level variables (outside functions) are now tracked separately from function-scoped variables
 
 ---
 
