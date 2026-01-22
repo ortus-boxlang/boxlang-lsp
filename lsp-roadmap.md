@@ -537,7 +537,7 @@ When user types `foo(name = |)`, show remaining available named parameters.
 
 ---
 
-### 1.12 Document Sync Improvements (Incomplete)
+### 1.12 Document Sync Improvements (Complete)
 
 **Priority:** Medium  
 **Complexity:** Low  

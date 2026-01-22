@@ -1,5 +1,122 @@
 # BoxLang LSP Development Log
 
+## Task 1.12: Document Sync Improvements (Complete)
+
+**Date:** 2026-01-21
+
+### Summary
+
+Implemented robust document synchronization improvements including incremental text synchronization, debouncing of expensive operations, document version management, and thread-safe document processing.
+
+### Changes Made
+
+#### New Files Created
+
+**`DocumentModel.java`** (`src/main/java/ortus/boxlang/lsp/workspace/`)
+- Maintains in-memory document content for incremental sync support
+- Applies range-based (incremental) and full-document changes
+- Provides position-to-offset conversion for accurate text manipulation
+- Tracks document versions and rejects out-of-order updates
+- Thread-safe synchronized methods for concurrent access
+
+**`DebouncedDocumentProcessor.java`** (`src/main/java/ortus/boxlang/lsp/workspace/`)
+- Schedules document processing after a configurable debounce delay (default: 300ms)
+- Cancels pending tasks when new changes arrive during the debounce window
+- Uses single-threaded ScheduledExecutorService for predictable processing order
+- Provides methods for immediate processing, cancellation, and status checking
+- Daemon thread prevents blocking application shutdown
+
+**`DocumentSyncTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 16 comprehensive tests covering:
+  - Incremental sync: single character insert, text replacement, text deletion, multi-line changes
+  - Full sync: verifies backward compatibility with full document updates
+  - Debouncing: rapid edits are coalesced, diagnostics update after debounce
+  - Version tracking: proper version management, rejection of stale versions
+  - Thread safety: concurrent edits, concurrent open/close operations
+  - File type support: .bx and .bxm files
+  - Edge cases: empty document changes, multiple changes in single event
+
+**Test Resource Files**
+- `documentSyncTest.bx` - Test class for document sync testing
+
+#### Modified Files
+
+**`LanguageServer.java`**
+- Changed `TextDocumentSyncKind.Full` to `TextDocumentSyncKind.Incremental`
+- Enables clients to send range-based changes instead of full documents
+
+**`BoxLangTextDocumentService.java`**
+- Updated `didOpen()` to pass document version to `trackDocumentOpen()`
+- Updated `didChange()` to pass document version to `trackDocumentChange()`
+- Removed obsolete TODO comments
+
+**`ProjectContextProvider.java`**
+- Added `documentModels` map (`ConcurrentHashMap<URI, DocumentModel>`) for incremental sync
+- Added `documentProcessor` (`DebouncedDocumentProcessor`) for debounced processing
+- Changed `parsedFiles` and `openDocuments` to `ConcurrentHashMap` for thread safety
+- Updated `trackDocumentChange()`:
+  - Now accepts optional version parameter
+  - Applies changes to `DocumentModel` immediately
+  - Schedules debounced parsing/diagnostic processing
+  - Rejects changes with stale versions
+- Updated `trackDocumentOpen()`:
+  - Creates `DocumentModel` for new documents
+  - Accepts version parameter
+- Updated `trackDocumentClose()`:
+  - Cancels pending processing
+  - Cleans up `DocumentModel`
+- Added public methods:
+  - `getLatestFileParseResultPublic()` - test helper for accessing parse results
+  - `getDocumentVersion()` - returns current document version
+  - `getDocumentModel()` - returns `DocumentModel` for a URI
+
+### Features Implemented
+
+1. **Incremental Text Synchronization**
+   - Server advertises `TextDocumentSyncKind.Incremental` capability
+   - `DocumentModel` applies range-based changes efficiently
+   - Position-to-offset conversion handles multi-line edits correctly
+   - Full sync still supported as fallback
+
+2. **Debouncing**
+   - 300ms debounce delay by default
+   - Parsing and diagnostics only run after typing pause
+   - Each new keystroke resets the debounce timer
+   - Reduces CPU usage during rapid typing
+
+3. **Document Version Management**
+   - Tracks document version for each open document
+   - Rejects out-of-order changes (prevents race conditions)
+   - Version updates atomically with content changes
+
+4. **Thread Safety**
+   - `ConcurrentHashMap` for all document storage
+   - Synchronized methods in `DocumentModel`
+   - Single-threaded debounce scheduler for predictable ordering
+
+5. **Proper Cleanup**
+   - Cancels pending processing on document close
+   - Removes `DocumentModel` on close
+   - Daemon threads don't prevent shutdown
+
+### Technical Notes
+
+- **Position Conversion**: LSP positions are 0-indexed (line, character). The `positionToOffset()` method iterates through newlines to find the correct byte offset.
+- **Debounce Timing**: 300ms provides good balance between responsiveness and CPU efficiency. Can be adjusted in `DebouncedDocumentProcessor` constructor.
+- **Test Wait Times**: Tests wait 500ms after changes to ensure debounce completes (300ms delay + buffer).
+
+### Requirements Met
+
+- ✅ Support incremental sync (TextDocumentSyncKind.Incremental)
+- ✅ Handle all three file types correctly (.bx, .bxm, .cfc/.cfm)
+- ✅ Properly manage document versions
+- ✅ Handle rapid edits without losing updates
+- ✅ Trigger re-parsing and diagnostic updates on change
+- ✅ Debounce expensive operations (300ms delay)
+- ✅ Ensure thread-safety for document processing
+
+---
+
 ## Task 1.11: Signature Help (Complete)
 
 **Date:** 2026-01-21

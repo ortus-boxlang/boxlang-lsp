@@ -67,7 +67,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	public void didOpen( DidOpenTextDocumentParams params ) {
 		ProjectContextProvider.getInstance().trackDocumentOpen(
 		    LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
-		    params.getTextDocument().getText() );
+		    params.getTextDocument().getText(),
+		    params.getTextDocument().getVersion() );
 		App.logger.debug( "The file was opened" );
 		App.logger.debug( params.getTextDocument().getUri() );
 	}
@@ -76,9 +77,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	public void didChange( DidChangeTextDocumentParams params ) {
 		ProjectContextProvider.getInstance().trackDocumentChange(
 		    LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
-		    params.getContentChanges() );
-		// TODO Auto-generated method stub
-		// throw new UnsupportedOperationException("Unimplemented method 'didChange'");
+		    params.getContentChanges(),
+		    params.getTextDocument().getVersion() );
 	}
 
 	@Override

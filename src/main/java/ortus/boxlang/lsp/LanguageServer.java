@@ -38,7 +38,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			ServerCapabilities capabilities = new ServerCapabilities();
 
-			capabilities.setTextDocumentSync( TextDocumentSyncKind.Full );
+			capabilities.setTextDocumentSync( TextDocumentSyncKind.Incremental );
 			capabilities.setDocumentSymbolProvider( true );
 			capabilities.setDefinitionProvider( true );
 			capabilities.setHoverProvider( true );

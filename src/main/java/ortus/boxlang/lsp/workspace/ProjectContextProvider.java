@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -115,19 +116,21 @@ public class ProjectContextProvider {
 		}
 	}
 
-	static ProjectContextProvider		instance;
-	private List<WorkspaceFolder>		workspaceFolders			= new ArrayList<WorkspaceFolder>();
-	private LanguageClient				client;
-	private Map<URI, FileParseResult>	parsedFiles					= new HashMap<URI, FileParseResult>();
-	private Map<URI, FileParseResult>	openDocuments				= new HashMap<URI, FileParseResult>();
-	private List<FunctionDefinition>	functionDefinitions			= new ArrayList<FunctionDefinition>();
-	private UserSettings				userSettings				= new UserSettings();
-	private long						WorkspaceDiagnosticReportId	= 1;
-	private List<DiagnosticReport>		cachedDiagnosticReports		= new CopyOnWriteArrayList<DiagnosticReport>();
+	static ProjectContextProvider					instance;
+	private List<WorkspaceFolder>					workspaceFolders			= new ArrayList<WorkspaceFolder>();
+	private LanguageClient							client;
+	private Map<URI, FileParseResult>				parsedFiles					= new ConcurrentHashMap<URI, FileParseResult>();
+	private Map<URI, FileParseResult>				openDocuments				= new ConcurrentHashMap<URI, FileParseResult>();
+	private Map<URI, DocumentModel>					documentModels				= new ConcurrentHashMap<URI, DocumentModel>();
+	private List<FunctionDefinition>				functionDefinitions			= new ArrayList<FunctionDefinition>();
+	private UserSettings							userSettings				= new UserSettings();
+	private long									WorkspaceDiagnosticReportId	= 1;
+	private List<DiagnosticReport>					cachedDiagnosticReports		= new CopyOnWriteArrayList<DiagnosticReport>();
 
-	private boolean						shouldPublishDiagnostics	= false;
-	private final AtomicBoolean			workspaceParseRunning		= new AtomicBoolean( false );
-	private ProjectIndex				projectIndex;
+	private boolean									shouldPublishDiagnostics	= false;
+	private final AtomicBoolean						workspaceParseRunning		= new AtomicBoolean( false );
+	private ProjectIndex							projectIndex;
+	private final DebouncedDocumentProcessor		documentProcessor			= new DebouncedDocumentProcessor( 300 );
 
 	public static ortus.boxlang.compiler.ast.Position toBLPosition( Position lspPosition ) {
 		Point								start	= new Point( lspPosition.getLine(), lspPosition.getCharacter() );
@@ -375,18 +378,49 @@ public class ProjectContextProvider {
 	}
 
 	public void trackDocumentChange( URI docUri, List<TextDocumentContentChangeEvent> changes ) {
+		trackDocumentChange( docUri, changes, -1 );
+	}
 
-		if ( openDocuments.containsKey( docUri ) ) {
-			this.openDocuments.remove( docUri );
-		}
+	public void trackDocumentChange( URI docUri, List<TextDocumentContentChangeEvent> changes, int version ) {
+		DocumentModel model = documentModels.get( docUri );
 
-		for ( TextDocumentContentChangeEvent change : changes ) {
-			if ( change.getRange() == null ) {
-				FileParseResult fpr = FileParseResult.fromSourceString( docUri, change.getText() );
-				this.openDocuments.put( docUri, fpr );
-				cacheLatestDiagnostics( fpr );
+		if ( model == null ) {
+			// No model exists - create one from the first change
+			String initialContent = "";
+			for ( TextDocumentContentChangeEvent change : changes ) {
+				if ( change.getRange() == null ) {
+					initialContent = change.getText();
+					break;
+				}
+			}
+			model = new DocumentModel( docUri, initialContent, version > 0 ? version : 1 );
+			documentModels.put( docUri, model );
+		} else {
+			// Apply changes to existing model
+			int newVersion = version > 0 ? version : model.getVersion() + 1;
+			if ( !model.applyChanges( changes, newVersion ) ) {
+				// Version was stale, ignore these changes
+				App.logger.debug( "Ignoring stale document changes for " + docUri + " (version " + version + " <= " + model.getVersion() + ")" );
+				return;
 			}
 		}
+
+		// Schedule debounced processing
+		final DocumentModel finalModel = model;
+		documentProcessor.scheduleProcessing( docUri, () -> {
+			processDocumentUpdate( docUri, finalModel.getContent() );
+		} );
+	}
+
+	/**
+	 * Processes a document update after debouncing.
+	 * This performs the expensive parsing and diagnostic operations.
+	 */
+	private void processDocumentUpdate( URI docUri, String content ) {
+		FileParseResult fpr = FileParseResult.fromSourceString( docUri, content );
+		this.openDocuments.put( docUri, fpr );
+		cacheLatestDiagnostics( fpr );
+		publishDiagnostics( docUri );
 	}
 
 	public void trackDocumentSave( URI docUri, String text ) {
@@ -410,12 +444,25 @@ public class ProjectContextProvider {
 	}
 
 	public void trackDocumentOpen( URI docUri, String text ) {
+		trackDocumentOpen( docUri, text, 1 );
+	}
+
+	public void trackDocumentOpen( URI docUri, String text, int version ) {
+		// Create document model for incremental sync support
+		DocumentModel model = new DocumentModel( docUri, text, version );
+		documentModels.put( docUri, model );
+
+		// Parse immediately on open (no debouncing)
 		FileParseResult fpr = FileParseResult.fromSourceString( docUri, text );
 		this.openDocuments.put( docUri, fpr );
 		cacheLatestDiagnostics( fpr );
 	}
 
 	public void trackDocumentClose( URI docUri ) {
+		// Cancel any pending processing
+		documentProcessor.cancelPendingProcessing( docUri );
+		// Clean up document model
+		documentModels.remove( docUri );
 		this.openDocuments.remove( docUri );
 		this.parsedFiles.remove( docUri );
 	}
@@ -434,6 +481,37 @@ public class ProjectContextProvider {
 		cacheLatestDiagnostics( result );
 
 		return Optional.of( result );
+	}
+
+	/**
+	 * Public accessor for getLatestFileParseResult, used for testing.
+	 *
+	 * @param docUri The document URI
+	 * @return Optional containing the FileParseResult if found
+	 */
+	public Optional<FileParseResult> getLatestFileParseResultPublic( URI docUri ) {
+		return getLatestFileParseResult( docUri );
+	}
+
+	/**
+	 * Gets the current version of a document.
+	 *
+	 * @param docUri The document URI
+	 * @return The document version, or -1 if the document is not tracked
+	 */
+	public int getDocumentVersion( URI docUri ) {
+		DocumentModel model = documentModels.get( docUri );
+		return model != null ? model.getVersion() : -1;
+	}
+
+	/**
+	 * Gets the document model for a URI.
+	 *
+	 * @param docUri The document URI
+	 * @return The DocumentModel, or null if not found
+	 */
+	public DocumentModel getDocumentModel( URI docUri ) {
+		return documentModels.get( docUri );
 	}
 
 	public Optional<List<Either<SymbolInformation, DocumentSymbol>>> getDocumentSymbols( URI docURI ) {
