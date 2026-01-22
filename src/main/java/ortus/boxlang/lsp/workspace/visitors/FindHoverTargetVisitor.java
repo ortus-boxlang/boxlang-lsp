@@ -4,9 +4,11 @@ import org.eclipse.lsp4j.Position;
 
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.expression.BoxDotAccess;
+import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
+import ortus.boxlang.compiler.ast.expression.BoxNew;
 import ortus.boxlang.compiler.ast.expression.BoxScope;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
@@ -129,6 +131,40 @@ public class FindHoverTargetVisitor extends VoidBoxVisitor {
 		// Scope keywords (variables, local, this, arguments, etc.)
 		// Set as target for hover on scope
 		this.hoverTarget = node;
+	}
+
+	@Override
+	public void visit( BoxNew node ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
+			return;
+		}
+
+		// Check if cursor is on the class name part (BoxFQN)
+		BoxNode expression = node.getExpression();
+		if ( expression instanceof BoxFQN fqn && BLASTTools.containsPosition( fqn, line, column ) ) {
+			// Cursor is on the class name - set BoxNew as target so we have context
+			this.hoverTarget = node;
+			return;
+		}
+
+		// Otherwise, visit children for any other targets
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxFQN node ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
+			return;
+		}
+
+		// A fully qualified name - could be a class reference in various contexts
+		// (e.g., type hints, extends/implements, etc.)
+		// Only set if no more specific target found
+		if ( this.hoverTarget == null ) {
+			this.hoverTarget = node;
+		}
 	}
 
 	@Override

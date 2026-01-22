@@ -54,9 +54,11 @@ import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.IBoxDocumentableNode;
 import ortus.boxlang.compiler.ast.Point;
 import ortus.boxlang.compiler.ast.comment.BoxDocComment;
+import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
+import ortus.boxlang.compiler.ast.expression.BoxNew;
 import ortus.boxlang.compiler.ast.expression.BoxScope;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxDocumentationAnnotation;
@@ -72,8 +74,9 @@ import ortus.boxlang.lsp.workspace.codeLens.CodeLensFacts;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensRuleBook;
 import ortus.boxlang.lsp.workspace.completion.CompletionFacts;
 import ortus.boxlang.lsp.workspace.completion.CompletionProviderRuleBook;
-import ortus.boxlang.lsp.workspace.index.ProjectIndex;
+import ortus.boxlang.lsp.workspace.index.IndexedClass;
 import ortus.boxlang.lsp.workspace.index.IndexedMethod;
+import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 import ortus.boxlang.lsp.workspace.visitors.FindDefinitionTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FindHoverTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FindReferenceTargetVisitor;
@@ -612,6 +615,28 @@ public class ProjectContextProvider {
 			    // Handle property declarations
 			    if ( target instanceof BoxProperty property ) {
 				    return buildHoverForProperty( property );
+			    }
+
+			    // Handle new expressions (class instantiation) - e.g., new UserService()
+			    if ( target instanceof BoxNew newExpr ) {
+				    String className = extractClassNameFromNew( newExpr );
+				    if ( className != null ) {
+					    var indexedClassOpt = getIndex().findClassByName( className );
+					    if ( indexedClassOpt.isPresent() ) {
+						    return buildHoverForClass( indexedClassOpt.get() );
+					    }
+				    }
+			    }
+
+			    // Handle fully qualified names (class references in type hints, extends, implements, etc.)
+			    if ( target instanceof BoxFQN fqn ) {
+				    String className = extractClassNameFromFQN( fqn );
+				    if ( className != null ) {
+					    var indexedClassOpt = getIndex().findClassByName( className );
+					    if ( indexedClassOpt.isPresent() ) {
+						    return buildHoverForClass( indexedClassOpt.get() );
+					    }
+				    }
 			    }
 
 			    // Handle scope keywords (variables, local, this, arguments, etc.)
@@ -1338,6 +1363,211 @@ public class ProjectContextProvider {
 			return fileName.substring( 0, fileName.lastIndexOf( "." ) );
 		}
 		return fileName;
+	}
+
+	/**
+	 * Extract the class name from a BoxNew expression.
+	 */
+	private String extractClassNameFromNew( BoxNew newExpr ) {
+		BoxNode expression = newExpr.getExpression();
+
+		if ( expression instanceof BoxFQN fqn ) {
+			return extractClassNameFromFQN( fqn );
+		}
+
+		// Try to get the source text as a fallback
+		if ( expression != null ) {
+			String sourceText = expression.getSourceText();
+			if ( sourceText != null ) {
+				sourceText = sourceText.trim();
+				int lastDot = sourceText.lastIndexOf( '.' );
+				int lastColon = sourceText.lastIndexOf( ':' );
+				int lastSeparator = Math.max( lastDot, lastColon );
+
+				if ( lastSeparator >= 0 && lastSeparator < sourceText.length() - 1 ) {
+					return sourceText.substring( lastSeparator + 1 );
+				}
+				return sourceText;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Extract the class name from a BoxFQN node.
+	 */
+	private String extractClassNameFromFQN( BoxFQN fqn ) {
+		String fullPath = fqn.getValue();
+		if ( fullPath == null || fullPath.isEmpty() ) {
+			return null;
+		}
+
+		// Get just the class name (last part after any dots or colons)
+		int lastDot = fullPath.lastIndexOf( '.' );
+		int lastColon = fullPath.lastIndexOf( ':' );
+		int lastSeparator = Math.max( lastDot, lastColon );
+
+		if ( lastSeparator >= 0 && lastSeparator < fullPath.length() - 1 ) {
+			return fullPath.substring( lastSeparator + 1 );
+		}
+		return fullPath;
+	}
+
+	/**
+	 * Build hover content for a class or interface.
+	 */
+	private Hover buildHoverForClass( IndexedClass indexedClass ) {
+		StringBuilder content = new StringBuilder();
+
+		// Add class name with type indicator
+		content.append( "**" ).append( indexedClass.name() ).append( "** " );
+		content.append( "(" ).append( indexedClass.isInterface() ? "interface" : "class" ).append( ")\n\n" );
+
+		// Add class/interface declaration in code block
+		content.append( "```boxlang\n" );
+		content.append( buildClassSignature( indexedClass ) );
+		content.append( "\n```\n\n" );
+
+		// Add class documentation if available
+		if ( indexedClass.documentation() != null && !indexedClass.documentation().isBlank() ) {
+			content.append( formatClassDocumentation( indexedClass.documentation() ) );
+		}
+
+		// Add inheritance information
+		if ( indexedClass.hasParent() ) {
+			content.append( "**Extends:** `" ).append( indexedClass.extendsClass() ).append( "`\n\n" );
+		}
+
+		if ( indexedClass.hasInterfaces() ) {
+			String interfaces = String.join( "`, `", indexedClass.implementsInterfaces() );
+			content.append( "**Implements:** `" ).append( interfaces ).append( "`\n\n" );
+		}
+
+		// Add file location
+		if ( indexedClass.fileUri() != null ) {
+			String fileName = getFileNameFromUri( indexedClass.fileUri() );
+			content.append( "**File:** `" ).append( fileName ).append( "`" );
+		}
+
+		Hover			hover			= new Hover();
+		MarkupContent	markupContent	= new MarkupContent();
+		markupContent.setKind( MarkupKind.MARKDOWN );
+		markupContent.setValue( content.toString().trim() );
+		hover.setContents( markupContent );
+
+		return hover;
+	}
+
+	/**
+	 * Format class documentation for display in hover.
+	 */
+	private String formatClassDocumentation( String documentation ) {
+		if ( documentation == null || documentation.isBlank() ) {
+			return "";
+		}
+
+		StringBuilder	sb		= new StringBuilder();
+		String[]		lines	= documentation.split( "\n" );
+
+		// Separate description from tags
+		StringBuilder	description		= new StringBuilder();
+		String			authorTag		= null;
+		String			sinceTag		= null;
+		String			deprecatedTag	= null;
+
+		for ( String line : lines ) {
+			String trimmed = line.trim();
+			if ( trimmed.startsWith( "@author" ) ) {
+				authorTag = trimmed.substring( 7 ).trim();
+			} else if ( trimmed.startsWith( "@since" ) ) {
+				sinceTag = trimmed.substring( 6 ).trim();
+			} else if ( trimmed.startsWith( "@deprecated" ) ) {
+				deprecatedTag = trimmed.substring( 11 ).trim();
+			} else if ( !trimmed.startsWith( "@" ) ) {
+				if ( description.length() > 0 ) {
+					description.append( "\n" );
+				}
+				description.append( trimmed );
+			}
+		}
+
+		// Add description
+		if ( description.length() > 0 ) {
+			sb.append( description.toString().trim() );
+			sb.append( "\n\n" );
+		}
+
+		// Add deprecated
+		if ( deprecatedTag != null ) {
+			sb.append( "**@deprecated** " ).append( deprecatedTag ).append( "\n\n" );
+		}
+
+		// Add author
+		if ( authorTag != null && !authorTag.isEmpty() ) {
+			sb.append( "**@author** " ).append( authorTag ).append( "\n\n" );
+		}
+
+		// Add since
+		if ( sinceTag != null && !sinceTag.isEmpty() ) {
+			sb.append( "**@since** " ).append( sinceTag ).append( "\n\n" );
+		}
+
+		return sb.toString();
+	}
+
+	/**
+	 * Build a class/interface signature string.
+	 */
+	private String buildClassSignature( IndexedClass indexedClass ) {
+		StringBuilder sig = new StringBuilder();
+
+		// Add modifiers if any
+		if ( indexedClass.modifiers() != null && !indexedClass.modifiers().isEmpty() ) {
+			sig.append( String.join( " ", indexedClass.modifiers() ) ).append( " " );
+		}
+
+		// Add class or interface keyword
+		if ( indexedClass.isInterface() ) {
+			sig.append( "interface " );
+		} else {
+			sig.append( "class " );
+		}
+
+		// Add class name
+		sig.append( indexedClass.name() );
+
+		// Add extends
+		if ( indexedClass.hasParent() ) {
+			sig.append( " extends " ).append( indexedClass.extendsClass() );
+		}
+
+		// Add implements
+		if ( indexedClass.hasInterfaces() ) {
+			sig.append( " implements " ).append( String.join( ", ", indexedClass.implementsInterfaces() ) );
+		}
+
+		return sig.toString();
+	}
+
+	/**
+	 * Extract the filename from a file URI string.
+	 */
+	private String getFileNameFromUri( String fileUri ) {
+		if ( fileUri == null || fileUri.isEmpty() ) {
+			return null;
+		}
+		try {
+			Path path = Paths.get( new URI( fileUri ) );
+			return path.getFileName().toString();
+		} catch ( Exception e ) {
+			// Fallback: try to extract filename from URI string
+			int lastSlash = Math.max( fileUri.lastIndexOf( '/' ), fileUri.lastIndexOf( '\\' ) );
+			if ( lastSlash >= 0 && lastSlash < fileUri.length() - 1 ) {
+				return fileUri.substring( lastSlash + 1 );
+			}
+			return fileUri;
+		}
 	}
 
 	private void publishDiagnostics( URI docURI ) {

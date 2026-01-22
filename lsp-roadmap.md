@@ -446,7 +446,7 @@ BoxLang likely has scopes similar to CFML. Track variables in:
 
 ---
 
-### 1.10 Hover - Classes and Interfaces (Incomplete)
+### 1.10 Hover - Classes and Interfaces (Complete)
 
 **Priority:** Medium  
 **Complexity:** Low  

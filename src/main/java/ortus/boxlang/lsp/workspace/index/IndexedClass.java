@@ -7,7 +7,7 @@ import org.eclipse.lsp4j.Range;
 
 /**
  * Represents an indexed class or interface from a BoxLang file.
- * Contains metadata about inheritance, location, and modification time.
+ * Contains metadata about inheritance, location, documentation, and modification time.
  */
 public record IndexedClass(
     String name,
@@ -18,6 +18,7 @@ public record IndexedClass(
     List<String> implementsInterfaces,
     List<String> modifiers,
     boolean isInterface,
+    String documentation,
     Instant lastModified ) {
 
 	/**

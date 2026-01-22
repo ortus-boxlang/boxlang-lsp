@@ -1,0 +1,23 @@
+/**
+ * User service for managing user operations.
+ *
+ * This service handles all user-related CRUD operations.
+ *
+ * @author Claude
+ * @since 2.0
+ */
+class extends="BaseService" implements="IUserService" {
+    /**
+     * Gets a user by ID.
+     */
+    public function getUser(required numeric id) {
+        return queryExecute("SELECT * FROM users WHERE id = :id", {id: id});
+    }
+
+    /**
+     * Saves user data.
+     */
+    public function saveUser(required struct userData) {
+        // Save logic here
+    }
+}

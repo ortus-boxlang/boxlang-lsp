@@ -66,6 +66,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		String			extendsClass			= extractExtends( annotations );
 		List<String>	implementsInterfaces	= extractImplements( annotations );
 		List<String>	modifiers				= extractModifiers( annotations );
+		String			documentation			= extractClassDocumentation( node );
 
 		IndexedClass	indexedClass			= new IndexedClass(
 		    className,
@@ -76,6 +77,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		    implementsInterfaces,
 		    modifiers,
 		    false,
+		    documentation,
 		    lastModified
 		);
 
@@ -94,6 +96,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		List<BoxAnnotation>	annotations			= findAnnotations( node );
 		String				extendsInterface	= extractExtends( annotations );
 		List<String>		modifiers			= extractModifiers( annotations );
+		String				documentation		= extractInterfaceDocumentation( node );
 
 		IndexedClass		indexedInterface	= new IndexedClass(
 		    className,
@@ -104,6 +107,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		    new ArrayList<>(),
 		    modifiers,
 		    true,
+		    documentation,
 		    lastModified
 		);
 
@@ -444,6 +448,104 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		}
 
 		return values;
+	}
+
+	/**
+	 * Extract documentation from a class node.
+	 * Returns a formatted string containing the description and all documentation annotations.
+	 */
+	private String extractClassDocumentation( BoxClass node ) {
+		if ( !( node instanceof IBoxDocumentableNode documentableNode ) ) {
+			return null;
+		}
+
+		BoxDocComment docComment = documentableNode.getDocComment();
+		if ( docComment == null ) {
+			return null;
+		}
+
+		StringBuilder doc = new StringBuilder();
+
+		// Get the comment text (description)
+		String commentText = docComment.getCommentText();
+		if ( commentText != null && !commentText.isBlank() ) {
+			String cleanedDescription = cleanDocCommentDescription( commentText );
+			if ( !cleanedDescription.isBlank() ) {
+				doc.append( cleanedDescription );
+			}
+		}
+
+		// Add documentation annotations (@author, @since, etc.)
+		List<BoxDocumentationAnnotation> annotations = docComment.getAnnotations();
+		if ( annotations != null && !annotations.isEmpty() ) {
+			for ( BoxDocumentationAnnotation annotation : annotations ) {
+				if ( doc.length() > 0 ) {
+					doc.append( "\n" );
+				}
+				String key = annotation.getKey().getValue();
+				String value = "";
+				if ( annotation.getValue() != null ) {
+					value = annotation.getValue().getSourceText();
+					String tagPrefix = "@" + key + " ";
+					if ( value.startsWith( tagPrefix ) ) {
+						value = value.substring( tagPrefix.length() );
+					}
+					value = cleanAnnotationValue( value );
+				}
+				doc.append( "@" ).append( key ).append( " " ).append( value );
+			}
+		}
+
+		return doc.length() > 0 ? doc.toString() : null;
+	}
+
+	/**
+	 * Extract documentation from an interface node.
+	 * Returns a formatted string containing the description and all documentation annotations.
+	 */
+	private String extractInterfaceDocumentation( BoxInterface node ) {
+		if ( !( node instanceof IBoxDocumentableNode documentableNode ) ) {
+			return null;
+		}
+
+		BoxDocComment docComment = documentableNode.getDocComment();
+		if ( docComment == null ) {
+			return null;
+		}
+
+		StringBuilder doc = new StringBuilder();
+
+		// Get the comment text (description)
+		String commentText = docComment.getCommentText();
+		if ( commentText != null && !commentText.isBlank() ) {
+			String cleanedDescription = cleanDocCommentDescription( commentText );
+			if ( !cleanedDescription.isBlank() ) {
+				doc.append( cleanedDescription );
+			}
+		}
+
+		// Add documentation annotations (@author, @since, etc.)
+		List<BoxDocumentationAnnotation> annotations = docComment.getAnnotations();
+		if ( annotations != null && !annotations.isEmpty() ) {
+			for ( BoxDocumentationAnnotation annotation : annotations ) {
+				if ( doc.length() > 0 ) {
+					doc.append( "\n" );
+				}
+				String key = annotation.getKey().getValue();
+				String value = "";
+				if ( annotation.getValue() != null ) {
+					value = annotation.getValue().getSourceText();
+					String tagPrefix = "@" + key + " ";
+					if ( value.startsWith( tagPrefix ) ) {
+						value = value.substring( tagPrefix.length() );
+					}
+					value = cleanAnnotationValue( value );
+				}
+				doc.append( "@" ).append( key ).append( " " ).append( value );
+			}
+		}
+
+		return doc.length() > 0 ? doc.toString() : null;
 	}
 
 	/**

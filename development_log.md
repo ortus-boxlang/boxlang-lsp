@@ -1,5 +1,109 @@
 # BoxLang LSP Development Log
 
+## Task 1.10: Hover - Classes and Interfaces (Complete)
+
+**Date:** 2026-01-21
+
+### Summary
+
+Implemented hover support for classes and interfaces. When hovering over a class reference (e.g., in `new ClassName()` expressions), the LSP displays the class name with type indicator (class/interface), the class signature including inheritance, documentation from javadoc comments, extends/implements information, and file location.
+
+### Changes Made
+
+#### New Files Created
+
+**`ClassHoverTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 8 comprehensive tests for class/interface hover functionality:
+  - `testHoverOnClassInNewExpression()` - hover on class name in new expression
+  - `testHoverOnClassShowsDocumentation()` - hover shows class documentation
+  - `testHoverOnClassShowsInheritance()` - hover shows extends/implements
+  - `testHoverOnClassShowsFileLocation()` - hover shows file path
+  - `testHoverOnInterfaceInNewExpression()` - interface handling
+  - `testHoverOnBaseServiceClass()` - verify class indexing
+  - `testHoverOnInterfaceVerifyIndexed()` - verify interface indexing
+  - `testHoverOnClassWithInheritanceChain()` - verify inheritance tracking
+
+**Test Resource Files** (`src/test/resources/files/classHoverTest/`)
+- `BaseService.bx` - Base class with documentation
+- `IUserService.bx` - Interface with documentation
+- `UserService.bx` - Class extending BaseService, implementing IUserService
+- `ClassThatUsesUserService.bx` - File using the classes for hover testing
+
+#### Modified Files
+
+**`FindHoverTargetVisitor.java`**
+- Added `visit(BoxNew)` method to handle class instantiation expressions
+- Added `visit(BoxFQN)` method to handle fully qualified name references
+- Added imports for `BoxFQN` and `BoxNew`
+
+**`IndexedClass.java`**
+- Added `documentation` field to store class/interface documentation
+
+**`ProjectIndexVisitor.java`**
+- Added `extractClassDocumentation()` method to extract documentation from BoxClass nodes
+- Added `extractInterfaceDocumentation()` method to extract documentation from BoxInterface nodes
+- Updated `visit(BoxClass)` and `visit(BoxInterface)` to include documentation in indexed classes
+
+**`ProjectContextProvider.java`**
+- Added handling for `BoxNew` nodes in `getHoverInfo()` to show class hover
+- Added handling for `BoxFQN` nodes in `getHoverInfo()` for class references
+- Added `buildHoverForClass()` method to format class hover content
+- Added `buildClassSignature()` method to build class/interface signature
+- Added `formatClassDocumentation()` method to format class documentation
+- Added `extractClassNameFromNew()` and `extractClassNameFromFQN()` helper methods
+- Added `getFileNameFromUri()` helper method
+- Added imports for `BoxFQN`, `BoxNew`, and `IndexedClass`
+
+### Hover Content Format
+
+**For Classes:**
+```
+**UserService** (class)
+
+```boxlang
+class UserService extends BaseService implements IUserService
+```
+
+User service for managing user operations.
+
+**@author** Claude
+
+**@since** 2.0
+
+**Extends:** `BaseService`
+
+**Implements:** `IUserService`
+
+**File:** `UserService.bx`
+```
+
+**For Interfaces:**
+```
+**IUserService** (interface)
+
+```boxlang
+interface IUserService
+```
+
+Interface for user service operations.
+
+**@author** Claude
+
+**File:** `IUserService.bx`
+```
+
+### Requirements Met
+
+- ✅ Identify class/interface reference under cursor (BoxNew, BoxFQN nodes)
+- ✅ Look up in index (using `findClassByName()`)
+- ✅ Display class documentation (from javadoc comments)
+- ✅ Display inheritance chain (extends)
+- ✅ Display implemented interfaces (implements)
+- ✅ Display file location
+- ✅ Display modifier info (abstract, final, etc.)
+
+---
+
 ## Task 1.9: Hover - Variables (Complete)
 
 **Date:** 2026-01-21
