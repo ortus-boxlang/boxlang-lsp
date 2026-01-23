@@ -19,7 +19,8 @@ public class CompletionProviderRuleBook extends RuleCollection<CompletionFacts, 
 		    .addRule( new MemberAccessCompletionRule() )
 		    .addRule( new BIFCompletionRule() )
 		    .addRule( new PropertyCompletionRule() )
-		    .addRule( new VariableCompletionRule() );
+		    .addRule( new VariableCompletionRule() )
+		    .addRule( new FunctionCompletionRule() );
 	}
 
 	public static List<CompletionItem> execute( CompletionFacts facts ) {
