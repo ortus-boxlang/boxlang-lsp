@@ -17,6 +17,7 @@ public class CompletionProviderRuleBook extends RuleCollection<CompletionFacts, 
 		    .addRule( new ClassAndTypeCompletionRule() )	// Must come before NewCompletionRule
 		    .addRule( new NewCompletionRule() )
 		    .addRule( new ComponentCompletionRule() )
+		    .addRule( new BxmTagAttributeCompletionRule() )	// Attribute completion for BXM tags
 		    .addRule( new MemberAccessCompletionRule() )
 		    .addRule( new ArgumentCompletionRule() )		// Add argument completion for function calls
 		    .addRule( new SnippetCompletionRule() )			// Add snippets before keywords for better UX
