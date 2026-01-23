@@ -115,12 +115,23 @@ public class ClassAndTypeCompletionRule implements IRule<CompletionFacts, List<C
 
 	/**
 	 * Check if a class matches the prefix filter.
+	 * Supports both simple names and dotted package paths:
+	 * - "User" matches classes named "User*"
+	 * - "models.User" matches classes with FQN "models.User*"
+	 * - "models." matches all classes in "models" package
 	 */
 	private boolean matchesPrefix( IndexedClass cls, String prefix ) {
 		if ( prefix == null || prefix.isEmpty() ) {
 			return true;
 		}
-		// Case-insensitive prefix matching on simple name
+
+		// If prefix contains dots, it's a package-qualified prefix
+		if ( prefix.contains( "." ) ) {
+			// Match against the fully qualified name
+			return cls.fullyQualifiedName().toLowerCase().startsWith( prefix.toLowerCase() );
+		}
+
+		// Otherwise, match on simple class name only
 		return cls.name().toLowerCase().startsWith( prefix.toLowerCase() );
 	}
 
