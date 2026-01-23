@@ -1,0 +1,33 @@
+class TestClass {
+
+	function createUser(required string name, required numeric age, boolean active = true) {
+		return {
+			"name": name,
+			"age": age,
+			"active": active
+		};
+	}
+
+	function updateUser(required string userId, string name, numeric age, boolean active) {
+		// Update user logic
+	}
+
+	function processOrder(required string orderId, numeric quantity, string status = "pending") {
+		// Process order logic
+	}
+
+	function testArgumentCompletion() {
+		// Variables for testing
+		var userName = "John Doe";
+		var userAge = 25;
+		var isActive = true;
+		var orderId = "ORD123";
+		var orderQuantity = 5;
+		var productName = "Widget";
+
+		// Test cases with completed calls
+		var test1 = createUser("John", 30, true);
+		var test2 = createUser(name="Jane", age=25, active=false);
+		var test3 = updateUser("123", "Bob", 40, true);
+	}
+}

@@ -18,6 +18,7 @@ public class CompletionProviderRuleBook extends RuleCollection<CompletionFacts, 
 		    .addRule( new NewCompletionRule() )
 		    .addRule( new ComponentCompletionRule() )
 		    .addRule( new MemberAccessCompletionRule() )
+		    .addRule( new ArgumentCompletionRule() )		// Add argument completion for function calls
 		    .addRule( new SnippetCompletionRule() )			// Add snippets before keywords for better UX
 		    .addRule( new KeywordCompletionRule() )
 		    .addRule( new BIFCompletionRule() )
