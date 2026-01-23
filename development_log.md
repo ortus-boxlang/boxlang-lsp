@@ -1,5 +1,172 @@
 # BoxLang LSP Development Log
 
+## Task 3.7: Completion - Snippets (Complete)
+
+**Date:** 2026-01-23
+
+### Summary
+
+Implemented context-aware snippet completions for common BoxLang patterns. Snippets provide quick scaffolding for frequently-used code structures like functions, classes, loops, and control flow statements. Each snippet includes multiple trigger options (both short and full keywords) and uses LSP snippet syntax with tab stops for efficient code generation.
+
+### Features Implemented
+
+1. **Context-Aware Snippets**
+   - **Top-level snippets**: `class`, `interface`, `classext` (class with extends)
+   - **Class body snippets**: `fun`/`function`, `prop`/`property`, `init`/`constructor`, `get`/`getter`, `set`/`setter`, `pubfun`, `privfun`
+   - **Function body snippets**: `if`, `ifelse`, `for`, `forin`, `while`, `dowhile`, `try`, `switch`, `var`, `return`, `throw`
+   - Snippets only appear in appropriate contexts (no class snippets in function bodies, etc.)
+
+2. **Multiple Triggers Per Snippet**
+   - Short triggers for fast typing (e.g., `fun`, `cls`, `ife`)
+   - Full keyword triggers for discoverability (e.g., `function`, `class`, `ifelse`)
+   - Both trigger the same snippet body
+   - Examples:
+     - `fun`, `function`, `func` → function definition
+     - `for` → for loop
+     - `forin`, `foreach` → for-in loop
+     - `prop`, `property` → property definition
+
+3. **LSP Snippet Format**
+   - Tab stops (`$1`, `$2`, `$0`) for navigating between placeholders
+   - Named placeholders (`${1:name}`, `${2:params}`) with default values
+   - Final tab stop (`$0`) for cursor position after completion
+   - Proper indentation and formatting
+
+4. **Additional Patterns Beyond Roadmap**
+   - Public/private function modifiers (`pubfun`, `privfun`)
+   - Class with extends (`classext`)
+   - If-else statement (`ifelse`)
+   - For-in loop (`forin`)
+   - Do-while loop (`dowhile`)
+   - Try-catch-finally (`tryfinally`)
+   - Switch statement (`switch`)
+   - Property with default value (`propdef`)
+   - Constructor/init method (`init`)
+   - Getter and setter methods (`get`, `set`)
+   - Variable declaration (`var`)
+   - Return statement (`ret`, `return`)
+   - Throw statement (`throw`)
+
+5. **Proper Sorting and Display**
+   - Snippets use `sortText` prefix "0" to prioritize them highly
+   - `CompletionItemKind.Snippet` for correct client-side rendering
+   - `InsertTextFormat.Snippet` for LSP snippet support
+   - Detail field shows snippet label
+   - Documentation field provides description
+
+### Implementation Details
+
+**New Files Created:**
+
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/SnippetCompletionRule.java`
+  - Implements `IRule<CompletionFacts, List<CompletionItem>>`
+  - Defines `Snippet` record with label, triggers, body, description, and context
+  - Defines `Context` enum: TOP_LEVEL, CLASS_BODY, FUNCTION_BODY, ANY
+  - Static list of 24 snippets covering common patterns
+  - `when()` filters out inappropriate contexts (MEMBER_ACCESS, IMPORT, etc.)
+  - `then()` creates completion items for each applicable snippet's triggers
+
+**Test Files Created:**
+
+- `src/test/java/ortus/boxlang/lsp/SnippetCompletionTest.java`
+  - 11 comprehensive tests covering all snippet features
+  - Tests verify correct snippets appear in each context
+  - Tests verify snippets are excluded from inappropriate contexts
+  - Tests verify snippet content includes correct placeholders
+  - Tests verify multiple triggers work for same snippet
+
+**Test Resource Files:**
+
+- `src/test/resources/files/snippetCompletionTest/TopLevel.bx` - Top-level context
+- `src/test/resources/files/snippetCompletionTest/ClassBody.bx` - Class body context
+- `src/test/resources/files/snippetCompletionTest/FunctionBody.bx` - Function body context
+
+**Modified Files:**
+
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/CompletionProviderRuleBook.java`
+  - Added `SnippetCompletionRule` before `KeywordCompletionRule` for better UX
+  - Snippets appear before plain keywords in completion list
+
+### Test Coverage
+
+All 11 tests pass successfully:
+
+1. `testTopLevelSnippets()` - Verifies class, interface snippets at top level
+2. `testClassBodySnippets()` - Verifies function, property, getter/setter snippets in class
+3. `testFunctionBodySnippets()` - Verifies if, for, while, try/catch snippets in functions
+4. `testSnippetsHaveCorrectKind()` - Verifies `CompletionItemKind.Snippet`
+5. `testSnippetsHaveInsertTextFormat()` - Verifies `InsertTextFormat.Snippet` and placeholders
+6. `testSnippetsSortCorrectly()` - Verifies "0" sortText prefix for high priority
+7. `testFunctionSnippetContent()` - Verifies function snippet has correct placeholders
+8. `testIfElseSnippetContent()` - Verifies if-else snippet structure
+9. `testPropertySnippetContent()` - Verifies property snippet placeholders
+10. `testTryCatchSnippetContent()` - Verifies try-catch snippet structure
+11. `testMultipleTriggersForSameSnippet()` - Verifies multiple triggers create same snippet
+
+### Requirements Met
+
+- ✅ Provide snippet completions for common patterns
+- ✅ Function definition snippet (`fun`, `function`, `func`)
+- ✅ Class definition snippet (`class`, `cls`)
+- ✅ Interface definition snippet (`interface`, `int`)
+- ✅ If statement snippet (`if`)
+- ✅ If-else statement snippet (`ifelse`)
+- ✅ For loop snippet (`for`)
+- ✅ For-in loop snippet (`forin`)
+- ✅ While loop snippet (`while`)
+- ✅ Do-while loop snippet (`dowhile`)
+- ✅ Try-catch snippet (`try`, `trycatch`)
+- ✅ Try-catch-finally snippet (`tryfinally`)
+- ✅ Switch statement snippet (`switch`)
+- ✅ Property snippet (`prop`, `property`)
+- ✅ Constructor snippet (`init`, `constructor`)
+- ✅ Getter/setter snippets (`get`, `set`)
+- ✅ Context-aware display (only show appropriate snippets)
+- ✅ Both short and full keyword triggers
+- ✅ Additional useful patterns beyond roadmap examples
+
+### Snippet Catalog
+
+#### Top-Level Snippets
+- `class`, `cls` → Class definition
+- `classext`, `extclass` → Class with extends
+- `interface`, `int` → Interface definition
+
+#### Class Body Snippets
+- `fun`, `function`, `func` → Function definition
+- `pubfun`, `publicfunction` → Public function with return type
+- `privfun`, `privatefunction` → Private function
+- `prop`, `property` → Property definition
+- `propdef`, `propertydefault` → Property with default value
+- `init`, `constructor` → Constructor function
+- `get`, `getter` → Getter method
+- `set`, `setter` → Setter method
+
+#### Function Body Snippets
+- `if` → If statement
+- `ifelse`, `ife` → If-else statement
+- `for` → For loop
+- `forin`, `foreach` → For-in loop
+- `while` → While loop
+- `dowhile`, `do` → Do-while loop
+- `try`, `trycatch` → Try-catch block
+- `tryfinally`, `trycatchfinally` → Try-catch-finally block
+- `switch` → Switch statement
+- `var` → Variable declaration
+- `ret`, `return` → Return statement
+- `throw` → Throw statement
+
+### Technical Notes
+
+- The rule leverages the existing `CompletionContext` framework from Task 3.1
+- Context detection uses `containingClassName` and `containingMethodName` to determine location
+- Snippets are excluded from MEMBER_ACCESS, IMPORT, NEW_EXPRESSION, EXTENDS, IMPLEMENTS, BXM_TAG, TEMPLATE_EXPRESSION, and NONE contexts
+- Each snippet can have multiple triggers, all generating the same snippet body
+- Snippet placeholders use LSP snippet syntax compatible with VS Code and other clients
+- Sort priority "0" ensures snippets appear before keywords ("1") and other completions
+
+---
+
 ## Task 3.6: Completion - Keywords (Complete)
 
 **Date:** 2026-01-23
