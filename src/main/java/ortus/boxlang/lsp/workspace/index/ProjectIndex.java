@@ -296,13 +296,31 @@ public class ProjectIndex {
 
 	/**
 	 * Find all classes that extend a given class.
+	 * Tries both FQN and simple name lookup since extends may store
+	 * simple names from annotations.
 	 *
-	 * @param className The parent class name
+	 * @param className The parent class name (can be FQN or simple name)
 	 *
 	 * @return List of classes extending the specified class
 	 */
 	public List<IndexedClass> findClassesExtending( String className ) {
+		// Try FQN first
 		List<String> descendants = inheritanceGraph.getDescendants( className );
+
+		// If no results, try extracting simple name and searching
+		if ( descendants.isEmpty() && className.contains( "." ) ) {
+			String simpleName = className.substring( className.lastIndexOf( "." ) + 1 );
+			descendants = inheritanceGraph.getDescendants( simpleName );
+		}
+
+		// Also try with just the simple name if we were given an FQN
+		if ( descendants.isEmpty() ) {
+			String simpleName = className.contains( "." )
+			    ? className.substring( className.lastIndexOf( "." ) + 1 )
+			    : className;
+			descendants = inheritanceGraph.getDescendants( simpleName );
+		}
+
 		return descendants.stream()
 		    .map( classesByFQN::get )
 		    .filter( c -> c != null )
@@ -311,13 +329,32 @@ public class ProjectIndex {
 
 	/**
 	 * Find all classes that implement a given interface.
+	 * Tries both FQN and simple name lookup since implementations may store
+	 * simple names from annotations.
 	 *
-	 * @param interfaceName The interface name
+	 * @param interfaceName The interface name (can be FQN or simple name)
 	 *
 	 * @return List of classes implementing the specified interface
 	 */
 	public List<IndexedClass> findClassesImplementing( String interfaceName ) {
+		// Try FQN first
 		List<String> implementors = inheritanceGraph.getImplementors( interfaceName );
+
+		// If no results, try extracting simple name and searching
+		if ( implementors.isEmpty() && interfaceName.contains( "." ) ) {
+			String simpleName = interfaceName.substring( interfaceName.lastIndexOf( "." ) + 1 );
+			implementors = inheritanceGraph.getImplementors( simpleName );
+		}
+
+		// Also try with just the simple name if we were given an FQN
+		if ( implementors.isEmpty() ) {
+			// Extract simple name if it's a FQN
+			String simpleName = interfaceName.contains( "." )
+			    ? interfaceName.substring( interfaceName.lastIndexOf( "." ) + 1 )
+			    : interfaceName;
+			implementors = inheritanceGraph.getImplementors( simpleName );
+		}
+
 		return implementors.stream()
 		    .map( classesByFQN::get )
 		    .filter( c -> c != null )

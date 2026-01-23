@@ -27,6 +27,7 @@ import org.eclipse.lsp4j.DocumentSymbolCapabilities;
 import org.eclipse.lsp4j.DocumentSymbolParams;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
+import org.eclipse.lsp4j.ImplementationParams;
 import org.eclipse.lsp4j.SignatureHelp;
 import org.eclipse.lsp4j.SignatureHelpParams;
 import org.eclipse.lsp4j.TypeDefinitionParams;
@@ -286,6 +287,34 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 			return CompletableFutures.computeAsync( ( cancelToken ) -> {
 				return Either
 				    .forLeft( ProjectContextProvider.getInstance().findTypeDefinition( docURI,
+				        params.getPosition() ) );
+			} );
+		} catch ( URISyntaxException e ) {
+			e.printStackTrace();
+		}
+
+		return CompletableFuture.supplyAsync( () -> {
+			return Either.forLeft( new ArrayList<>() );
+		} );
+	}
+
+	/**
+	 * The goto implementation request is sent from the client to the server to resolve
+	 * the implementation locations of a symbol at a given text document position.
+	 * <p>
+	 * This navigates from interface/abstract methods to their concrete implementations.
+	 */
+	@JsonRequest
+	@ResponseJsonAdapter( LocationLinkListAdapter.class )
+	public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> implementation(
+	    ImplementationParams params ) {
+
+		try {
+			URI docURI = new URI( params.getTextDocument().getUri() );
+
+			return CompletableFutures.computeAsync( ( cancelToken ) -> {
+				return Either
+				    .forLeft( ProjectContextProvider.getInstance().findImplementations( docURI,
 				        params.getPosition() ) );
 			} );
 		} catch ( URISyntaxException e ) {

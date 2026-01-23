@@ -1,5 +1,96 @@
 # BoxLang LSP Development Log
 
+## Task 2.11: Go to Implementation (Complete)
+
+**Date:** 2026-01-22
+
+### Summary
+
+Implemented "Go to Implementation" functionality for the BoxLang LSP. This feature enables navigation from interface/abstract class declarations and their methods to all concrete implementations across the workspace.
+
+### Features Implemented
+
+1. **Interface Implementation Navigation**
+   - From interface declaration (e.g., `interface IRepository`) navigates to all implementing classes
+   - Returns multiple locations when there are multiple implementations (VS Code shows picker)
+
+2. **Interface Method Implementation Navigation**
+   - From interface method declaration navigates to all implementations of that method
+   - Matches method by name across implementing classes
+
+3. **Abstract Class Navigation**
+   - From abstract class declaration navigates to all extending classes
+   - Works with inheritance hierarchy tracking in `InheritanceGraph`
+
+4. **Simple Name Matching**
+   - Enhanced `ProjectIndex.findClassesImplementing()` to try both FQN and simple name lookups
+   - Handles cases where implements annotation uses simple name but index stores FQN
+
+### Changes Made
+
+#### Modified Files
+
+**`BoxLangTextDocumentService.java`**
+- Added `implementation()` method implementing `textDocument/implementation` request
+- Added import for `ImplementationParams`
+
+**`LanguageServer.java`**
+- Added `setImplementationProvider(true)` to server capabilities
+
+**`ProjectContextProvider.java`**
+- Added `findImplementations()` public method as the main entry point
+- Added `findImplementationsOfMethod()` for interface/abstract method navigation
+- Added `findImplementationsOfClassOrInterface()` for class/interface navigation
+
+**`ProjectIndex.java`**
+- Enhanced `findClassesImplementing()` to also try simple name lookups
+- Enhanced `findClassesExtending()` to also try simple name lookups
+
+**`FindDefinitionTargetVisitor.java`**
+- Added `BoxClass` visitor to set class as target when cursor is on declaration line
+- Added `BoxInterface` visitor to set interface as target when cursor is on declaration line
+- Added skip logic for `BoxFQN` to prevent class/interface names from being captured
+- Added skip logic for `BoxIdentifier` for class/interface name identifiers
+
+#### New Files Created
+
+**Test Resource Files** (`src/test/resources/files/goToImplementationTest/`)
+- `IRepository.bx` - Repository interface with findById, save, delete methods
+- `UserRepository.bx` - Repository implementation for users
+- `ProductRepository.bx` - Repository implementation for products
+- `AbstractEntity.bx` - Abstract base class
+- `User.bx` - Concrete class extending AbstractEntity
+
+**`GoToImplementationTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- 8 comprehensive tests covering:
+  - `testGoToImplementationOnInterfaceMethod()` - Interface method finds implementations
+  - `testGoToImplementationOnInterfaceDeclaration()` - Interface declaration finds implementing classes
+  - `testGoToImplementationOnInterfaceName()` - Interface name finds implementing classes
+  - `testGoToImplementationOnAbstractClass()` - Abstract class finds extending classes
+  - `testGoToImplementationOnConcreteClassReturnsEmpty()` - Concrete class returns empty
+  - `testGoToImplementationOnRegularMethodReturnsEmpty()` - Regular method returns empty
+  - `testGoToImplementationOnNonSymbolReturnsEmpty()` - Comment/whitespace returns empty
+  - `testMultipleImplementationsReturned()` - Multiple implementations all returned
+
+**`DebugImplementationTest.java`** (`src/test/java/ortus/boxlang/lsp/`)
+- Debug test class for investigating index behavior during development
+
+### Requirements Met
+
+- ✅ From interface method → all implementing class methods
+- ✅ From abstract method → all overriding methods
+- ✅ From interface → all implementing classes
+- ✅ Return multiple locations (client will show picker)
+
+### Technical Notes
+
+- The `InheritanceGraph` class tracks interface implementations via `addInterfaceImplementation()` during indexing
+- Simple name matching was added because BoxLang's `implements="IRepository"` annotation stores simple names, while the index might store FQN
+- The `FindDefinitionTargetVisitor` needed careful handling to avoid capturing FQN nodes for class/interface names while still allowing `BoxClass`/`BoxInterface` to be set as targets
+- Bug fix: Removed early return in `visit(BoxClass)` that was preventing imports from being visited (imports may be children of BoxClass in BoxLang's AST)
+
+---
+
 ## Task 2.10: Go to Type Definition (Complete)
 
 **Date:** 2026-01-22

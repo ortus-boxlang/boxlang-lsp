@@ -1,0 +1,27 @@
+/**
+ * Product repository implementing IRepository.
+ */
+class ProductRepository implements="IRepository" {
+
+	/**
+	 * Find product by ID.
+	 */
+	public Product function findById( required numeric id ) {
+		return new Product();
+	}
+
+	/**
+	 * Save product entity.
+	 */
+	public void function save( required Product entity ) {
+		// Save implementation
+	}
+
+	/**
+	 * Delete product entity.
+	 */
+	public void function delete( required numeric id ) {
+		// Delete implementation
+	}
+
+}

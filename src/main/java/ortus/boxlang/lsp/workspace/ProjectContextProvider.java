@@ -1486,6 +1486,152 @@ public class ProjectContextProvider {
 	}
 
 	/**
+	 * Find implementation locations for an interface method or interface/abstract class.
+	 * This navigates from interface/abstract method to concrete implementations.
+	 *
+	 * @param docURI The document URI
+	 * @param pos    The cursor position
+	 *
+	 * @return List of locations pointing to implementations
+	 */
+	public List<Location> findImplementations( URI docURI, Position pos ) {
+		return getLatestFileParseResult( docURI )
+		    .flatMap( fpr -> fpr.findAstRoot() )
+		    .map( rootNode -> {
+			    // Find the target node at the cursor position
+			    return findDefinitionTarget( docURI, pos )
+			        .map( ( node ) -> {
+				        // Handle function declarations (interface methods or abstract methods)
+				        if ( node instanceof BoxFunctionDeclaration fnDecl ) {
+					        return findImplementationsOfMethod( fnDecl, rootNode, docURI );
+				        }
+
+				        // Handle interface declarations
+				        if ( node instanceof BoxInterface ) {
+					        return findImplementationsOfClassOrInterface( rootNode, docURI );
+				        }
+
+				        // Handle class declarations (for abstract classes)
+				        if ( node instanceof BoxClass ) {
+					        return findImplementationsOfClassOrInterface( rootNode, docURI );
+				        }
+
+				        return new ArrayList<Location>();
+			        } )
+			        .orElseGet( () -> new ArrayList<Location>() );
+		    } )
+		    .orElseGet( () -> new ArrayList<Location>() );
+	}
+
+	/**
+	 * Find implementations of a method declared in an interface or abstract class.
+	 *
+	 * @param fnDecl   The function declaration
+	 * @param rootNode The AST root node
+	 * @param docURI   The document URI
+	 *
+	 * @return List of locations pointing to implementing methods
+	 */
+	private List<Location> findImplementationsOfMethod( BoxFunctionDeclaration fnDecl, BoxNode rootNode, URI docURI ) {
+		List<Location> locations = new ArrayList<>();
+
+		String methodName = fnDecl.getName();
+		String className = getClassNameFromUri( docURI );
+
+		if ( methodName == null || className == null ) {
+			return locations;
+		}
+
+		ProjectIndex index = getIndex();
+
+		// Find the class in the index to determine if it's an interface or abstract class
+		var classOpt = index.findClassByName( className );
+		if ( classOpt.isEmpty() ) {
+			return locations;
+		}
+
+		IndexedClass indexedClass = classOpt.get();
+		String classFQN = indexedClass.fullyQualifiedName();
+
+		// Get implementing/extending classes
+		List<IndexedClass> implementingClasses = new ArrayList<>();
+
+		if ( indexedClass.isInterface() ) {
+			// Find all classes implementing this interface
+			implementingClasses.addAll( index.findClassesImplementing( classFQN ) );
+		} else {
+			// Find all classes extending this class (for abstract methods)
+			implementingClasses.addAll( index.findClassesExtending( classFQN ) );
+		}
+
+		// For each implementing/extending class, find the method implementation
+		for ( IndexedClass implClass : implementingClasses ) {
+			var methodOpt = index.findMethod( implClass.name(), methodName );
+			if ( methodOpt.isPresent() ) {
+				IndexedMethod method = methodOpt.get();
+				Location location = createLocationFromIndexedMethod( method );
+				if ( location != null ) {
+					locations.add( location );
+				}
+			}
+		}
+
+		return locations;
+	}
+
+	/**
+	 * Find implementations of an interface or extending classes of a class.
+	 * This is called when the cursor is on the interface/class declaration itself.
+	 *
+	 * @param rootNode The AST root node
+	 * @param docURI   The document URI
+	 *
+	 * @return List of locations pointing to implementing/extending classes
+	 */
+	private List<Location> findImplementationsOfClassOrInterface( BoxNode rootNode, URI docURI ) {
+		List<Location> locations = new ArrayList<>();
+
+		String className = getClassNameFromUri( docURI );
+		if ( className == null ) {
+			return locations;
+		}
+
+		ProjectIndex index = getIndex();
+
+		// Find the class in the index
+		var classOpt = index.findClassByName( className );
+		if ( classOpt.isEmpty() ) {
+			return locations;
+		}
+
+		IndexedClass indexedClass = classOpt.get();
+		String classFQN = indexedClass.fullyQualifiedName();
+
+		// Get implementing/extending classes
+		List<IndexedClass> implementingClasses = new ArrayList<>();
+
+		if ( indexedClass.isInterface() ) {
+			// Find all classes implementing this interface
+			implementingClasses.addAll( index.findClassesImplementing( classFQN ) );
+		} else {
+			// Find all classes extending this class
+			implementingClasses.addAll( index.findClassesExtending( classFQN ) );
+		}
+
+		// Add locations for each implementing/extending class
+		for ( IndexedClass implClass : implementingClasses ) {
+			if ( implClass.fileUri() != null && implClass.location() != null ) {
+				Location location = new Location();
+				location.setUri( implClass.fileUri() );
+				location.setRange( implClass.location() );
+				locations.add( location );
+			}
+		}
+
+		return locations;
+	}
+
+	/**
 	 * Find the definition location for a variable identifier.
 	 * Uses VariableDefinitionResolver to properly handle scoping rules.
 	 *

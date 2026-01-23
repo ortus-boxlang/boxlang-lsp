@@ -50,12 +50,33 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 
 	@Override
 	public void visit( BoxClass node ) {
+		// Always visit children first to find more specific targets (like imports, annotations)
+		// Note: In BoxLang's AST, imports may be children of BoxClass
 		visitChildren( node );
+
+		// If cursor is on the class declaration line and no more specific target found,
+		// set the class as the target (enables "Go to Implementation" on class name)
+		var	nodePos		= node.getPosition();
+		int	classLine	= nodePos.getStart().getLine();
+
+		if ( line == classLine && this.definitionTarget == null ) {
+			this.definitionTarget = node;
+		}
 	}
 
 	@Override
 	public void visit( BoxInterface node ) {
+		// Always visit children first to find more specific targets
 		visitChildren( node );
+
+		// If cursor is on the interface declaration line and no more specific target found,
+		// set the interface as the target (enables "Go to Implementation" on interface name)
+		var	nodePos			= node.getPosition();
+		int	interfaceLine	= nodePos.getStart().getLine();
+
+		if ( line == interfaceLine && this.definitionTarget == null ) {
+			this.definitionTarget = node;
+		}
 	}
 
 	@Override
@@ -149,6 +170,13 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 			return;
 		}
 
+		// Skip if this identifier is the class/interface name (parent is BoxClass or BoxInterface)
+		// We want to let the class/interface itself be the target in that case
+		BoxNode parent = node.getParent();
+		if ( parent instanceof BoxClass || parent instanceof BoxInterface ) {
+			return;
+		}
+
 		// Only set as definition target if we haven't found a more specific node
 		// (function invocations take priority)
 		if ( this.definitionTarget == null ) {
@@ -229,6 +257,26 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 	public void visit( BoxFQN node ) {
 		if ( !BLASTTools.containsPosition( node, line, column ) ) {
 			visitChildren( node );
+			return;
+		}
+
+		// Skip if this FQN is the class/interface name
+		// Check if parent is BoxAnnotation and grandparent is BoxClass/BoxInterface
+		// This indicates the FQN is the class/interface name itself
+		BoxNode parent = node.getParent();
+		if ( parent instanceof BoxAnnotation annotation ) {
+			BoxNode grandparent = annotation.getParent();
+			if ( grandparent instanceof BoxClass || grandparent instanceof BoxInterface ) {
+				// Check if we're on the declaration line - skip to let BoxClass/BoxInterface be target
+				var declPos = grandparent.getPosition();
+				if ( declPos != null && line == declPos.getStart().getLine() ) {
+					return;
+				}
+			}
+		}
+
+		// Also skip if immediate parent is BoxClass or BoxInterface (direct name reference)
+		if ( parent instanceof BoxClass || parent instanceof BoxInterface ) {
 			return;
 		}
 
