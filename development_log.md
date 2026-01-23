@@ -1,5 +1,77 @@
 # BoxLang LSP Development Log
 
+## Task 3.1: Completion - Context Detection Framework (Complete)
+
+**Date:** 2026-01-22
+
+### Summary
+
+Implemented a comprehensive context detection framework for code completions. This framework analyzes the cursor position and surrounding text to determine what kind of completion is appropriate (member access, import, new expression, etc.).
+
+### Features Implemented
+
+1. **CompletionContextKind Enum**
+   - `MEMBER_ACCESS` - After dot: `obj.` or `obj.partial`
+   - `STATIC_ACCESS` - Reserved for static method access
+   - `NEW_EXPRESSION` - After `new` keyword
+   - `EXTENDS` - After `extends` keyword
+   - `IMPLEMENTS` - After `implements` keyword
+   - `IMPORT` - After `import` keyword
+   - `FUNCTION_ARGUMENT` - Inside function call parentheses
+   - `BXM_TAG` - After `<bx:` in template files
+   - `TEMPLATE_EXPRESSION` - After `#` in template files
+   - `GENERAL` - Plain identifier with no specific trigger
+   - `NONE` - Inside string literal or comment
+
+2. **CompletionContext Class**
+   - Static `analyze()` method as entry point
+   - Detects context using regex patterns on text before cursor
+   - Finds containing method and class from AST
+   - Calculates argument index for function call contexts
+   - Detects when cursor is inside string literal or comment
+
+3. **ContextChecker Refactoring**
+   - Now delegates to CompletionContext for consistent behavior
+   - Added new helper methods: `isMemberAccess()`, `isExtendsExpression()`, `isImplementsExpression()`, `isFunctionArgument()`, `isBxmTag()`, `isTemplateExpression()`, `isGeneralContext()`
+
+4. **CompletionFacts Enhancement**
+   - Added `getContext()` method for easy access to analyzed context
+
+### Context Properties
+
+- `kind` - The type of completion context
+- `triggerText` - Partial text being typed (e.g., "User" in `new User`)
+- `receiverText` - Text before dot in member access
+- `containingMethodName` - Method containing the cursor
+- `containingClassName` - Class containing the cursor
+- `argumentIndex` - 0-based argument position in function calls
+
+### Test Coverage
+
+Added 26 comprehensive tests covering:
+- New expression detection (with and without class names)
+- Import statement detection
+- Extends/implements keyword detection
+- Member access (simple, chained, with `this`)
+- Function argument contexts (multiple argument positions)
+- BXM tag and template expression contexts
+- General identifier context
+- Containing method/class detection
+- Edge cases (string literals, comments)
+
+### New Files
+
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/CompletionContext.java`
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/CompletionContextKind.java`
+- `src/test/java/ortus/boxlang/lsp/CompletionContextTest.java`
+
+### Modified Files
+
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/CompletionFacts.java` - Added `getContext()` method
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/ContextChecker.java` - Refactored to use CompletionContext
+
+---
+
 ## Task 2.11: Go to Implementation (Complete)
 
 **Date:** 2026-01-22
