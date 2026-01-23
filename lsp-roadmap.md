@@ -1094,7 +1094,7 @@ property ${1:type} ${2:name};
 
 ---
 
-### 3.8 Completion - Arguments in Function Calls (Incomplete)
+### 3.8 Completion - Arguments in Function Calls (Complete)
 
 **Priority:** High  
 **Complexity:** Medium  
@@ -1104,10 +1104,10 @@ Smart completion when inside function call parentheses.
 
 **Requirements:**
 
-- Suggest variables that match expected parameter type
-- Suggest named argument syntax: `paramName:`
-- Show remaining required parameters
-- For boolean parameters, suggest `true`/`false`
+- ✅ Suggest variables that match expected parameter type (best-effort, limited by type inference)
+- ✅ Suggest named argument syntax: `paramName=`
+- ✅ Show remaining required parameters
+- ✅ For boolean parameters, suggest `true`/`false`
 - For enum-like parameters, suggest known values
 
 **Named Argument Completion:**

@@ -18,16 +18,20 @@ class TestClass {
 
 	function testArgumentCompletion() {
 		// Variables for testing
-		var userName = "John Doe";
-		var userAge = 25;
-		var isActive = true;
+		string userName = "John Doe";
+		numeric userAge = 25;
+		boolean isActive = true;
 		var orderId = "ORD123";
 		var orderQuantity = 5;
 		var productName = "Widget";
+		var arr = [1, 2, 3];
 
 		// Test cases with completed calls
 		var test1 = createUser("John", 30, true);
 		var test2 = createUser(name="Jane", age=25, active=false);
 		var test3 = updateUser("123", "Bob", 40, true);
+		arrayAppend(arr, 4);
+		var user = new User("john", "john@example.com");
+		var x = 5;
 	}
 }
