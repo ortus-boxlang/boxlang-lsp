@@ -1,5 +1,79 @@
 # BoxLang LSP Development Log
 
+## Task 3.4: Completion - Functions (BIFs and UDFs) (Complete)
+
+**Date:** 2026-01-23
+
+### Summary
+
+Enhanced and verified comprehensive test coverage for function completion functionality in the BoxLang LSP. The existing implementation already provided completion for both Built-In Functions (BIFs) and User-Defined Functions (UDFs), and this task focused on ensuring robust test coverage for all aspects of the feature.
+
+### Features Verified
+
+1. **BIF Completion**
+   - BIFs are available in general completion context
+   - BIF completion items include proper signatures with parameters
+   - BIFs have appropriate sorting (sortText "5" prefix)
+   - Case-insensitive matching for BIF names
+
+2. **UDF Completion**
+   - User-defined functions from the same file are available
+   - UDF completion items include function signatures with parameters
+   - UDFs support return type hints in signatures
+   - UDFs have snippet insert text with placeholders ($1)
+   - UDFs sort before BIFs (sortText "2" prefix)
+   - Private functions are included when completing within the same class
+
+3. **Function Signatures**
+   - Parameter information displayed in detail field
+   - Return type hints displayed when present
+   - Optional parameters marked appropriately
+   - Required parameters indicated
+
+### Test Coverage
+
+Added 9 comprehensive tests covering:
+- BIF completion in general context (arrayAppend, len, structNew)
+- UDF completion from same file (getName, setName, getAge, setAge, validateName)
+- Function signature display for UDFs
+- Return type hints in function signatures
+- Snippet insert text with placeholders
+- BIF signature formatting
+- Sort order (UDFs before BIFs)
+- Private function inclusion within same class
+- Placeholder for string literal edge case
+
+### Test Files
+
+- **Modified:**
+  - `src/test/java/ortus/boxlang/lsp/FunctionCompletionTest.java` - Enhanced with 9 comprehensive tests
+  - `src/test/resources/files/functionCompletionTest/User.bx` - Enhanced with more diverse function signatures
+
+### Implementation Files (Existing)
+
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/FunctionCompletionRule.java` - Handles UDF completion
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/BIFCompletionRule.java` - Handles BIF completion
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/CompletionProviderRuleBook.java` - Wires up completion rules
+
+### Current Capabilities
+
+✅ Complete BIF names with full signatures
+✅ Complete user-defined functions from current file
+✅ Show function signatures in completion detail
+✅ Show return type hints
+✅ Snippet-based insert text for UDFs
+✅ Sort UDFs before BIFs for relevance
+✅ Include private functions within same class context
+
+### Future Enhancements (Out of Scope for This Task)
+
+- Complete user-defined functions from imports/includes
+- Show full documentation in completion documentation field
+- Handle function name conflicts with preference rules
+- Function completion from project index (other files)
+
+---
+
 ## Task 3.1: Completion - Context Detection Framework (Complete)
 
 **Date:** 2026-01-22

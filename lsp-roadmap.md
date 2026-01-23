@@ -968,7 +968,7 @@ When user types a scope prefix, complete only from that scope:
 
 ---
 
-### 3.4 Completion - Functions (BIFs and UDFs) (Incomplete)
+### 3.4 Completion - Functions (BIFs and UDFs) (Complete)
 
 **Priority:** High  
 **Complexity:** Medium  
