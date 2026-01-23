@@ -11,26 +11,40 @@ import org.eclipse.lsp4j.HoverParams;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextDocumentItem;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 
 /**
  * Tests for hover functionality on classes and interfaces.
  */
 public class ClassHoverTest extends BaseTest {
 
-	private static final Path	TEST_DIR	= Paths.get( "src/test/resources/files/classHoverTest" );
+	private static final Path		TEST_DIR	= Paths.get( "src/test/resources/files/classHoverTest" );
+	private ProjectContextProvider	provider;
+	private ProjectIndex			index;
 
 	@BeforeEach
-	void indexTestFiles() throws Exception {
+	void setUp() throws Exception {
+		provider	= ProjectContextProvider.getInstance();
+		// Create a fresh index for this test to avoid pollution from other tests
+		index		= new ProjectIndex();
+		provider.setIndex( index );
+
 		// Index all test files before each test
-		var index = ProjectContextProvider.getInstance().getIndex();
 		index.indexFile( TEST_DIR.resolve( "BaseService.bx" ).toUri() );
 		index.indexFile( TEST_DIR.resolve( "IUserService.bx" ).toUri() );
 		index.indexFile( TEST_DIR.resolve( "UserService.bx" ).toUri() );
 		index.indexFile( TEST_DIR.resolve( "ClassThatUsesUserService.bx" ).toUri() );
+	}
+
+	@AfterEach
+	void tearDown() {
+		// Reset the shared ProjectContextProvider's index to avoid affecting other tests
+		provider.setIndex( new ProjectIndex() );
 	}
 
 	@Test
