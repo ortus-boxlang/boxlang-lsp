@@ -939,7 +939,7 @@ Since BoxLang is dynamic, type inference is best-effort:
 
 ---
 
-### 3.3 Completion - Scope-Aware Variables (Incomplete)
+### 3.3 Completion - Scope-Aware Variables (Complete)
 
 **Priority:** High  
 **Complexity:** Medium  

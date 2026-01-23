@@ -20,6 +20,10 @@ import ortus.boxlang.compiler.ast.expression.BoxStructLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
+import ortus.boxlang.compiler.ast.statement.BoxTry;
+import ortus.boxlang.compiler.ast.statement.BoxTryCatch;
+import ortus.boxlang.compiler.ast.statement.BoxForIndex;
+import ortus.boxlang.compiler.ast.statement.BoxForIn;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
 
 /**
@@ -106,6 +110,45 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Get all variables visible in the given function context.
+	 *
+	 * @param containingFunction The function context (may be null)
+	 *
+	 * @return A map of variable names to VariableInfo
+	 */
+	public Map<String, VariableInfo> getAllVisibleVariables( BoxFunctionDeclaration containingFunction ) {
+		Map<String, VariableInfo> allVars = new HashMap<>();
+
+		// Start with properties (class-level)
+		allVars.putAll( properties );
+
+		// Add function-specific variables (params + locals)
+		if ( containingFunction != null ) {
+			Map<String, VariableInfo> funcVars = functionVariables.get( containingFunction );
+			if ( funcVars != null ) {
+				allVars.putAll( funcVars );
+			}
+		}
+
+		return allVars;
+	}
+
+	/**
+	 * Get all scope keywords as VariableInfo objects.
+	 */
+	public Map<String, VariableInfo> getScopeKeywords() {
+		Map<String, VariableInfo> keywords = new HashMap<>();
+		String[] scopes = {
+		    "variables", "local", "this", "arguments", "request", "session",
+		    "application", "server", "cgi", "form", "url", "cookie"
+		};
+		for ( String scope : scopes ) {
+			keywords.put( scope, getScopeKeywordInfo( scope ) );
+		}
+		return keywords;
 	}
 
 	/**
@@ -374,6 +417,51 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 		}
 
 		return null;
+	}
+
+	@Override
+	public void visit( BoxTry node ) {
+		// Traverse into try block
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxTryCatch node ) {
+		// BoxTryCatch has an exception variable (e.g. catch( any e ))
+		// The variable name is usually in an identifier child of the catch block
+		for ( BoxNode child : node.getChildren() ) {
+			if ( child instanceof BoxIdentifier identifier ) {
+				String	name	= identifier.getName();
+				int		line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+				VariableInfo info = new VariableInfo(
+				    name,
+				    VariableScope.LOCAL,
+				    null,
+				    "any",
+				    line,
+				    false,
+				    null,
+				    node
+				);
+				if ( currentFunction != null ) {
+					functionVariables.get( currentFunction ).put( name.toLowerCase(), info );
+				}
+			}
+		}
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxForIndex node ) {
+		// BoxForIndex typically has a counter variable
+		// We'll traverse its children which should include assignments
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxForIn node ) {
+		// BoxForIn has a variable being iterated
+		visitChildren( node );
 	}
 
 	private void visitChildren( BoxNode node ) {
