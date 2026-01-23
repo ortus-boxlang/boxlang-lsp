@@ -7,6 +7,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -25,6 +26,9 @@ import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 import ortus.boxlang.lsp.workspace.FileParseResult;
+import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.index.IndexedClass;
+import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 import ortus.boxlang.lsp.workspace.rules.IRule;
 
 public class ImportCompletionRule implements IRule<CompletionFacts, List<CompletionItem>> {
@@ -49,23 +53,11 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 		String					afterImportPrompt	= getAfterImportText( existingPrompt );
 		List<CompletionItem>	options				= new ArrayList<CompletionItem>();
 
+		// Get available BoxLang classes and packages based on the current prompt
+		options.addAll( getBoxLangCompletions( afterImportPrompt, line, existingPrompt, fileParseResult.getURI() ) );
+
 		// Get available JDK packages and classes based on the current prompt
 		options.addAll( getJdkCompletions( afterImportPrompt, line, existingPrompt ) );
-
-		CompletionItem a = new CompletionItem();
-		a.setLabel( "WHAT" );
-		a.setSortText( "0" );
-		// a.setInsertText( "WHAT" );
-		options.add( a );
-		TextEdit	te	= new TextEdit();
-		Range		r	= new Range();
-		r.setStart( new Position( line, Math.max( 0, character - 1 ) ) );
-		r.setEnd( new Position( line, character ) );
-
-		te.setRange( r );
-		te.setNewText( "xxxxx" );
-		a.setTextEdit( Either.forLeft( te ) );
-		a.setInsertTextFormat( InsertTextFormat.PlainText );
 
 		result.addAll( options );
 	}
@@ -80,6 +72,94 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 			return afterImport;
 		}
 		return "";
+	}
+
+	/**
+	 * Get BoxLang class and package completions based on the import prefix.
+	 * 
+	 * @param prefix         The text after "import " (e.g., "models", "models.User", "m")
+	 * @param line           The line number for completion
+	 * @param existingPrompt The full line text before cursor
+	 * @param currentFileUri The URI of the file being edited
+	 * @return List of completion items for BoxLang classes and packages
+	 */
+	private List<CompletionItem> getBoxLangCompletions( String prefix, int line, String existingPrompt, URI currentFileUri ) {
+		List<CompletionItem>	completions			= new ArrayList<>();
+		Set<String>				packages			= new HashSet<>();
+		List<IndexedClass>		classes				= new ArrayList<>();
+
+		// Get the project index
+		ProjectIndex			index				= ProjectContextProvider.getInstance().getIndex();
+
+		// Get workspace root from index
+		Path					workspaceRoot		= index.getWorkspaceRoot();
+
+		boolean					hasDot				= prefix.contains( "." );
+		String					packageSortPrefix	= "0"; // Packages first
+		String					classSortPrefix		= "1"; // Classes second
+
+		if ( workspaceRoot == null ) {
+			return completions;
+		}
+
+		// Get all indexed classes
+		List<IndexedClass> allClasses = index.getAllClasses();
+
+		for ( IndexedClass indexedClass : allClasses ) {
+			String fqn = indexedClass.fullyQualifiedName();
+
+			if ( hasDot ) {
+				// User typed a package prefix like "models." or "models.U"
+				// Show classes in that package
+				if ( fqn.toLowerCase().startsWith( prefix.toLowerCase() ) ) {
+					// Check if this is directly in the package (not a sub-package)
+					String remaining = fqn.substring( prefix.length() );
+					if ( !remaining.contains( "." ) && !remaining.isEmpty() ) {
+						classes.add( indexedClass );
+					}
+				}
+			} else {
+				// User typed a simple prefix like "m" or "User" or empty
+				if ( prefix.isEmpty() || fqn.toLowerCase().startsWith( prefix.toLowerCase() ) ) {
+					// Add package name if FQN has package
+					if ( fqn.contains( "." ) ) {
+						String packageName = fqn.substring( 0, fqn.indexOf( '.' ) );
+						if ( prefix.isEmpty() || packageName.toLowerCase().startsWith( prefix.toLowerCase() ) ) {
+							packages.add( packageName );
+						}
+					} else {
+						// Root level class
+						classes.add( indexedClass );
+					}
+				}
+			}
+		}
+
+		// Convert packages to completion items
+		for ( String packageName : packages ) {
+			CompletionItem item = createCompletionItem( packageName, "BoxLang package", packageName, packageName, CompletionItemKind.Module,
+			    existingPrompt, packageSortPrefix, line, existingPrompt.length() );
+			completions.add( item );
+		}
+
+		// Convert classes to completion items
+		for ( IndexedClass indexedClass : classes ) {
+			String	fqn					= indexedClass.fullyQualifiedName();
+			String	simpleName			= indexedClass.name();
+			String	insertText			= simpleName;
+
+			// If user has typed a package prefix, insert only the simple name
+			// Otherwise insert the full FQN
+			if ( !hasDot ) {
+				insertText = fqn;
+			}
+
+			CompletionItem item = createCompletionItem( simpleName, fqn, fqn, insertText, CompletionItemKind.Class, existingPrompt, classSortPrefix,
+			    line, existingPrompt.length() );
+			completions.add( item );
+		}
+
+		return completions;
 	}
 
 	private List<CompletionItem> getJdkCompletions( String prefix, int line, String existingPrompt ) {

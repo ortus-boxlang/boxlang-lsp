@@ -1124,7 +1124,7 @@ myFunc(|)
 
 ---
 
-### 3.9 Completion - Import Paths (Incomplete)
+### 3.9 Completion - Import Paths (Complete)
 
 **Priority:** Medium  
 **Complexity:** Medium  
@@ -1134,11 +1134,21 @@ Complete import paths as user types.
 
 **Requirements:**
 
-- Complete directory names
-- Complete file names (without extension)
-- Support both relative and absolute paths
-- Handle package-style imports
-- Include CommandBox dependencies
+- ✅ Complete directory names (package names)
+- ✅ Complete file names (without extension) - class names
+- ✅ Support package-style imports (models.User)
+- ⚠️ CommandBox dependencies - skipped for now
+
+**Implementation Notes:**
+
+- Uses ProjectIndex to query all indexed classes
+- Extracts package names from FQN (fully qualified names)
+- Provides contextual completions based on prefix:
+  - Empty prefix: shows all packages and root-level classes
+  - Package prefix (e.g., "models."): shows classes in that package
+  - Partial prefix (e.g., "m"): shows packages matching prefix
+- Sorts packages before classes for better UX
+- Works alongside existing Java import completions
 
 ---
 

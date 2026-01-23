@@ -1,0 +1,6 @@
+class {
+	function index() {
+		var service = new UserService();
+		return service.getUser(1);
+	}
+}

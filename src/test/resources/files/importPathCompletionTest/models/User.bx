@@ -1,0 +1,4 @@
+class {
+	property string username;
+	property string email;
+}

@@ -1,5 +1,184 @@
 # BoxLang LSP Development Log
 
+## Task 3.9: Completion - Import Paths (Complete)
+
+**Date:** 2026-01-23
+
+### Summary
+
+Implemented package-style import path completion for BoxLang classes. When users type `import ` in a BoxLang file, the LSP now provides intelligent completions for:
+
+- Package names (e.g., `models`, `services`, `controllers`)
+- Class names within packages (e.g., `models.User`, `services.UserService`)
+- Root-level classes
+- Partial prefix matching (e.g., typing `m` suggests `models`)
+- Partial class name matching (e.g., typing `services.U` suggests `UserService`)
+
+This feature works alongside the existing Java import completions, allowing users to import both BoxLang classes and Java classes with a unified experience.
+
+### Features Implemented
+
+1. **Package Name Completion**
+   - Shows all unique package names when user types `import `
+   - Packages extracted from indexed classes' FQN (fully qualified names)
+   - Filters by prefix when user types partial package name
+   - Uses `CompletionItemKind.Module` for package suggestions
+
+2. **Class Name Completion**
+   - Shows classes in a package when user types `import packageName.`
+   - Shows only classes directly in the package (not in sub-packages)
+   - Filters by partial class name (e.g., `services.U` → `UserService`)
+   - Uses `CompletionItemKind.Class` for class suggestions
+   - Detail field shows full FQN (e.g., `models.User`)
+
+3. **Root-Level Class Completion**
+   - Classes without packages (in workspace root) are shown when typing `import `
+   - Listed alongside package names for easy access
+
+4. **Prefix Matching**
+   - Case-insensitive prefix matching for both packages and classes
+   - Smart filtering: `models.` shows only classes in `models` package
+   - Partial prefix: `m` shows `models` package (not `services`)
+
+5. **Insert Text Handling**
+   - When completing after a package prefix (e.g., `models.`), inserts only the class name
+   - When completing without a package, inserts the full FQN
+   - Consistent with BoxLang's package-style import syntax
+
+6. **Sorting and Priority**
+   - Packages sorted with `sortText` prefix "0" (appear first)
+   - Classes sorted with `sortText` prefix "1" (appear after packages)
+   - BoxLang completions appear before Java completions for better UX
+
+### Implementation Details
+
+**Modified Files:**
+
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/ImportCompletionRule.java`
+  - Added `getBoxLangCompletions()` method to query ProjectIndex
+  - Queries all indexed classes and extracts package names from FQNs
+  - Filters based on prefix (empty, partial package, full package, partial class name)
+  - Creates completion items with appropriate kind, detail, and insert text
+  - Integrated BoxLang completions before Java completions in `then()` method
+
+**Algorithm:**
+
+1. Get all indexed classes from `ProjectIndex`
+2. For each class:
+   - If prefix contains `.` (package-qualified):
+     - Check if FQN starts with prefix
+     - Extract class name and add to class completions if directly in package
+   - If prefix is simple (no `.`):
+     - Extract package name from FQN (text before first `.`)
+     - Add package to set if it matches prefix
+     - If class is root-level (no `.` in FQN), add to class completions
+3. Convert packages and classes to `CompletionItem` objects
+4. Return combined list (packages first, then classes)
+
+### Testing
+
+**New Test Files Created:**
+
+- `src/test/resources/files/importPathCompletionTest/` - Test workspace structure
+  - `models/User.bx` - User entity class
+  - `models/Product.bx` - Product entity class
+  - `services/UserService.bx` - User service class
+  - `services/ProductService.bx` - Product service class
+  - `controllers/UserController.bx` - User controller class
+  - `RootClass.bx` - Root-level class
+  - `emptyImport.bx` - File with `import ` for testing empty prefix
+  - `partialPackage.bx` - File with `import models.` for testing package completion
+  - `partialPrefix.bx` - File with `import m` for testing prefix matching
+  - `partialClassName.bx` - File with `import services.U` for testing class name completion
+
+- `src/test/java/ortus/boxlang/lsp/ImportPathCompletionDebugTest.java`
+  - Debug test to verify index contents and completion items
+  - Helpful for troubleshooting test setup issues
+
+**Modified Test Files:**
+
+- `src/test/java/ortus/boxlang/lsp/ImportCompletionTest.java`
+  - Extended `BaseTest` for proper initialization
+  - Added `@BeforeAll` and `@BeforeEach` setup methods
+  - Added `indexDirectory()` helper to recursively index test files
+  - Added 5 new comprehensive tests:
+    - `testItShouldOfferPackageNamesForEmptyImport()` - Verifies package suggestions
+    - `testItShouldOfferClassNamesAfterPackagePrefix()` - Verifies class completions in package
+    - `testItShouldOfferPackagesMatchingPrefix()` - Verifies prefix filtering
+    - `testItShouldOfferClassesMatchingPartialName()` - Verifies partial class name matching
+    - `testItShouldOfferRootLevelClasses()` - Verifies root-level class completions
+  - All existing Java import tests continue to pass
+
+### Requirements Met
+
+- ✅ Complete directory names (package names)
+- ✅ Complete file names (class names, without extension)
+- ✅ Support package-style imports (models.User style)
+- ⚠️ CommandBox dependencies - explicitly skipped for now (future enhancement)
+
+### Known Limitations
+
+1. **CommandBox Dependencies**
+   - Not implemented in this task
+   - Would require reading `box.json` and indexing dependency modules
+   - Left as a future enhancement when CommandBox integration is needed
+
+2. **Sub-Package Handling**
+   - Currently only shows direct children of a package
+   - Deep nesting (e.g., `models.user.entities.User`) is supported in indexing
+   - Completion shows only classes in the exact package typed (e.g., `models.` shows only `models.*`, not `models.user.*`)
+
+3. **Import Alias Support**
+   - Completions don't suggest or handle aliased imports (e.g., `import models.User as MyUser`)
+   - Import resolution and go-to-definition already support aliases (implemented in earlier tasks)
+   - Alias completion could be added as a future enhancement
+
+### Technical Notes
+
+- Uses `ProjectIndex.getAllClasses()` to get all indexed classes
+- Package names extracted by taking substring before first `.` in FQN
+- Uses `Set<String>` to deduplicate package names
+- Case-insensitive matching via `toLowerCase()` comparison
+- FQN format: `package.subpackage.ClassName` (dots separate package components)
+- Root-level classes have FQN equal to simple name (no dots)
+- BoxLang classes are assigned `sortText` "0" and "1" to appear before Java imports
+
+### Integration with Existing Features
+
+- **Java Import Completion**: BoxLang completions appear alongside Java import completions
+- **Go to Definition**: Works with completed imports (implemented in Task 2.5)
+- **Auto-Import**: ClassAndTypeCompletionRule already supports auto-import for BoxLang classes
+- **Project Index**: Leverages existing indexing infrastructure built in Task 1.1
+
+### Future Enhancements (Out of Scope for This Task)
+
+1. **CommandBox Dependency Completions**
+   - Parse `box.json` to find installed dependencies
+   - Index classes from dependency modules
+   - Provide completions for external library classes
+
+2. **Sub-Package Completions**
+   - When user types `models.`, show both classes and sub-packages
+   - Use different icon/kind for sub-packages vs classes
+
+3. **Import Alias Suggestions**
+   - Suggest common alias patterns for frequently imported classes
+   - Provide snippet-style completion: `import models.User as $1`
+
+4. **Fuzzy Matching**
+   - Allow fuzzy matching for class names (e.g., "UsrSrv" matches "UserService")
+   - Use scoring algorithm similar to workspace symbols (Task 2.8)
+
+5. **Recently Used Imports**
+   - Track import history and prioritize recently used classes
+   - Boost completion ranking for frequently imported classes
+
+### Conclusion
+
+Task 3.9 is **complete**. The implementation provides a solid foundation for BoxLang import path completion, with package-style imports working as expected. The feature integrates seamlessly with existing Java import completions and uses the ProjectIndex for fast, accurate suggestions. All tests pass, including both new BoxLang-specific tests and existing Java import tests.
+
+---
+
 ## Task 3.8: Completion - Arguments in Function Calls (Complete)
 
 **Date:** 2026-01-23
