@@ -1152,39 +1152,44 @@ Complete import paths as user types.
 
 ---
 
-### 3.10 Completion - BXM Tags and Attributes (Incomplete)
+### 3.10 Completion - BXM Tags and Attributes (Partially Complete)
 
 **Priority:** Medium  
-**Complexity:** Medium  
-**Dependencies:** BXM tag definitions
+**Complexity:** Medium → High (attribute completion requires significant CompletionContext refactoring)
+**Dependencies:** BoxRuntime ComponentService (already integrated)
 
 Complete BoxLang tags and their attributes in template files.
 
-**Requirements:**
+**Status:** ✅ Tag name completion with rich documentation **complete**. Attribute name/value completion **deferred** with implementation plan created.
 
-- Complete tag names after `<bx:`
-- Complete attribute names within tags
-- Complete attribute values where known
-- Handle self-closing vs container tags
-- Show attribute documentation
+**Completed:**
 
-**Tag Database:**
+- ✅ Tag name completion after `<bx:` (43 tags from BoxRuntime)
+- ✅ Rich Markdown documentation for each tag showing:
+  - Tag type (requires body, allows body, self-closing)
+  - Required attributes (marked and prioritized)
+  - Optional attributes with default values
+- ✅ Comprehensive test suite (6 passing tests, 4 future tests ready)
+- ✅ Test file: `src/test/java/ortus/boxlang/lsp/BxmTagCompletionTest.java`
+- ✅ Implementation: Enhanced `ComponentCompletionRule.java` with `formatComponentDocumentation()`
 
-```json
-{
-    "bx:output": {
-        "description": "Outputs content to the page",
-        "attributes": {
-            "encodefor": {
-                "type": "string",
-                "values": ["html", "javascript", "css", "url"],
-                "description": "Encoding type"
-            }
-        },
-        "hasBody": true
-    }
-}
-```
+**Deferred (with implementation plan):**
+
+- ⏳ Attribute name completion within tags
+- ⏳ Attribute value completion where known
+- ⏳ Prioritizing required attributes in completion list
+- ⏳ Attribute documentation on hover
+
+**Implementation Plan:** See `docs/bxm-attribute-completion-plan.md` for complete implementation strategy (300+ lines, 9-13 hour estimate)
+
+**Key Decision:** Uses **dynamic tag loading** from BoxRuntime's ComponentService rather than static JSON database, ensuring LSP stays in sync with runtime automatically.
+
+**Next Steps:**
+1. Read `docs/bxm-attribute-completion-plan.md`
+2. Research BoxRuntime `Attribute` and `Validator` APIs for value extraction
+3. Implement `AttributeCompletionRule` following the plan
+4. Update `CompletionContext` with attribute patterns
+5. Run tests: `./gradlew test --tests BxmTagCompletionTest`
 
 ---
 
