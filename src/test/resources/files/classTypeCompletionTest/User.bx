@@ -1,0 +1,21 @@
+/**
+ * User entity
+ */
+class {
+	property name="username" type="string";
+	property name="email" type="string";
+
+	function init( required string username, required string email ) {
+		variables.username = arguments.username;
+		variables.email = arguments.email;
+		return this;
+	}
+
+	function getUsername() {
+		return variables.username;
+	}
+
+	function getEmail() {
+		return variables.email;
+	}
+}

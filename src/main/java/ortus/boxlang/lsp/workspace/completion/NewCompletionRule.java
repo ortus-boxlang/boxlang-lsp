@@ -25,8 +25,9 @@ public class NewCompletionRule implements IRule<CompletionFacts, List<Completion
 
 	@Override
 	public boolean when( CompletionFacts facts ) {
-		return !facts.fileParseResult().isTemplate()
-		    && ContextChecker.isNewExpression( facts );
+		// Disabled: ClassAndTypeCompletionRule now handles `new` completion using ProjectIndex
+		// This filesystem-based approach is kept for reference but not used
+		return false;
 	}
 
 	@Override
@@ -194,7 +195,9 @@ public class NewCompletionRule implements IRule<CompletionFacts, List<Completion
 
 	private String getAfterNewText( String prompt ) {
 		Matcher match = newPattern.matcher( prompt );
-		match.find();
+		if ( !match.find() ) {
+			return "";
+		}
 
 		String afterNew = match.group( 1 );
 

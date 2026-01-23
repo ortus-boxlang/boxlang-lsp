@@ -1,0 +1,12 @@
+/**
+ * Product repository
+ */
+class {
+	function init() {
+		return this;
+	}
+
+	function findAll() {
+		return [];
+	}
+}

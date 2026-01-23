@@ -972,6 +972,15 @@ public class ProjectIndex {
 		}
 	}
 
+	/**
+	 * Get the workspace root path.
+	 *
+	 * @return The workspace root path, or null if not initialized
+	 */
+	public Path getWorkspaceRoot() {
+		return workspaceRoot;
+	}
+
 	private static String sha256( String input ) {
 		try {
 			MessageDigest	digest		= MessageDigest.getInstance( "SHA-256" );

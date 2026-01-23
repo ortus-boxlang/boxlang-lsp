@@ -2196,3 +2196,89 @@ The `TypeInferenceResult` includes a confidence enum:
 
 ---
 
+
+## Task 3.5: Completion - Classes and Types (Complete)
+
+**Date:** 2026-01-23
+
+### Summary
+
+Implemented comprehensive class and type completion for BoxLang LSP, supporting completion in all appropriate contexts: `new` expressions, `extends` clauses, and `implements` clauses. Added automatic import insertion for unimported classes.
+
+### Features Implemented
+
+**1. ClassAndTypeCompletionRule**
+- Single completion rule that handles all type-related completion contexts
+- Uses ProjectIndex for fast, accurate class/interface lookups
+- Context-aware filtering (classes vs interfaces)
+- Prefix-based filtering for narrowing results
+- Sort by package proximity for better relevance
+- Shows fully qualified names and file locations
+
+**2. Auto-Import Functionality**
+- Automatically inserts import statements when completing unimported classes
+- Smart import placement (after existing imports or at file top)
+- Checks for existing imports to avoid duplicates
+- Same-package classes don't need imports
+
+**3. BoxLang Attribute Syntax Support**
+- Detects completion inside `extends="..."` attributes
+- Detects completion inside `implements="..."` attributes
+- Works with BoxLang's annotation-based class syntax
+
+**4. Context-Specific Filtering**
+- `new` keyword: only non-interface classes
+- `extends`: only non-interface classes
+- `implements`: only interfaces
+
+### Technical Implementation
+
+**Key Classes:**
+- `ClassAndTypeCompletionRule.java` - Main completion rule with context detection
+- Enhanced `ProjectIndex.java` with `getWorkspaceRoot()` accessor
+- Fixed bug in `NewCompletionRule.java` regex matching
+
+**Helper Methods:**
+- `isInExtendsAttribute()` - Detects cursor in extends="..." 
+- `isInImplementsAttribute()` - Detects cursor in implements="..."
+- `matchesContextRequirements()` - Filters classes vs interfaces
+- `addAutoImport()` - Inserts import statements via additionalTextEdits
+- `calculateSortText()` - Prioritizes same-package classes
+
+**Test Coverage:**
+- `ClassAndTypeCompletionTest.java` with 6 comprehensive tests
+- Test files in `src/test/resources/files/classTypeCompletionTest/`
+- Tests cover: new expressions, extends, implements, prefix filtering, subpackages, file locations
+
+### Integration
+
+- Registered `ClassAndTypeCompletionRule` in `CompletionProviderRuleBook` before `NewCompletionRule`
+- Disabled old filesystem-based `NewCompletionRule` in favor of ProjectIndex approach
+- Both approaches preserved in codebase with clear comments
+
+### Bug Fixes
+
+- Fixed `NewCompletionRule.getAfterNewText()` to check `match.find()` result before accessing groups
+- Fixed `NewCompletionRule` cursor position handling bug from previous task
+
+### Testing Results
+
+All 6 tests pass successfully:
+- ✅ `testCompletionAfterNewKeyword()` - Classes after `new`
+- ✅ `testCompletionAfterExtendsKeyword()` - Classes in extends attribute
+- ✅ `testCompletionAfterImplementsKeyword()` - Interfaces in implements attribute
+- ✅ `testCompletionWithPrefix()` - Prefix filtering works
+- ✅ `testCompletionShowsFileLocation()` - Shows file paths
+- ✅ `testCompletionIncludesSubpackageClasses()` - Subpackage support
+
+### Notes
+
+- CommandBox dependency completion deferred to Task 6.6 as planned
+- Old `NewCompletionRule` disabled but kept for reference
+- Auto-import feature fully implemented (originally planned for Task 3.13)
+- BoxLang uses attribute syntax (`extends="ClassName"`) not keyword syntax
+
+### Next Steps
+
+Task 3.6: Completion - Keywords
+

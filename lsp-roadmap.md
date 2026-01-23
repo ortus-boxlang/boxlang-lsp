@@ -998,7 +998,7 @@ item.setInsertTextFormat(InsertTextFormat.Snippet);
 
 ---
 
-### 3.5 Completion - Classes and Types (Incomplete)
+### 3.5 Completion - Classes and Types (Complete)
 
 **Priority:** High  
 **Complexity:** Medium  
