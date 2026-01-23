@@ -1,0 +1,18 @@
+/**
+ * User entity class.
+ */
+class extends="BaseEntity" {
+	property name="username" type="string";
+	property name="email" type="string";
+
+	public function init(required numeric id, required string username) {
+		super.init();
+		variables.id = id;
+		variables.username = username;
+		return this;
+	}
+
+	public string function getDisplayName() {
+		return variables.username;
+	}
+}

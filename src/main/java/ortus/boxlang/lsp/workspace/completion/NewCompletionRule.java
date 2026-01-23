@@ -34,7 +34,12 @@ public class NewCompletionRule implements IRule<CompletionFacts, List<Completion
 		FileParseResult	fileParseResult	= facts.fileParseResult();
 		var				existingPrompt	= fileParseResult.readLine( facts.completionParams().getPosition().getLine() );
 
-		existingPrompt = existingPrompt.substring( 0, facts.completionParams().getPosition().getCharacter() );
+		// Guard against cursor position beyond line length
+		int cursorPos = facts.completionParams().getPosition().getCharacter();
+		if ( cursorPos > existingPrompt.length() ) {
+			cursorPos = existingPrompt.length();
+		}
+		existingPrompt = existingPrompt.substring( 0, cursorPos );
 
 		String					afterNewPrompt	= getAfterNewText( existingPrompt );
 		List<CompletionItem>	options			= new ArrayList<CompletionItem>();

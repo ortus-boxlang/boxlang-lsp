@@ -1983,3 +1983,142 @@ Cache freshness validation:
 - ✅ Validate cache freshness against file modification times
 - ✅ Invalidate stale entries and re-index only those files
 - ✅ Handle cache corruption gracefully (fall back to full re-index)
+
+## Task 3.2: Completion - Member Access (Dot Completion) (Complete)
+
+**Date:** 2026-01-23
+
+### Summary
+
+Implemented member access (dot completion) for the BoxLang LSP. When typing a dot after an expression (e.g., `myObject.`), the LSP now infers the object's type and provides intelligent completions for methods and properties available on that type, including inherited members with visibility filtering and relevance-based sorting.
+
+### Features Implemented
+
+1. **Type Inference System**
+   - Infers types from `new` expressions: `var user = new User()` 
+   - Infers types from explicit type hints: `User user = ...`
+   - Infers types from parameter type hints: `function foo(required User userParam)`
+   - Infers types from method return type hints for chained calls: `service.getUser(1).`
+   - Handles `this` and `variables` scope references
+
+2. **Member Collection with Inheritance**
+   - Collects methods and properties from the inferred type
+   - Walks inheritance hierarchy to include inherited members
+   - Shows inherited members with "from ClassName" label
+   - Sorts own members before inherited members for relevance
+
+3. **Visibility Filtering**
+   - Filters out private methods when accessing from outside the class
+   - Shows private methods when accessing from within the same class
+   - Respects access modifiers (public, private, etc.)
+
+4. **Property Accessors**
+   - Generates getter completions for properties with `hasGetter=true`
+   - Generates setter completions for properties with `hasSetter=true`
+   - Includes method signature in detail
+
+5. **Snippet Support**
+   - Method completions use snippet format with parameter placeholders
+   - Setter completions include `${1:value}` placeholder
+   - Function parameters show as `${1:paramName}, ${2:paramName2}`
+
+### Simplified First Iteration
+
+This implementation focuses on core type inference strategies:
+- ✅ New expressions
+- ✅ Explicit type hints  
+- ✅ Parameter type hints
+- ✅ Basic chained method calls
+- ✅ `this` and `variables` scope
+
+Future enhancements could add:
+- Property type declarations
+- More complex chained expressions
+- Static method access
+- Array/struct member access
+
+### New Files
+
+**Core Classes:**
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/TypeInferenceResult.java` - Record for type inference results with confidence levels
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/MemberAccessTypeInferrer.java` - Infers expression types using AST analysis
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/MemberCompletionCollector.java` - Collects methods/properties with inheritance
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/MemberAccessCompletionRule.java` - Completion rule that ties everything together
+
+**Test Files:**
+- `src/test/java/ortus/boxlang/lsp/MemberAccessCompletionTest.java` - 5 integration tests
+- `src/test/resources/files/memberAccessTest/BaseEntity.bx` - Test base class
+- `src/test/resources/files/memberAccessTest/User.bx` - Test user class extending BaseEntity
+- `src/test/resources/files/memberAccessTest/UserService.bx` - Test service class
+- `src/test/resources/files/memberAccessTest/TestConsumer.bx` - Test file with completion scenarios
+
+### Modified Files
+
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/CompletionProviderRuleBook.java` - Registered `MemberAccessCompletionRule` before `BIFCompletionRule`
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/NewCompletionRule.java` - Fixed StringIndexOutOfBoundsException when cursor position exceeds line length
+
+### Bug Fix: NewCompletionRule StringIndexOutOfBoundsException
+
+While implementing this feature, discovered and fixed a pre-existing bug in `NewCompletionRule.java` that caused crashes when typing `new C` or similar expressions. The bug occurred when the cursor position reported by the client exceeded the actual line length (possibly due to line ending handling differences).
+
+**Fix:** Added bounds checking before substring operation:
+```java
+int cursorPos = facts.completionParams().getPosition().getCharacter();
+if ( cursorPos > existingPrompt.length() ) {
+    cursorPos = existingPrompt.length();
+}
+existingPrompt = existingPrompt.substring( 0, cursorPos );
+```
+
+### Test Coverage
+
+**Integration Tests** (`MemberAccessCompletionTest.java`):
+- `testCompletionsAfterNewExpression()` - After `var user = new User()` shows User methods
+- `testCompletionsShowInheritedMembers()` - Shows BaseEntity methods on User instance
+- `testCompletionsIncludeProperties()` - Shows properties as completion items
+- `testCompletionsIncludeGetterSetter()` - Shows auto-generated getter/setter methods
+- `testCompletionsForThis()` - Shows class members after `this.`
+
+All tests pass ✅
+
+### Type Inference Confidence Levels
+
+The `TypeInferenceResult` includes a confidence enum:
+- `HIGH` - Explicit type hints, new expressions
+- `MEDIUM` - Method return types, less reliable sources
+- `LOW` - Fallback inferences
+- `UNKNOWN` - Could not infer type
+
+### Technical Implementation Details
+
+**Type Inference Strategy:**
+1. Check for `this`/`variables` scope → return containing class
+2. Check for parameter with type hint → HIGH confidence
+3. Use `VariableTypeCollectorVisitor` to find assignments → HIGH confidence
+4. For chained expressions, recursively infer receiver type → MEDIUM confidence
+5. Look up method return type in index → MEDIUM confidence
+
+**Member Collection Strategy:**
+1. Find target class in index
+2. Collect own methods and properties
+3. Walk `InheritanceGraph.getAncestors()` for parent classes
+4. Collect inherited members with depth tracking
+5. Filter by visibility (skip private if accessing from outside)
+6. Apply prefix filter if user has typed partial text
+7. Sort by depth (own members first) then alphabetically
+
+**Integration Points:**
+- Uses `CompletionContext.getReceiverText()` to get expression before dot
+- Uses `ProjectIndex` for class/method/property lookups
+- Uses `InheritanceGraph` for inheritance traversal
+- Registered in `CompletionProviderRuleBook` with `isMemberAccess()` check
+
+### Performance Considerations
+
+- Member collection is O(n) where n = number of ancestors in inheritance chain
+- Uses `HashSet` to track seen members and avoid duplicates
+- Filters by prefix early to reduce completion list size
+- Type inference uses visitor pattern for efficient AST traversal
+
+---
+

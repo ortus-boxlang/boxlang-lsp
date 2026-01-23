@@ -1,0 +1,21 @@
+/**
+ * Service for user operations.
+ */
+class {
+	/**
+	 * Get a user by ID.
+	 * @id The user ID
+	 * @return User The user object
+	 */
+	public User function getUser(required numeric id) {
+		return new User(id, "testuser");
+	}
+
+	/**
+	 * Get all users.
+	 * @return array Array of User objects
+	 */
+	public array function getAllUsers() {
+		return [];
+	}
+}
