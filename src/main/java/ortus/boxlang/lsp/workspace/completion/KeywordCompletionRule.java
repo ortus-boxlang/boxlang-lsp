@@ -21,7 +21,9 @@ public class KeywordCompletionRule implements IRule<CompletionFacts, List<Comple
 	    "interface",
 	    "abstract",
 	    "final",
-	    "import"
+	    "import",
+	    "extends",
+	    "implements"
 	);
 
 	// Class body keywords (inside class but outside methods)
@@ -31,7 +33,8 @@ public class KeywordCompletionRule implements IRule<CompletionFacts, List<Comple
 	    "static",
 	    "private",
 	    "public",
-	    "remote"
+	    "remote",
+	    "required"
 	);
 
 	// Function body keywords (inside methods/functions)
@@ -49,7 +52,8 @@ public class KeywordCompletionRule implements IRule<CompletionFacts, List<Comple
 	    "throw",
 	    "return",
 	    "break",
-	    "continue"
+	    "continue",
+	    "required"
 	);
 
 	// Expression keywords (can be used in expressions)

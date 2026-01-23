@@ -11,15 +11,15 @@ Implemented context-aware keyword completion for the BoxLang LSP. Keywords are n
 ### Features Implemented
 
 1. **Top-Level Keywords**
-   - `class`, `interface`, `abstract`, `final`, `import`
+   - `class`, `interface`, `abstract`, `final`, `import`, `extends`, `implements`
    - Only suggested when cursor is at the top level (outside class/interface)
 
 2. **Class Body Keywords**
-   - `function`, `property`, `static`, `private`, `public`, `remote`
+   - `function`, `property`, `static`, `private`, `public`, `remote`, `required`
    - Only suggested when cursor is inside a class but outside methods
 
 3. **Function Body Keywords**
-   - `var`, `if`, `else`, `for`, `while`, `do`, `switch`, `try`, `catch`, `finally`, `throw`, `return`, `break`, `continue`
+   - `var`, `if`, `else`, `for`, `while`, `do`, `switch`, `try`, `catch`, `finally`, `throw`, `return`, `break`, `continue`, `required`
    - Suggested when cursor is inside a function/method
 
 4. **Expression Keywords**
@@ -84,9 +84,9 @@ All 10 tests pass successfully:
 
 ### Requirements Met
 
-- ✅ Top level keywords: `class`, `interface`, `abstract`, `final`, `import`
-- ✅ Class body keywords: `function`, `property`, `static`, `private`, `public`, `remote`
-- ✅ Function body keywords: `var`, `if`, `else`, `for`, `while`, `do`, `switch`, `try`, `catch`, `finally`, `throw`, `return`, `break`, `continue`
+- ✅ Top level keywords: `class`, `interface`, `abstract`, `final`, `import`, `extends`, `implements`
+- ✅ Class body keywords: `function`, `property`, `static`, `private`, `public`, `remote`, `required`
+- ✅ Function body keywords: `var`, `if`, `else`, `for`, `while`, `do`, `switch`, `try`, `catch`, `finally`, `throw`, `return`, `break`, `continue`, `required`
 - ✅ Expression keywords: `new`, `true`, `false`, `null`
 - ✅ Context-aware completion - only suggest keywords appropriate for current location
 - ✅ Proper CompletionItemKind (Keyword)

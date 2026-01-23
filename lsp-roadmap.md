@@ -1033,9 +1033,9 @@ Complete BoxLang keywords in appropriate contexts.
 
 **Keywords by Context:**
 
-- Top level: `class`, `interface`, `abstract`, `final`, `import`
-- Class body: `function`, `property`, `static`, `private`, `public`, `remote`
-- Function body: `var`, `if`, `else`, `for`, `while`, `do`, `switch`, `try`, `catch`, `finally`, `throw`, `return`, `break`, `continue`
+- Top level: `class`, `interface`, `abstract`, `final`, `import`, `extends`, `implements`
+- Class body: `function`, `property`, `static`, `private`, `public`, `remote`, `required`
+- Function body: `var`, `if`, `else`, `for`, `while`, `do`, `switch`, `try`, `catch`, `finally`, `throw`, `return`, `break`, `continue`, `required`
 - Expressions: `new`, `true`, `false`, `null`
 
 **Implementation:**

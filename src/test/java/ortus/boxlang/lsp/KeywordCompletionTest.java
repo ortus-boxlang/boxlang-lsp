@@ -66,6 +66,8 @@ public class KeywordCompletionTest extends BaseTest {
 		assertThat( hasKeyword( items, "abstract" ) ).isTrue();
 		assertThat( hasKeyword( items, "final" ) ).isTrue();
 		assertThat( hasKeyword( items, "import" ) ).isTrue();
+		assertThat( hasKeyword( items, "extends" ) ).isTrue();
+		assertThat( hasKeyword( items, "implements" ) ).isTrue();
 	}
 
 	@Test
@@ -85,6 +87,7 @@ public class KeywordCompletionTest extends BaseTest {
 		assertThat( hasKeyword( items, "private" ) ).isTrue();
 		assertThat( hasKeyword( items, "public" ) ).isTrue();
 		assertThat( hasKeyword( items, "remote" ) ).isTrue();
+		assertThat( hasKeyword( items, "required" ) ).isTrue();
 	}
 
 	@Test
@@ -112,6 +115,7 @@ public class KeywordCompletionTest extends BaseTest {
 		assertThat( hasKeyword( items, "return" ) ).isTrue();
 		assertThat( hasKeyword( items, "break" ) ).isTrue();
 		assertThat( hasKeyword( items, "continue" ) ).isTrue();
+		assertThat( hasKeyword( items, "required" ) ).isTrue();
 	}
 
 	@Test
