@@ -1,0 +1,8 @@
+/**
+ * Test file for expression keyword completion
+ */
+class {
+	function test() {
+		var x = cursor
+	}
+}

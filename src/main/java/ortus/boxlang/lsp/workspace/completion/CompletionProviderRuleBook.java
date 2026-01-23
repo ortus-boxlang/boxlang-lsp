@@ -18,6 +18,7 @@ public class CompletionProviderRuleBook extends RuleCollection<CompletionFacts, 
 		    .addRule( new NewCompletionRule() )
 		    .addRule( new ComponentCompletionRule() )
 		    .addRule( new MemberAccessCompletionRule() )
+		    .addRule( new KeywordCompletionRule() )
 		    .addRule( new BIFCompletionRule() )
 		    .addRule( new PropertyCompletionRule() )
 		    .addRule( new VariableCompletionRule() )

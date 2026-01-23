@@ -1,0 +1,9 @@
+/**
+ * Test file for function body keyword completion
+ */
+class {
+	function test() {
+		// Cursor here for function body keywords
+		
+	}
+}

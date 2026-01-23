@@ -1,5 +1,106 @@
 # BoxLang LSP Development Log
 
+## Task 3.6: Completion - Keywords (Complete)
+
+**Date:** 2026-01-23
+
+### Summary
+
+Implemented context-aware keyword completion for the BoxLang LSP. Keywords are now suggested based on the current context (top-level, class body, function body, or expression context), providing developers with intelligent keyword suggestions appropriate to their current editing location.
+
+### Features Implemented
+
+1. **Top-Level Keywords**
+   - `class`, `interface`, `abstract`, `final`, `import`
+   - Only suggested when cursor is at the top level (outside class/interface)
+
+2. **Class Body Keywords**
+   - `function`, `property`, `static`, `private`, `public`, `remote`
+   - Only suggested when cursor is inside a class but outside methods
+
+3. **Function Body Keywords**
+   - `var`, `if`, `else`, `for`, `while`, `do`, `switch`, `try`, `catch`, `finally`, `throw`, `return`, `break`, `continue`
+   - Suggested when cursor is inside a function/method
+
+4. **Expression Keywords**
+   - `new`, `true`, `false`, `null`
+   - Suggested in function bodies (can be used in expressions)
+
+5. **Context Detection**
+   - Leverages the existing `CompletionContext` framework (Task 3.1)
+   - Determines containing class and method names to decide which keywords to suggest
+   - Excludes keywords from contexts where they don't make sense (member access, imports, etc.)
+
+6. **Proper Sorting**
+   - Keywords use `sortText` prefix "1" to prioritize them over most other completions
+   - All keywords use `CompletionItemKind.Keyword` for correct client-side rendering
+
+### Implementation Details
+
+**New Files Created:**
+
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/KeywordCompletionRule.java`
+  - Implements `IRule<CompletionFacts, List<CompletionItem>>`
+  - Defines four keyword sets: TOP_LEVEL_KEYWORDS, CLASS_BODY_KEYWORDS, FUNCTION_BODY_KEYWORDS, EXPRESSION_KEYWORDS
+  - `when()` method filters out inappropriate contexts (MEMBER_ACCESS, IMPORT, NEW_EXPRESSION, etc.)
+  - `then()` method selects appropriate keywords based on `containingClassName` and `containingMethodName`
+
+**Test Files Created:**
+
+- `src/test/java/ortus/boxlang/lsp/KeywordCompletionTest.java`
+  - 10 comprehensive tests covering all keyword contexts
+  - Tests verify correct keywords are present in each context
+  - Tests verify keywords are NOT present in inappropriate contexts
+  - Tests verify keywords have correct `CompletionItemKind.Keyword`
+  - Tests verify keywords have correct sort order
+
+**Test Resource Files:**
+
+- `src/test/resources/files/keywordCompletionTest/TopLevel.bx` - Top-level context testing
+- `src/test/resources/files/keywordCompletionTest/ClassBody.bx` - Class body context testing
+- `src/test/resources/files/keywordCompletionTest/FunctionBody.bx` - Function body context testing
+- `src/test/resources/files/keywordCompletionTest/ExpressionContext.bx` - Expression context testing
+
+**Modified Files:**
+
+- `src/main/java/ortus/boxlang/lsp/workspace/completion/CompletionProviderRuleBook.java`
+  - Added `KeywordCompletionRule` to the rule chain
+  - Positioned after `MemberAccessCompletionRule` and before `BIFCompletionRule`
+
+### Test Coverage
+
+All 10 tests pass successfully:
+
+1. `testTopLevelKeywords()` - Verifies top-level keywords (class, interface, abstract, final, import)
+2. `testClassBodyKeywords()` - Verifies class body keywords (function, property, static, private, public, remote)
+3. `testFunctionBodyKeywords()` - Verifies function body keywords (var, if, else, for, while, return, etc.)
+4. `testExpressionKeywords()` - Verifies expression keywords (new, true, false, null)
+5. `testKeywordsHaveCorrectKind()` - Verifies keywords use `CompletionItemKind.Keyword`
+6. `testKeywordsSortCorrectly()` - Verifies keywords have "1" sortText prefix
+7. `testTopLevelDoesNotIncludeFunctionBodyKeywords()` - Verifies context filtering works
+8. `testClassBodyDoesNotIncludeFunctionBodyKeywords()` - Verifies context filtering works
+9. `testFunctionBodyIncludesExpressionKeywords()` - Verifies expression keywords available in functions
+10. (Helper methods for test utilities)
+
+### Requirements Met
+
+- ✅ Top level keywords: `class`, `interface`, `abstract`, `final`, `import`
+- ✅ Class body keywords: `function`, `property`, `static`, `private`, `public`, `remote`
+- ✅ Function body keywords: `var`, `if`, `else`, `for`, `while`, `do`, `switch`, `try`, `catch`, `finally`, `throw`, `return`, `break`, `continue`
+- ✅ Expression keywords: `new`, `true`, `false`, `null`
+- ✅ Context-aware completion - only suggest keywords appropriate for current location
+- ✅ Proper CompletionItemKind (Keyword)
+- ✅ Proper sorting (prioritized with "1" prefix)
+
+### Technical Notes
+
+- The rule uses `CompletionContext.getContainingClassName()` and `getContainingMethodName()` to determine context
+- Keywords are excluded from MEMBER_ACCESS, IMPORT, NEW_EXPRESSION, EXTENDS, IMPLEMENTS, BXM_TAG, TEMPLATE_EXPRESSION, and NONE contexts
+- Expression keywords are included in function bodies since they can be used in any expression
+- The implementation is simple and efficient - no AST walking required, just context checking
+
+---
+
 ## Task 3.4: Completion - Functions (BIFs and UDFs) (Complete)
 
 **Date:** 2026-01-23
