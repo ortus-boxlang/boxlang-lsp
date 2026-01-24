@@ -1,0 +1,12 @@
+/**
+ * This class defines a bxObj object. It should not have any diagnostic issues.
+ */
+class extends="subpackage.BaseType" implements="subpackage.InterfaceDef" {
+    property name="bxObjProp1";
+    property name="bxObjProp2";
+
+    function bxObjFunction( string param1, numeric param2 ) {
+        // function body
+    }
+    
+}

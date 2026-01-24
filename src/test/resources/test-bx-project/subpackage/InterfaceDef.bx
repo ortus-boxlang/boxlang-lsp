@@ -1,0 +1,6 @@
+/**
+ * This interface defines a contract for classes that implement it. It should be implemented by ../bxObj.bx
+ */
+interface InterfaceDef {
+    public function doSomething( string a, string b );
+}
