@@ -1,0 +1,11 @@
+/**
+ * This is the base type class in the subpackage. It is extended by ../bxObj.bx
+ */
+class extends="subsubpackage.EvenBaserType"{
+    property name="propA";
+    property name="proppB";
+
+    function baseTypeFunction( string arg1, numeric arg2 ) {
+        // function body
+    }
+}
