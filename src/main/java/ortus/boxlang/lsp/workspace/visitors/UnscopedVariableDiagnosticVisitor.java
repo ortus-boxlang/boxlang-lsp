@@ -105,7 +105,10 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	public void visit( BoxProperty node ) {
-		properties.add( BLASTTools.getPropertyName( node ).toLowerCase() );
+		String name = BLASTTools.getPropertyName( node );
+		if ( name != null ) {
+			properties.add( name.toLowerCase() );
+		}
 	}
 
 	public void visit( BoxArgumentDeclaration node ) {

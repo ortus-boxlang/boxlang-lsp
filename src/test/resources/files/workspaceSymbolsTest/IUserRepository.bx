@@ -1,0 +1,10 @@
+/**
+ * Interface for user repository operations.
+ */
+interface IUserRepository {
+
+	public UserEntity function findById( required numeric id );
+	public array function findAll();
+	public void function save( required UserEntity user );
+
+}

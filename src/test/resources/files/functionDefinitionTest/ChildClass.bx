@@ -1,0 +1,31 @@
+/**
+ * Child class that extends BaseClass.
+ * Used for testing inherited method go-to-definition.
+ */
+class extends="BaseClass" {
+
+	/**
+	 * Override the base greeting method.
+	 *
+	 * @return The child greeting
+	 */
+	function getGreeting() {
+		return "Hello from ChildClass";
+	}
+
+	/**
+	 * A method unique to this child class.
+	 *
+	 * @param count Number of times to greet
+	 *
+	 * @return Repeated greeting
+	 */
+	function multiGreet( required numeric count ) {
+		var result = "";
+		for ( var i = 1; i <= count; i++ ) {
+			result &= this.getGreeting() & " ";
+		}
+		return result.trim();
+	}
+
+}

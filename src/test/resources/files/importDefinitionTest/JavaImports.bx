@@ -1,0 +1,17 @@
+/**
+ * Test file with Java imports.
+ * Java imports should not navigate (no source to navigate to).
+ */
+import java:java.util.ArrayList;
+import java:java.util.HashMap as MapClass;
+
+class {
+    /**
+     * Test method using Java imports.
+     */
+    public function testJavaImports() {
+        var list = new ArrayList();
+        var map = new MapClass();
+        return list;
+    }
+}

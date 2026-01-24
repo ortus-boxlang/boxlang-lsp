@@ -1,0 +1,40 @@
+/**
+ * Service class for testing method invocation go-to-definition.
+ */
+class {
+
+	/**
+	 * Get a user by ID.
+	 *
+	 * @param userId The user ID to look up
+	 *
+	 * @return The user data struct
+	 */
+	function getUserById( required numeric userId ) {
+		return { id: userId, name: "User " & userId };
+	}
+
+	/**
+	 * Create a new user.
+	 *
+	 * @param name The user's name
+	 * @param email The user's email
+	 *
+	 * @return The created user data
+	 */
+	function createUser( required string name, required string email ) {
+		return { id: 1, name: name, email: email };
+	}
+
+	/**
+	 * A static-like utility method.
+	 *
+	 * @param input The input string
+	 *
+	 * @return The sanitized string
+	 */
+	function sanitizeInput( required string input ) {
+		return trim( input );
+	}
+
+}

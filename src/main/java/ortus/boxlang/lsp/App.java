@@ -18,7 +18,17 @@ import org.eclipse.lsp4j.services.LanguageClientAware;
 
 import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
+import ortus.boxlang.lsp.lint.rules.DuplicateMethodRule;
+import ortus.boxlang.lsp.lint.rules.DuplicatePropertyRule;
+import ortus.boxlang.lsp.lint.rules.EmptyCatchBlockRule;
+import ortus.boxlang.lsp.lint.rules.InvalidExtendsRule;
+import ortus.boxlang.lsp.lint.rules.InvalidImplementsRule;
+import ortus.boxlang.lsp.lint.rules.MissingReturnStatementRule;
+import ortus.boxlang.lsp.lint.rules.ShadowedVariableRule;
+import ortus.boxlang.lsp.lint.rules.UnreachableCodeRule;
 import ortus.boxlang.lsp.lint.rules.UnscopedVariableRule;
+import ortus.boxlang.lsp.lint.rules.UnusedImportRule;
+import ortus.boxlang.lsp.lint.rules.UnusedPrivateMethodRule;
 import ortus.boxlang.lsp.lint.rules.UnusedVariableRule;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.logging.BoxLangLogger;
@@ -48,6 +58,17 @@ public class App {
 		// Register diagnostic rules
 		DiagnosticRuleRegistry.getInstance().register( new UnscopedVariableRule() );
 		DiagnosticRuleRegistry.getInstance().register( new UnusedVariableRule() );
+		DiagnosticRuleRegistry.getInstance().register( new InvalidExtendsRule() );
+		DiagnosticRuleRegistry.getInstance().register( new InvalidImplementsRule() );
+		DiagnosticRuleRegistry.getInstance().register( new DuplicateMethodRule() );
+		DiagnosticRuleRegistry.getInstance().register( new DuplicatePropertyRule() );
+		// Warning diagnostic rules
+		DiagnosticRuleRegistry.getInstance().register( new EmptyCatchBlockRule() );
+		DiagnosticRuleRegistry.getInstance().register( new UnreachableCodeRule() );
+		DiagnosticRuleRegistry.getInstance().register( new ShadowedVariableRule() );
+		DiagnosticRuleRegistry.getInstance().register( new MissingReturnStatementRule() );
+		DiagnosticRuleRegistry.getInstance().register( new UnusedPrivateMethodRule() );
+		DiagnosticRuleRegistry.getInstance().register( new UnusedImportRule() );
 		BoxRuntime.getInstance().announce( "LSPRegisterVisitors", Struct.of( "sourceCodeVisitorService", SourceCodeVisitorService.getInstance() ) );
 		startConfigWatcher();
 	}

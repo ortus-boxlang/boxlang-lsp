@@ -1,0 +1,15 @@
+/**
+ * User service interface
+ */
+interface {
+
+    /**
+     * Get user by ID
+     */
+    public User function getUser( required numeric id );
+
+    /**
+     * Save a user
+     */
+    public void function saveUser( required User user );
+}

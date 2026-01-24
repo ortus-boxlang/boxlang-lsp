@@ -1,0 +1,40 @@
+/**
+ * User service implementation
+ */
+class implements="IUserService" {
+
+    property name="repository" type="UserRepository";
+
+    /**
+     * Get user by ID - implements IUserService
+     */
+    public User function getUser( required numeric id ) {
+        var user = new User();
+        user.id = id;
+        return user;
+    }
+
+    /**
+     * Save a user - implements IUserService
+     */
+    public void function saveUser( required User user ) {
+        user.save();
+    }
+
+    /**
+     * Create a new user instance
+     */
+    public User function createUser( required string username, required string email ) {
+        var newUser = new User();
+        newUser.username = username;
+        newUser.email = email;
+        return newUser;
+    }
+
+    /**
+     * Private helper method
+     */
+    private void function logAction( required string action ) {
+        // Log the action
+    }
+}

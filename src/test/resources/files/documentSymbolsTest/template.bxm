@@ -1,0 +1,23 @@
+<bx:script>
+	/**
+	 * Initialize template data.
+	 */
+	function initData() {
+		return {
+			title: "Test Page",
+			count: 10
+		};
+	}
+
+	var data = initData();
+</bx:script>
+
+<html>
+<head>
+	<title>#data.title#</title>
+</head>
+<body>
+	<h1>#data.title#</h1>
+	<p>Count: #data.count#</p>
+</body>
+</html>

@@ -14,6 +14,7 @@ import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.SetTraceParams;
+import org.eclipse.lsp4j.SignatureHelpOptions;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
 import org.eclipse.lsp4j.services.LanguageClient;
@@ -37,15 +38,22 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			ServerCapabilities capabilities = new ServerCapabilities();
 
-			capabilities.setTextDocumentSync( TextDocumentSyncKind.Full );
+			capabilities.setTextDocumentSync( TextDocumentSyncKind.Incremental );
 			capabilities.setDocumentSymbolProvider( true );
 			capabilities.setDefinitionProvider( true );
+			capabilities.setTypeDefinitionProvider( true );
+			capabilities.setImplementationProvider( true );
+			capabilities.setHoverProvider( true );
 			CompletionOptions completionOptions = new CompletionOptions();
 			capabilities.setReferencesProvider( true );
 
 			completionOptions.setTriggerCharacters( List.of( "." ) );
 			// completionOptions.
 			capabilities.setCompletionProvider( completionOptions );
+
+			SignatureHelpOptions signatureHelpOptions = new SignatureHelpOptions();
+			signatureHelpOptions.setTriggerCharacters( List.of( "(", "," ) );
+			capabilities.setSignatureHelpProvider( signatureHelpOptions );
 			capabilities.setDiagnosticProvider( new DiagnosticRegistrationOptions( false, true ) );
 			capabilities.setCodeLensProvider( new CodeLensOptions( true ) );
 			capabilities.setCodeActionProvider( new CodeActionOptions( List.of(
@@ -53,6 +61,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			    CodeActionKind.SourceFixAll,
 			    CodeActionKind.RefactorRewrite
 			) ) );
+			capabilities.setWorkspaceSymbolProvider( true );
 
 			// TODO add an initialize method to ProjectContextProvider to pass in workspace folders
 			// and other client capabilities as needed

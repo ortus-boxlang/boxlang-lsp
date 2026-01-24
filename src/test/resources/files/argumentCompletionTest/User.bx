@@ -1,0 +1,11 @@
+class User {
+	function init(required string username, required string email) {
+		variables.username = username;
+		variables.email = email;
+		return this;
+	}
+
+	function getName() {
+		return variables.username;
+	}
+}

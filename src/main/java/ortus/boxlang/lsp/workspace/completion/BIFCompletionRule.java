@@ -17,7 +17,7 @@ public class BIFCompletionRule implements IRule<CompletionFacts, List<Completion
 	public boolean when( CompletionFacts facts ) {
 		return !facts.fileParseResult().isTemplate()
 		    && !ContextChecker.isNewExpression( facts )
-		    && ContextChecker.isImportExpression( facts );
+		    && ( ContextChecker.isImportExpression( facts ) || facts.getContext().getKind() == CompletionContextKind.GENERAL );
 	}
 
 	@Override

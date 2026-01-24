@@ -1,0 +1,11 @@
+class {
+    /**
+     * A documented function
+     * @param param1 The first parameter
+     * @param param2 The second parameter
+     * @return The result as a string
+     */
+    public string function documentedFunction( numeric param1, string param2 ) {
+        return "Param1: " + param1 + ", Param2: " + param2;
+    }
+}

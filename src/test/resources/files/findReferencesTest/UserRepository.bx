@@ -1,0 +1,33 @@
+/**
+ * User repository for data access
+ */
+class {
+
+    /**
+     * Find user by ID
+     */
+    public User function findById( required numeric id ) {
+        var user = new User();
+        user.id = id;
+        return user;
+    }
+
+    /**
+     * Find all users
+     */
+    public array function findAll() {
+        var users = [];
+        var user1 = new User();
+        var user2 = new User();
+        users.append( user1 );
+        users.append( user2 );
+        return users;
+    }
+
+    /**
+     * Save user
+     */
+    public void function saveEntity( required User user ) {
+        user.save();
+    }
+}

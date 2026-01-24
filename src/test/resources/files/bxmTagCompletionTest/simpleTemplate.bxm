@@ -1,0 +1,27 @@
+<html>
+<head>
+	<title>Test Template</title>
+</head>
+<body>
+	<!-- Test tag completion after <bx: -->
+	<bx:
+	
+	<!-- Test tag completion with partial -->
+	<bx:out
+	
+	<!-- Test attribute completion inside tag -->
+	<bx:output 
+	
+	<!-- Test attribute completion with partial -->
+	<bx:output enc
+	
+	<!-- Test attribute value completion -->
+	<bx:output encodefor="
+	
+	<!-- Test multiple attributes -->
+	<bx:set var="test" value="
+	
+	<!-- Test self-closing tag attribute -->
+	<bx:thread 
+</body>
+</html>

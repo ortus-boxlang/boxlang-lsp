@@ -1,0 +1,25 @@
+/**
+ * Helper functions module.
+ */
+
+/**
+ * Format a date string.
+ */
+public string function formatDate( required date input, string format = "yyyy-MM-dd" ) {
+	return input.format( format );
+}
+
+/**
+ * Calculate age from birth date.
+ */
+public numeric function calculateAge( required date birthDate ) {
+	var now = now();
+	return dateDiff( "yyyy", birthDate, now );
+}
+
+/**
+ * Private utility function.
+ */
+private string function sanitizeInput( required string input ) {
+	return trim( input );
+}

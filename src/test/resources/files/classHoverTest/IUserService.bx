@@ -1,0 +1,9 @@
+/**
+ * Interface for user service operations.
+ *
+ * @author Claude
+ */
+interface {
+    public function getUser(required numeric id);
+    public function saveUser(required struct userData);
+}

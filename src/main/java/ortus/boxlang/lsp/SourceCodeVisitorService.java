@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.lsp.workspace.visitors.SemanticErrorDiagnosticVisitor;
+import ortus.boxlang.lsp.workspace.visitors.SemanticWarningDiagnosticVisitor;
 import ortus.boxlang.lsp.workspace.visitors.UnscopedVariableDiagnosticVisitor;
 import ortus.boxlang.lsp.workspace.visitors.UnusedVariableDiagnosticVisitor;
 
@@ -22,6 +24,8 @@ public class SourceCodeVisitorService {
 
 		instance.addVisitor( UnscopedVariableDiagnosticVisitor.class );
 		instance.addVisitor( UnusedVariableDiagnosticVisitor.class );
+		instance.addVisitor( SemanticErrorDiagnosticVisitor.class );
+		instance.addVisitor( SemanticWarningDiagnosticVisitor.class );
 	}
 
 	private SourceCodeVisitorService() {

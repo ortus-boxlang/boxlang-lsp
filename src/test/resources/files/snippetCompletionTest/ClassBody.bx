@@ -1,0 +1,8 @@
+/**
+ * Test file for snippet completion in class body
+ */
+
+class TestClass {
+	// Trigger snippets here:
+	
+}

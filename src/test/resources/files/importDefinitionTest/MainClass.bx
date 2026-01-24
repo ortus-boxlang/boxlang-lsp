@@ -1,0 +1,12 @@
+/**
+ * Main class that tests package-qualified imports.
+ */
+import subpackage.Item;
+import subpackage.SubThing;
+
+class {
+    public function testImports() {
+        // subpackage.Item does NOT exist - should not resolve to root Item.bx
+        // subpackage.SubThing DOES exist - should resolve correctly
+    }
+}

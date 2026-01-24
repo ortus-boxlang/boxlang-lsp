@@ -1,0 +1,10 @@
+/**
+ * Parent class for inheritance testing.
+ */
+class {
+
+	function parentFunc() {
+		return "parent";
+	}
+
+}

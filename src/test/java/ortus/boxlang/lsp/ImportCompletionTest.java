@@ -12,11 +12,47 @@ import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.CompletionParams;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 
-public class ImportCompletionTest {
+public class ImportCompletionTest extends BaseTest {
+
+	private static Path				projectRoot;
+	private static Path				testDir;
+	private ProjectContextProvider	pcp;
+
+	@BeforeAll
+	public static void setUpClass() {
+		projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		testDir		= projectRoot.resolve( "src/test/resources/files/importPathCompletionTest" );
+	}
+
+	@BeforeEach
+	public void setUp() throws Exception {
+		pcp = ProjectContextProvider.getInstance();
+
+		// Initialize index with test files
+		ProjectIndex index = pcp.getIndex();
+		index.clear();
+		index.initialize( testDir );
+
+		// Index all test files recursively
+		indexDirectory( testDir, index );
+	}
+
+	private void indexDirectory( Path dir, ProjectIndex index ) throws Exception {
+		for ( File file : dir.toFile().listFiles() ) {
+			if ( file.isDirectory() ) {
+				indexDirectory( file.toPath(), index );
+			} else if ( file.getName().endsWith( ".bx" ) || file.getName().endsWith( ".bxs" ) ) {
+				index.indexFile( file.toURI() );
+			}
+		}
+	}
 
 	@Test
 	void testItShouldOfferJavaPackageCompletionsForImport() {
@@ -174,5 +210,146 @@ public class ImportCompletionTest {
 		    .anyMatch( ci -> ci.getLabelDetails().getDescription().equals( "java.util.List" ) );
 
 		assertThat( hasList ).isTrue();
+	}
+
+	// Tests for BoxLang class import path completion
+
+	@Test
+	void testItShouldOfferPackageNamesForEmptyImport() throws Exception {
+		Path					p					= testDir.resolve( "emptyImport.bx" );
+		File					f					= p.toFile();
+
+		CompletionParams		completionParams	= new CompletionParams();
+		TextDocumentIdentifier	td					= new TextDocumentIdentifier( p.toUri().toString() );
+		// Position after "import " - should show package names
+		completionParams.setPosition( new Position( 0, 7 ) );
+		completionParams.setTextDocument( td );
+
+		List<CompletionItem>	completionItems	= pcp.getAvailableCompletions( f.toURI(), completionParams );
+
+		// Should find "models" package
+		boolean					hasModels		= completionItems.stream()
+		    .anyMatch( ci -> ci.getLabel().equals( "models" ) && ci.getKind() == CompletionItemKind.Module );
+
+		assertThat( hasModels ).isTrue();
+
+		// Should find "services" package
+		boolean hasServices = completionItems.stream()
+		    .anyMatch( ci -> ci.getLabel().equals( "services" ) && ci.getKind() == CompletionItemKind.Module );
+
+		assertThat( hasServices ).isTrue();
+
+		// Should find "controllers" package
+		boolean hasControllers = completionItems.stream()
+		    .anyMatch( ci -> ci.getLabel().equals( "controllers" ) && ci.getKind() == CompletionItemKind.Module );
+
+		assertThat( hasControllers ).isTrue();
+	}
+
+	@Test
+	void testItShouldOfferClassNamesAfterPackagePrefix() throws Exception {
+		Path					p					= testDir.resolve( "partialPackage.bx" );
+		File					f					= p.toFile();
+
+		CompletionParams		completionParams	= new CompletionParams();
+		TextDocumentIdentifier	td					= new TextDocumentIdentifier( p.toUri().toString() );
+		// Position after "import models." - should show classes in models package
+		completionParams.setPosition( new Position( 0, 14 ) );
+		completionParams.setTextDocument( td );
+
+		List<CompletionItem>	completionItems	= pcp.getAvailableCompletions( f.toURI(), completionParams );
+
+		// Should find "User" class in models package
+		boolean					hasUser			= completionItems.stream()
+		    .anyMatch( ci -> ci.getLabel().equals( "User" ) && ci.getKind() == CompletionItemKind.Class );
+
+		assertThat( hasUser ).isTrue();
+
+		// Should find "Product" class in models package
+		boolean hasProduct = completionItems.stream()
+		    .anyMatch( ci -> ci.getLabel().equals( "Product" ) && ci.getKind() == CompletionItemKind.Class );
+
+		assertThat( hasProduct ).isTrue();
+
+		// Verify detail shows FQN
+		CompletionItem userItem = completionItems.stream()
+		    .filter( ci -> ci.getLabel().equals( "User" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( userItem ).isNotNull();
+		assertThat( userItem.getLabelDetails().getDescription() ).contains( "models.User" );
+	}
+
+	@Test
+	void testItShouldOfferPackagesMatchingPrefix() throws Exception {
+		Path					p					= testDir.resolve( "partialPrefix.bx" );
+		File					f					= p.toFile();
+
+		CompletionParams		completionParams	= new CompletionParams();
+		TextDocumentIdentifier	td					= new TextDocumentIdentifier( p.toUri().toString() );
+		// Position after "import m" - should show packages starting with 'm'
+		completionParams.setPosition( new Position( 0, 8 ) );
+		completionParams.setTextDocument( td );
+
+		List<CompletionItem>	completionItems	= pcp.getAvailableCompletions( f.toURI(), completionParams );
+
+		// Should find "models" package
+		boolean					hasModels		= completionItems.stream()
+		    .anyMatch( ci -> ci.getLabel().equals( "models" ) );
+
+		assertThat( hasModels ).isTrue();
+
+		// Should NOT find "services" package (doesn't start with 'm')
+		boolean hasServices = completionItems.stream()
+		    .anyMatch( ci -> ci.getLabel().equals( "services" ) );
+
+		assertThat( hasServices ).isFalse();
+	}
+
+	@Test
+	void testItShouldOfferClassesMatchingPartialName() throws Exception {
+		Path					p					= testDir.resolve( "partialClassName.bx" );
+		File					f					= p.toFile();
+
+		CompletionParams		completionParams	= new CompletionParams();
+		TextDocumentIdentifier	td					= new TextDocumentIdentifier( p.toUri().toString() );
+		// Position after "import services.U" - should show UserService
+		completionParams.setPosition( new Position( 0, 17 ) );
+		completionParams.setTextDocument( td );
+
+		List<CompletionItem>	completionItems	= pcp.getAvailableCompletions( f.toURI(), completionParams );
+
+		// Should find "UserService" class
+		boolean					hasUserService	= completionItems.stream()
+		    .anyMatch( ci -> ci.getLabel().equals( "UserService" ) && ci.getKind() == CompletionItemKind.Class );
+
+		assertThat( hasUserService ).isTrue();
+
+		// Should NOT find "ProductService" class (doesn't start with 'U')
+		boolean hasProductService = completionItems.stream()
+		    .anyMatch( ci -> ci.getLabel().equals( "ProductService" ) );
+
+		assertThat( hasProductService ).isFalse();
+	}
+
+	@Test
+	void testItShouldOfferRootLevelClasses() throws Exception {
+		Path					p					= testDir.resolve( "emptyImport.bx" );
+		File					f					= p.toFile();
+
+		CompletionParams		completionParams	= new CompletionParams();
+		TextDocumentIdentifier	td					= new TextDocumentIdentifier( p.toUri().toString() );
+		// Position after "import " - should show root level classes
+		completionParams.setPosition( new Position( 0, 7 ) );
+		completionParams.setTextDocument( td );
+
+		List<CompletionItem>	completionItems	= pcp.getAvailableCompletions( f.toURI(), completionParams );
+
+		// Should find "RootClass" at root level
+		boolean					hasRootClass	= completionItems.stream()
+		    .anyMatch( ci -> ci.getLabel().equals( "RootClass" ) && ci.getKind() == CompletionItemKind.Class );
+
+		assertThat( hasRootClass ).isTrue();
 	}
 }

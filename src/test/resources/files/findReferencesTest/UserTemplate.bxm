@@ -1,0 +1,42 @@
+<bx:output>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>User Profile</title>
+    </head>
+    <body>
+        <bx:script>
+            // Create a new User instance in script block
+            var user = new User();
+            user.username = "testuser";
+            user.email = "test@example.com";
+
+            // Create a service
+            var userService = new UserService();
+
+            // Call methods
+            var savedUser = userService.getUser( 123 );
+            userService.saveUser( savedUser );
+        </bx:script>
+
+        <h1>User Profile: #user.getDisplayName()#</h1>
+
+        <div class="user-info">
+            <p>Username: #user.username#</p>
+            <p>Email: #user.email#</p>
+        </div>
+
+        <bx:set anotherUser = new User() />
+
+        <bx:if user.username eq "admin">
+            <p>Welcome, administrator!</p>
+        </bx:if>
+
+        <ul>
+            <bx:loop array="#userService.getUser( 1 )#" item="item">
+                <li>#item.username#</li>
+            </bx:loop>
+        </ul>
+    </body>
+    </html>
+</bx:output>

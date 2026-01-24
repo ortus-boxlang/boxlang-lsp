@@ -1,0 +1,36 @@
+class User {
+    property name="name" type="string";
+    property name="age" type="numeric";
+
+    function init( required string name, numeric age = 0 ) {
+        variables.name = name;
+        variables.age = age;
+        return this;
+    }
+
+    string function getName() {
+        return variables.name;
+    }
+
+    function setName( required string name ) {
+        variables.name = name;
+    }
+
+    numeric function getAge() {
+        return variables.age;
+    }
+
+    function setAge( required numeric age ) {
+        variables.age = age;
+    }
+
+    private boolean function validateName( required string name ) {
+        return len( name ) > 0;
+    }
+
+    function testFunctionCalls() {
+        // Testing completion at different positions
+
+        return this;
+    }
+}

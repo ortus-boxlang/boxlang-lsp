@@ -1,0 +1,23 @@
+/**
+ * User entity class
+ */
+class extends="BaseEntity" {
+
+    property name="username" type="string";
+    property name="email" type="string";
+
+    /**
+     * Get user's full display name
+     */
+    public string function getDisplayName() {
+        return this.username;
+    }
+
+    /**
+     * Override save to add user-specific logic
+     */
+    public void function save() {
+        // User-specific save logic
+        super.save();
+    }
+}

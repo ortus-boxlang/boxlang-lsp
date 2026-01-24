@@ -1,0 +1,19 @@
+/**
+ * Base entity with common fields.
+ */
+class {
+	property name="id" type="numeric";
+	property name="createdAt" type="date";
+
+	public function init() {
+		return this;
+	}
+
+	public date function getCreatedAt() {
+		return variables.createdAt;
+	}
+
+	private function internalMethod() {
+		// This should not appear in completions outside the class
+	}
+}

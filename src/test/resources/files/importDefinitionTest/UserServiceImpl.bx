@@ -1,0 +1,30 @@
+/**
+ * User service implementation with imports.
+ * Tests go-to-definition on import statements.
+ */
+import UserEntity;
+import IUserService;
+
+class implements="IUserService" {
+    /**
+     * Find a user by ID.
+     */
+    public function findUser(required numeric id) {
+        var user = new UserEntity(id, "testUser");
+        return user;
+    }
+
+    /**
+     * Save a user.
+     */
+    public function saveUser(required any user) {
+        // Save implementation
+    }
+
+    /**
+     * Create a default user.
+     */
+    public UserEntity function createDefaultUser() {
+        return new UserEntity(0, "default");
+    }
+}

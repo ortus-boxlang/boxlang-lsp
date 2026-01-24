@@ -1,0 +1,27 @@
+/**
+ * User repository implementing IRepository.
+ */
+class UserRepository implements="IRepository" {
+
+	/**
+	 * Find user by ID.
+	 */
+	public User function findById( required numeric id ) {
+		return new User();
+	}
+
+	/**
+	 * Save user entity.
+	 */
+	public void function save( required User entity ) {
+		// Save implementation
+	}
+
+	/**
+	 * Delete user entity.
+	 */
+	public void function delete( required numeric id ) {
+		// Delete implementation
+	}
+
+}

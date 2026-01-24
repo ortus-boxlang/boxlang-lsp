@@ -14,10 +14,18 @@ public class CompletionProviderRuleBook extends RuleCollection<CompletionFacts, 
 	static {
 		instance
 		    .addRule( new ImportCompletionRule() )
+		    .addRule( new ClassAndTypeCompletionRule() )	// Must come before NewCompletionRule
 		    .addRule( new NewCompletionRule() )
 		    .addRule( new ComponentCompletionRule() )
+		    .addRule( new BxmTagAttributeCompletionRule() )	// Attribute completion for BXM tags
+		    .addRule( new MemberAccessCompletionRule() )
+		    .addRule( new ArgumentCompletionRule() )		// Add argument completion for function calls
+		    .addRule( new SnippetCompletionRule() )			// Add snippets before keywords for better UX
+		    .addRule( new KeywordCompletionRule() )
 		    .addRule( new BIFCompletionRule() )
-		    .addRule( new PropertyCompletionRule() );
+		    .addRule( new PropertyCompletionRule() )
+		    .addRule( new VariableCompletionRule() )
+		    .addRule( new FunctionCompletionRule() );
 	}
 
 	public static List<CompletionItem> execute( CompletionFacts facts ) {

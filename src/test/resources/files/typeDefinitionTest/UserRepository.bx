@@ -1,0 +1,34 @@
+/**
+ * User repository implementing IRepository.
+ */
+class UserRepository implements="IRepository" {
+
+	/**
+	 * Find user by ID.
+	 */
+	public User function findById( required numeric id ) {
+		return new User();
+	}
+
+	/**
+	 * Save user entity.
+	 */
+	public void function save( required User entity ) {
+		// Save implementation
+	}
+
+	/**
+	 * Test method with return type and variable assignment.
+	 */
+	public void function testTypeDefinition() {
+		// Get repo reference for type inference
+		var repo = new UserRepository();
+		// Cursor on 'repo' should navigate to UserRepository.bx
+
+		// Get user
+		var user = repo.findById( 1 );
+		// Note: Type inference from method return types is complex
+		// This may or may not work depending on implementation depth
+	}
+
+}

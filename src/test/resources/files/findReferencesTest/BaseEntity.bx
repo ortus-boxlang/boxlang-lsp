@@ -1,0 +1,22 @@
+/**
+ * Base entity class with common properties
+ */
+class {
+
+    property name="id" type="numeric";
+    property name="createdAt" type="date";
+
+    /**
+     * Get the entity ID
+     */
+    public numeric function getId() {
+        return this.id;
+    }
+
+    /**
+     * Base save method
+     */
+    public void function save() {
+        // Save entity
+    }
+}
