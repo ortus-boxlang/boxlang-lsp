@@ -181,10 +181,10 @@ public class LintConfigExclusionTest extends BaseTest {
 	@Test
 	void testShouldAnalyzePathRespectingExclusions() {
 		// Test the shouldAnalyze logic directly
-		var config = LintConfigLoader.get();
+		var		config					= LintConfigLoader.get();
 
 		// Excluded path
-		boolean shouldAnalyzeIgnored = config.shouldAnalyze( "ignored-folder/ShouldNotReport.bx" );
+		boolean	shouldAnalyzeIgnored	= config.shouldAnalyze( "ignored-folder/ShouldNotReport.bx" );
 		assertThat( shouldAnalyzeIgnored ).isFalse();
 
 		// Non-excluded paths

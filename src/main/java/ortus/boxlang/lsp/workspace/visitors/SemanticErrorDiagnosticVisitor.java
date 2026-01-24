@@ -233,11 +233,11 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 				return null;
 			}
 
-			java.net.URI	workspaceUri	= new java.net.URI( folders.get( 0 ).getUri() );
+			java.net.URI		workspaceUri	= new java.net.URI( folders.get( 0 ).getUri() );
 			java.nio.file.Path	workspaceRoot	= java.nio.file.Paths.get( workspaceUri );
 
 			// Convert filePath to Path (handle both URI and file path formats)
-			java.nio.file.Path filePath;
+			java.nio.file.Path	filePath;
 			if ( this.filePath.startsWith( "file:" ) ) {
 				filePath = java.nio.file.Paths.get( new java.net.URI( this.filePath ) );
 			} else {
