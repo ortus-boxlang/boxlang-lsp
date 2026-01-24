@@ -29,7 +29,7 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testClassContainsMethodsAndProperties() {
-		Path												classFile	= testDir.resolve( "UserClass.bx" );
+		Path														classFile	= testDir.resolve( "UserClass.bx" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols		= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( classFile.toAbsolutePath().toUri() );
 
@@ -51,15 +51,15 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testPropertiesUsePropertyKind() {
-		Path												classFile	= testDir.resolve( "UserClass.bx" );
+		Path														classFile	= testDir.resolve( "UserClass.bx" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols		= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( classFile.toAbsolutePath().toUri() );
 
 		assertThat( symbols.isPresent() ).isTrue();
-		DocumentSymbol classSymbol = symbols.get().get( 0 ).getRight();
+		DocumentSymbol	classSymbol		= symbols.get().get( 0 ).getRight();
 
 		// Find a property
-		var propertySymbol = classSymbol.getChildren().stream()
+		var				propertySymbol	= classSymbol.getChildren().stream()
 		    .filter( s -> s.getName().equals( "id" ) )
 		    .findFirst();
 
@@ -72,15 +72,15 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testPropertyDetailIncludesTypeHint() {
-		Path												classFile	= testDir.resolve( "UserClass.bx" );
+		Path														classFile	= testDir.resolve( "UserClass.bx" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols		= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( classFile.toAbsolutePath().toUri() );
 
 		assertThat( symbols.isPresent() ).isTrue();
-		DocumentSymbol classSymbol = symbols.get().get( 0 ).getRight();
+		DocumentSymbol	classSymbol	= symbols.get().get( 0 ).getRight();
 
 		// Find id property (type="numeric")
-		var idProperty = classSymbol.getChildren().stream()
+		var				idProperty	= classSymbol.getChildren().stream()
 		    .filter( s -> s.getName().equals( "id" ) )
 		    .findFirst();
 
@@ -94,15 +94,15 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testMethodsUseMethodKind() {
-		Path												classFile	= testDir.resolve( "UserClass.bx" );
+		Path														classFile	= testDir.resolve( "UserClass.bx" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols		= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( classFile.toAbsolutePath().toUri() );
 
 		assertThat( symbols.isPresent() ).isTrue();
-		DocumentSymbol classSymbol = symbols.get().get( 0 ).getRight();
+		DocumentSymbol	classSymbol		= symbols.get().get( 0 ).getRight();
 
 		// Find getDisplayName method
-		var methodSymbol = classSymbol.getChildren().stream()
+		var				methodSymbol	= classSymbol.getChildren().stream()
 		    .filter( s -> s.getName().equals( "getDisplayName" ) )
 		    .findFirst();
 
@@ -115,15 +115,15 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testMethodDetailIncludesReturnType() {
-		Path												classFile	= testDir.resolve( "UserClass.bx" );
+		Path														classFile	= testDir.resolve( "UserClass.bx" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols		= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( classFile.toAbsolutePath().toUri() );
 
 		assertThat( symbols.isPresent() ).isTrue();
-		DocumentSymbol classSymbol = symbols.get().get( 0 ).getRight();
+		DocumentSymbol	classSymbol		= symbols.get().get( 0 ).getRight();
 
 		// Find getDisplayName method (returns string)
-		var methodSymbol = classSymbol.getChildren().stream()
+		var				methodSymbol	= classSymbol.getChildren().stream()
 		    .filter( s -> s.getName().equals( "getDisplayName" ) )
 		    .findFirst();
 
@@ -137,15 +137,15 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testConstructorUsesConstructorKind() {
-		Path												classFile	= testDir.resolve( "UserClass.bx" );
+		Path														classFile	= testDir.resolve( "UserClass.bx" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols		= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( classFile.toAbsolutePath().toUri() );
 
 		assertThat( symbols.isPresent() ).isTrue();
-		DocumentSymbol classSymbol = symbols.get().get( 0 ).getRight();
+		DocumentSymbol	classSymbol	= symbols.get().get( 0 ).getRight();
 
 		// Find init method (constructor)
-		var initSymbol = classSymbol.getChildren().stream()
+		var				initSymbol	= classSymbol.getChildren().stream()
 		    .filter( s -> s.getName().equalsIgnoreCase( "init" ) )
 		    .findFirst();
 
@@ -160,7 +160,7 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testInterfaceUsesInterfaceKind() {
-		Path												interfaceFile	= testDir.resolve( "IUserService.bx" );
+		Path														interfaceFile	= testDir.resolve( "IUserService.bx" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols			= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( interfaceFile.toAbsolutePath().toUri() );
 
@@ -177,7 +177,7 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testInterfaceContainsMethods() {
-		Path												interfaceFile	= testDir.resolve( "IUserService.bx" );
+		Path														interfaceFile	= testDir.resolve( "IUserService.bx" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols			= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( interfaceFile.toAbsolutePath().toUri() );
 
@@ -204,7 +204,7 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testStandaloneFunctionsUseFunctionKind() {
-		Path												scriptFile	= testDir.resolve( "helperFunctions.bxs" );
+		Path														scriptFile	= testDir.resolve( "helperFunctions.bxs" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols		= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( scriptFile.toAbsolutePath().toUri() );
 
@@ -226,7 +226,7 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testStandaloneFunctionDetailIncludesReturnType() {
-		Path												scriptFile	= testDir.resolve( "helperFunctions.bxs" );
+		Path														scriptFile	= testDir.resolve( "helperFunctions.bxs" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols		= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( scriptFile.toAbsolutePath().toUri() );
 
@@ -250,7 +250,7 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testBxmTemplateProvidesFunctions() {
-		Path												templateFile	= testDir.resolve( "template.bxm" );
+		Path														templateFile	= testDir.resolve( "template.bxm" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols			= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( templateFile.toAbsolutePath().toUri() );
 
@@ -272,19 +272,19 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testPropertiesBeforeMethods() {
-		Path												classFile	= testDir.resolve( "UserClass.bx" );
+		Path														classFile	= testDir.resolve( "UserClass.bx" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols		= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( classFile.toAbsolutePath().toUri() );
 
 		assertThat( symbols.isPresent() ).isTrue();
-		DocumentSymbol classSymbol = symbols.get().get( 0 ).getRight();
+		DocumentSymbol			classSymbol	= symbols.get().get( 0 ).getRight();
 
-		List<DocumentSymbol> children = classSymbol.getChildren();
+		List<DocumentSymbol>	children	= classSymbol.getChildren();
 		assertThat( children ).isNotEmpty();
 
 		// Find first method and first property indices
-		int firstPropertyIndex = -1;
-		int firstMethodIndex = -1;
+		int	firstPropertyIndex	= -1;
+		int	firstMethodIndex	= -1;
 
 		for ( int i = 0; i < children.size(); i++ ) {
 			SymbolKind kind = children.get( i ).getKind();
@@ -309,7 +309,7 @@ public class DocumentSymbolsHierarchyTest extends BaseTest {
 	 */
 	@Test
 	void testSymbolsHaveValidRanges() {
-		Path												classFile	= testDir.resolve( "UserClass.bx" );
+		Path														classFile	= testDir.resolve( "UserClass.bx" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols		= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( classFile.toAbsolutePath().toUri() );
 

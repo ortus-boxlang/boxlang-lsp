@@ -55,7 +55,7 @@ public class FindSignatureHelpTargetVisitor {
 		// Check if this is a function invocation
 		if ( node instanceof BoxFunctionInvocation fnInvocation ) {
 			if ( containsPositionFull( fnInvocation ) && isCursorInArgumentList( fnInvocation ) ) {
-				this.target			= fnInvocation;
+				this.target				= fnInvocation;
 				this.activeParameter	= calculateActiveParameter( fnInvocation.getArguments() );
 			}
 		}
@@ -63,7 +63,7 @@ public class FindSignatureHelpTargetVisitor {
 		// Check if this is a method invocation
 		if ( node instanceof BoxMethodInvocation methodInvocation ) {
 			if ( containsPositionFull( methodInvocation ) && isCursorInArgumentList( methodInvocation ) ) {
-				this.target			= methodInvocation;
+				this.target				= methodInvocation;
 				this.activeParameter	= calculateActiveParameter( methodInvocation.getArguments() );
 			}
 		}
@@ -71,7 +71,7 @@ public class FindSignatureHelpTargetVisitor {
 		// Check if this is a new expression
 		if ( node instanceof BoxNew newExpr ) {
 			if ( containsPositionFull( newExpr ) && isCursorInNewExpression( newExpr ) ) {
-				this.target			= newExpr;
+				this.target				= newExpr;
 				this.activeParameter	= calculateActiveParameter( newExpr.getArguments() );
 			}
 		}
@@ -95,14 +95,14 @@ public class FindSignatureHelpTargetVisitor {
 		// The node spans the entire invocation including function name
 		// We need to check if we're past the opening paren
 		// Get the function name length
-		String funcName = node.getName();
+		String	funcName	= node.getName();
 
 		// Position is within the node, and we're likely in the arguments
 		// since we already verified containsPosition
-		int startLine	= pos.getStart().getLine();
-		int startCol	= pos.getStart().getColumn();
-		int endLine		= pos.getEnd().getLine();
-		int endCol		= pos.getEnd().getColumn();
+		int		startLine	= pos.getStart().getLine();
+		int		startCol	= pos.getStart().getColumn();
+		int		endLine		= pos.getEnd().getLine();
+		int		endCol		= pos.getEnd().getColumn();
 
 		// Simple heuristic: if cursor is within the node and there are arguments
 		// or if cursor is past the function name position, we're in the args
@@ -133,17 +133,17 @@ public class FindSignatureHelpTargetVisitor {
 
 		// Method invocations have the pattern: obj.methodName(args)
 		// We need to check if cursor is in the argument part
-		int endLine	= pos.getEnd().getLine();
-		int endCol	= pos.getEnd().getColumn();
+		int					endLine	= pos.getEnd().getLine();
+		int					endCol	= pos.getEnd().getColumn();
 
 		// If there are arguments, check their positions
-		List<BoxArgument> args = node.getArguments();
+		List<BoxArgument>	args	= node.getArguments();
 		if ( args != null && !args.isEmpty() ) {
 			// Check if cursor is within the first arg's start to the end of the node
 			var firstArgPos = args.get( 0 ).getPosition();
 			if ( firstArgPos != null ) {
-				int argStartLine = firstArgPos.getStart().getLine();
-				int argStartCol	 = firstArgPos.getStart().getColumn();
+				int	argStartLine	= firstArgPos.getStart().getLine();
+				int	argStartCol		= firstArgPos.getStart().getColumn();
 
 				if ( line > argStartLine || ( line == argStartLine && column >= argStartCol - 1 ) ) {
 					if ( line < endLine || ( line == endLine && column <= endCol ) ) {
@@ -157,9 +157,9 @@ public class FindSignatureHelpTargetVisitor {
 		// If we're past the method name identifier, we're probably in args
 		var methodNameId = node.getName();
 		if ( methodNameId != null && methodNameId.getPosition() != null ) {
-			var namePos		= methodNameId.getPosition();
-			int nameEndLine	= namePos.getEnd().getLine();
-			int nameEndCol	= namePos.getEnd().getColumn();
+			var	namePos		= methodNameId.getPosition();
+			int	nameEndLine	= namePos.getEnd().getLine();
+			int	nameEndCol	= namePos.getEnd().getColumn();
 
 			// If cursor is after the method name, we're in args
 			if ( line > nameEndLine || ( line == nameEndLine && column > nameEndCol ) ) {
@@ -182,9 +182,9 @@ public class FindSignatureHelpTargetVisitor {
 		// Check if there's an expression (class name) and cursor is past it
 		var expression = node.getExpression();
 		if ( expression != null && expression.getPosition() != null ) {
-			var exprPos		= expression.getPosition();
-			int exprEndLine	= exprPos.getEnd().getLine();
-			int exprEndCol	= exprPos.getEnd().getColumn();
+			var	exprPos		= expression.getPosition();
+			int	exprEndLine	= exprPos.getEnd().getLine();
+			int	exprEndCol	= exprPos.getEnd().getColumn();
 
 			// If cursor is after the class name, we're likely in the constructor args
 			if ( line > exprEndLine || ( line == exprEndLine && column > exprEndCol ) ) {
@@ -207,17 +207,17 @@ public class FindSignatureHelpTargetVisitor {
 		int paramIndex = 0;
 
 		for ( int i = 0; i < arguments.size(); i++ ) {
-			BoxArgument arg		= arguments.get( i );
+			BoxArgument	arg		= arguments.get( i );
 			var			argPos	= arg.getPosition();
 
 			if ( argPos == null ) {
 				continue;
 			}
 
-			int argStartLine	= argPos.getStart().getLine();
-			int argStartCol		= argPos.getStart().getColumn();
-			int argEndLine		= argPos.getEnd().getLine();
-			int argEndCol		= argPos.getEnd().getColumn();
+			int	argStartLine	= argPos.getStart().getLine();
+			int	argStartCol		= argPos.getStart().getColumn();
+			int	argEndLine		= argPos.getEnd().getLine();
+			int	argEndCol		= argPos.getEnd().getColumn();
 
 			// Check if cursor is before this argument starts
 			if ( line < argStartLine || ( line == argStartLine && column < argStartCol ) ) {

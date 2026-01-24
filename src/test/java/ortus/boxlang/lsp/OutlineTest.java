@@ -21,7 +21,7 @@ public class OutlineTest extends BaseTest {
 
 	@Test
 	void testItShouldGenerateAnOutlineForBXFiles() {
-		Path												p		= Path.of( "src/test/resources/files/outline.bx" );
+		Path														p		= Path.of( "src/test/resources/files/outline.bx" );
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols	= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( p.toAbsolutePath().toUri() );
 
@@ -40,7 +40,7 @@ public class OutlineTest extends BaseTest {
 
 	@Test
 	void testItShouldGenerateAnOutlineForCFCFiles() {
-		Path												p		= Path.of( "src/test/resources/files/outline.cfc" );
+		Path														p		= Path.of( "src/test/resources/files/outline.cfc" );
 
 		Optional<List<Either<SymbolInformation, DocumentSymbol>>>	symbols	= ProjectContextProvider.getInstance()
 		    .getDocumentSymbols( p.toAbsolutePath().toUri() );

@@ -200,8 +200,8 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 			return;
 		}
 
-		List<BoxNode> siblings = parent.getChildren();
-		int nodeIndex = -1;
+		List<BoxNode>	siblings	= parent.getChildren();
+		int				nodeIndex	= -1;
 
 		for ( int i = 0; i < siblings.size(); i++ ) {
 			if ( siblings.get( i ) == node ) {
@@ -282,8 +282,8 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 		BoxNode left = node.getLeft();
 
 		if ( left instanceof BoxIdentifier identifier && currentFunction != null ) {
-			String varName = identifier.getName().toLowerCase();
-			Set<String> params = functionParameters.get( currentFunction );
+			String		varName	= identifier.getName().toLowerCase();
+			Set<String>	params	= functionParameters.get( currentFunction );
 
 			// Check if this is a 'var' declaration (first assignment)
 			// by checking if it uses the var modifier
@@ -357,11 +357,11 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 
 		// Otherwise extract the class name from the import expression
 		if ( node.getExpression() != null ) {
-			String fullPath = node.getExpression().getSourceText();
+			String	fullPath		= node.getExpression().getSourceText();
 			// Get the last part after the last dot or colon
-			int lastDot = fullPath.lastIndexOf( '.' );
-			int lastColon = fullPath.lastIndexOf( ':' );
-			int lastSeparator = Math.max( lastDot, lastColon );
+			int		lastDot			= fullPath.lastIndexOf( '.' );
+			int		lastColon		= fullPath.lastIndexOf( ':' );
+			int		lastSeparator	= Math.max( lastDot, lastColon );
 
 			if ( lastSeparator >= 0 && lastSeparator < fullPath.length() - 1 ) {
 				return fullPath.substring( lastSeparator + 1 );
@@ -408,10 +408,10 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 		// Extract just the class name (last part) from the FQN
 		String fqn = node.getValue();
 		if ( fqn != null ) {
-			int lastDot = fqn.lastIndexOf( '.' );
-			int lastColon = fqn.lastIndexOf( ':' );
-			int lastSeparator = Math.max( lastDot, lastColon );
-			String className;
+			int		lastDot			= fqn.lastIndexOf( '.' );
+			int		lastColon		= fqn.lastIndexOf( ':' );
+			int		lastSeparator	= Math.max( lastDot, lastColon );
+			String	className;
 			if ( lastSeparator >= 0 && lastSeparator < fqn.length() - 1 ) {
 				className = fqn.substring( lastSeparator + 1 );
 			} else {
@@ -447,8 +447,8 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 
 	private void generateUnusedImportDiagnostics() {
 		for ( Map.Entry<String, BoxImport> entry : imports.entrySet() ) {
-			String importedName = entry.getKey();
-			BoxImport importNode = entry.getValue();
+			String		importedName	= entry.getKey();
+			BoxImport	importNode		= entry.getValue();
 
 			if ( !usedIdentifiers.contains( importedName ) ) {
 				Diagnostic diagnostic = new Diagnostic(
@@ -466,8 +466,8 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 
 	private void generateUnusedPrivateMethodDiagnostics() {
 		for ( Map.Entry<String, BoxFunctionDeclaration> entry : privateMethods.entrySet() ) {
-			String methodName = entry.getKey();
-			BoxFunctionDeclaration methodNode = entry.getValue();
+			String					methodName	= entry.getKey();
+			BoxFunctionDeclaration	methodNode	= entry.getValue();
 
 			if ( !calledMethods.contains( methodName ) ) {
 				Diagnostic diagnostic = new Diagnostic(

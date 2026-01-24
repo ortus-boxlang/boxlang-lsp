@@ -5,10 +5,10 @@ package ortus.boxlang.lsp.workspace.completion;
  * Used to determine what completions to offer after a dot.
  */
 public record TypeInferenceResult(
-	String className,
-	String fullyQualifiedName,
-	InferenceConfidence confidence,
-	String source ) {
+    String className,
+    String fullyQualifiedName,
+    InferenceConfidence confidence,
+    String source ) {
 
 	public enum InferenceConfidence {
 		/** Type explicitly declared via type hint */

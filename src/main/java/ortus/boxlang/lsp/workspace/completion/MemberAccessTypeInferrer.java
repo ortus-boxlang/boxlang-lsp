@@ -166,8 +166,8 @@ public class MemberAccessTypeInferrer {
 		}
 
 		// Find the opening paren of this method call
-		int parenDepth = 1;
-		int openParen = -1;
+		int	parenDepth	= 1;
+		int	openParen	= -1;
 		for ( int i = lastParen - 1; i >= 0; i-- ) {
 			char c = expression.charAt( i );
 			if ( c == ')' ) {
@@ -186,26 +186,26 @@ public class MemberAccessTypeInferrer {
 		}
 
 		// Find the method name (between the last dot and the opening paren)
-		String beforeParen = expression.substring( 0, openParen );
-		int lastDot = beforeParen.lastIndexOf( '.' );
+		String	beforeParen	= expression.substring( 0, openParen );
+		int		lastDot		= beforeParen.lastIndexOf( '.' );
 
 		if ( lastDot < 0 ) {
 			// No dot before method - might be a standalone function call
 			return TypeInferenceResult.unknown();
 		}
 
-		String methodName = beforeParen.substring( lastDot + 1 ).trim();
-		String receiver = beforeParen.substring( 0, lastDot ).trim();
+		String				methodName		= beforeParen.substring( lastDot + 1 ).trim();
+		String				receiver		= beforeParen.substring( 0, lastDot ).trim();
 
 		// Recursively infer the receiver's type
-		TypeInferenceResult receiverType = inferType( receiver, cursorLine, cursorColumn );
+		TypeInferenceResult	receiverType	= inferType( receiver, cursorLine, cursorColumn );
 		if ( !receiverType.isResolved() ) {
 			return TypeInferenceResult.unknown();
 		}
 
 		// Look up the method in the receiver's class
-		String className = receiverType.className();
-		Optional<IndexedMethod> method = findMethodInClassOrParents( className, methodName );
+		String					className	= receiverType.className();
+		Optional<IndexedMethod>	method		= findMethodInClassOrParents( className, methodName );
 
 		if ( method.isPresent() ) {
 			String returnType = method.get().returnTypeHint();
@@ -237,10 +237,10 @@ public class MemberAccessTypeInferrer {
 			return Optional.empty();
 		}
 
-		IndexedClass clazz = classOpt.get();
+		IndexedClass			clazz	= classOpt.get();
 
 		// Look up method in this class
-		Optional<IndexedMethod> method = index.findMethod( clazz.name(), methodName );
+		Optional<IndexedMethod>	method	= index.findMethod( clazz.name(), methodName );
 		if ( method.isPresent() ) {
 			return method;
 		}
@@ -295,10 +295,10 @@ public class MemberAccessTypeInferrer {
 	 * Extract class name from the file URI.
 	 */
 	private String getClassNameFromFile() {
-		String uriString = fileParseResult.getURI().toString();
-		int lastSlash = uriString.lastIndexOf( '/' );
-		String filename = lastSlash >= 0 ? uriString.substring( lastSlash + 1 ) : uriString;
-		int dotIndex = filename.lastIndexOf( '.' );
+		String	uriString	= fileParseResult.getURI().toString();
+		int		lastSlash	= uriString.lastIndexOf( '/' );
+		String	filename	= lastSlash >= 0 ? uriString.substring( lastSlash + 1 ) : uriString;
+		int		dotIndex	= filename.lastIndexOf( '.' );
 		return dotIndex > 0 ? filename.substring( 0, dotIndex ) : filename;
 	}
 }

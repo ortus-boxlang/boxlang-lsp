@@ -59,10 +59,10 @@ public class BxmTagAttributeCompletionRule implements IRule<CompletionFacts, Lis
 	 * Create a completion item for a component attribute.
 	 */
 	private CompletionItem createAttributeCompletion( Attribute attr ) {
-		CompletionItem	item		= new CompletionItem();
-		String			attrName	= attr.name().toString();
-		boolean			isRequired	= attr.validators().contains( Validator.REQUIRED );
-		Object			defaultValue = attr.defaultValue();
+		CompletionItem	item			= new CompletionItem();
+		String			attrName		= attr.name().toString();
+		boolean			isRequired		= attr.validators().contains( Validator.REQUIRED );
+		Object			defaultValue	= attr.defaultValue();
 
 		item.setLabel( attrName );
 		item.setKind( CompletionItemKind.Property );

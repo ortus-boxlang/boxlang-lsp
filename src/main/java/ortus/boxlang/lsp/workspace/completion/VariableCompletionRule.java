@@ -35,19 +35,19 @@ public class VariableCompletionRule implements IRule<CompletionFacts, List<Compl
 
 	@Override
 	public void then( CompletionFacts facts, List<CompletionItem> items ) {
-		CompletionContext		context			= facts.getContext();
-		FileParseResult			parseResult		= facts.fileParseResult();
-		String					triggerText		= context.getTriggerText().toLowerCase();
+		CompletionContext				context		= facts.getContext();
+		FileParseResult					parseResult	= facts.fileParseResult();
+		String							triggerText	= context.getTriggerText().toLowerCase();
 
 		// Use VariableScopeCollectorVisitor to find all visible variables
-		VariableScopeCollectorVisitor visitor = new VariableScopeCollectorVisitor();
+		VariableScopeCollectorVisitor	visitor		= new VariableScopeCollectorVisitor();
 		parseResult.findAstRoot().ifPresent( root -> root.accept( visitor ) );
 
 		// Find containing function to filter variables
-		BoxFunctionDeclaration containingFunction = findContainingFunction( parseResult, context );
+		BoxFunctionDeclaration		containingFunction	= findContainingFunction( parseResult, context );
 
 		// 1. Add visible variables
-		Map<String, VariableInfo> visibleVariables = visitor.getAllVisibleVariables( containingFunction );
+		Map<String, VariableInfo>	visibleVariables	= visitor.getAllVisibleVariables( containingFunction );
 		for ( Map.Entry<String, VariableInfo> entry : visibleVariables.entrySet() ) {
 			String name = entry.getKey();
 			if ( name.toLowerCase().startsWith( triggerText ) ) {
@@ -71,8 +71,8 @@ public class VariableCompletionRule implements IRule<CompletionFacts, List<Compl
 
 	private BoxFunctionDeclaration findContainingFunction( FileParseResult parseResult, CompletionContext context ) {
 		return parseResult.findAstRoot().flatMap( root -> {
-			int line = context.getCursorPosition().getLine() + 1;
-			int col = context.getCursorPosition().getCharacter();
+			int	line	= context.getCursorPosition().getLine() + 1;
+			int	col		= context.getCursorPosition().getCharacter();
 			return root.getDescendantsOfType( BoxFunctionDeclaration.class ).stream()
 			    .filter( func -> BLASTTools.containsPosition( func, line, col ) )
 			    .findFirst();
@@ -83,7 +83,7 @@ public class VariableCompletionRule implements IRule<CompletionFacts, List<Compl
 		CompletionItem item = new CompletionItem( info.name() );
 		item.setKind( getKindFromScope( info.scope() ) );
 		item.setDetail( info.scope().getDisplayName() + ( info.typeHint() != null ? " : " + info.typeHint() : "" ) );
-		
+
 		StringBuilder docs = new StringBuilder();
 		docs.append( "**Scope:** " ).append( info.scope().getDisplayName() ).append( "\n\n" );
 		if ( info.typeHint() != null ) {
@@ -95,15 +95,15 @@ public class VariableCompletionRule implements IRule<CompletionFacts, List<Compl
 		if ( info.defaultValue() != null ) {
 			docs.append( "**Default Value:** `" ).append( info.defaultValue() ).append( "`\n\n" );
 		}
-		
+
 		MarkupContent markup = new MarkupContent();
 		markup.setKind( MarkupKind.MARKDOWN );
 		markup.setValue( docs.toString() );
 		item.setDocumentation( markup );
-		
+
 		// Sort text to prefer locals over properties
 		item.setSortText( getSortPrefix( info.scope() ) + "_" + info.name() );
-		
+
 		return item;
 	}
 

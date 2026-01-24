@@ -15,19 +15,19 @@ import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 public class SignatureHelpTest extends BaseTest {
 
 	// Line numbers (1-indexed from file):
-	// Line 32: var result = getUser(1);  -> col 21-31
-	// Line 33: simpleFunction();         -> col 8-24
-	// Line 34: undocumentedFunction("World");  -> col 8-37
-	// Line 35: multiParamFunc( "test", 42 );   -> col 8-36
-	// Line 36: arrayAppend( [], "item" );      -> col 8-33
+	// Line 32: var result = getUser(1); -> col 21-31
+	// Line 33: simpleFunction(); -> col 8-24
+	// Line 34: undocumentedFunction("World"); -> col 8-37
+	// Line 35: multiParamFunc( "test", 42 ); -> col 8-36
+	// Line 36: arrayAppend( [], "item" ); -> col 8-33
 	// Line 37: var obj = new ClassWithDocFunc();
 	// Line 38: obj.documentedFunction( 10, "Hello" );
 
 	@Test
 	void testSignatureHelpOnFunctionInvocation() throws Exception {
-		var defPath = java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
+		var							defPath	= java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
 
-		BoxLangTextDocumentService svc = new BoxLangTextDocumentService();
+		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
 
@@ -49,9 +49,9 @@ public class SignatureHelpTest extends BaseTest {
 
 	@Test
 	void testSignatureHelpShowsAllParameters() throws Exception {
-		var defPath = java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
+		var							defPath	= java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
 
-		BoxLangTextDocumentService svc = new BoxLangTextDocumentService();
+		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
 
@@ -76,9 +76,9 @@ public class SignatureHelpTest extends BaseTest {
 
 	@Test
 	void testSignatureHelpActiveParameter() throws Exception {
-		var defPath = java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
+		var							defPath	= java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
 
-		BoxLangTextDocumentService svc = new BoxLangTextDocumentService();
+		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
 
@@ -96,9 +96,9 @@ public class SignatureHelpTest extends BaseTest {
 
 	@Test
 	void testSignatureHelpSecondParameter() throws Exception {
-		var defPath = java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
+		var							defPath	= java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
 
-		BoxLangTextDocumentService svc = new BoxLangTextDocumentService();
+		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
 
@@ -117,9 +117,9 @@ public class SignatureHelpTest extends BaseTest {
 
 	@Test
 	void testSignatureHelpShowsDocumentation() throws Exception {
-		var defPath = java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
+		var							defPath	= java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
 
-		BoxLangTextDocumentService svc = new BoxLangTextDocumentService();
+		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
 
@@ -141,9 +141,9 @@ public class SignatureHelpTest extends BaseTest {
 
 	@Test
 	void testSignatureHelpForBIF() throws Exception {
-		var defPath = java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
+		var							defPath	= java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
 
-		BoxLangTextDocumentService svc = new BoxLangTextDocumentService();
+		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
 
@@ -167,9 +167,9 @@ public class SignatureHelpTest extends BaseTest {
 		Path classWithDocFunc = java.nio.file.Paths.get( "src/test/resources/files/ClassWithDocFunc.bx" );
 		ProjectContextProvider.getInstance().getIndex().indexFile( classWithDocFunc.toUri() );
 
-		var defPath = java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
+		var							defPath	= java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
 
-		BoxLangTextDocumentService svc = new BoxLangTextDocumentService();
+		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
 
@@ -193,9 +193,9 @@ public class SignatureHelpTest extends BaseTest {
 		Path classWithDocFunc = java.nio.file.Paths.get( "src/test/resources/files/ClassWithDocFunc.bx" );
 		ProjectContextProvider.getInstance().getIndex().indexFile( classWithDocFunc.toUri() );
 
-		var defPath = java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
+		var							defPath	= java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
 
-		BoxLangTextDocumentService svc = new BoxLangTextDocumentService();
+		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
 
@@ -213,9 +213,9 @@ public class SignatureHelpTest extends BaseTest {
 
 	@Test
 	void testSignatureHelpOutsideFunctionCallReturnsNull() throws Exception {
-		var defPath = java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
+		var							defPath	= java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
 
-		BoxLangTextDocumentService svc = new BoxLangTextDocumentService();
+		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
 
@@ -234,9 +234,9 @@ public class SignatureHelpTest extends BaseTest {
 
 	@Test
 	void testSignatureHelpParameterLabels() throws Exception {
-		var defPath = java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
+		var							defPath	= java.nio.file.Paths.get( "src/test/resources/files/signatureHelpTest.bx" );
 
-		BoxLangTextDocumentService svc = new BoxLangTextDocumentService();
+		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
 
@@ -254,8 +254,8 @@ public class SignatureHelpTest extends BaseTest {
 		assertThat( signature.getParameters() ).hasSize( 2 );
 
 		// Each parameter should have a label
-		var firstParam = signature.getParameters().get( 0 );
-		var secondParam = signature.getParameters().get( 1 );
+		var	firstParam	= signature.getParameters().get( 0 );
+		var	secondParam	= signature.getParameters().get( 1 );
 
 		assertThat( firstParam.getLabel().getLeft() ).contains( "name" );
 		assertThat( secondParam.getLabel().getLeft() ).contains( "age" );

@@ -33,7 +33,7 @@ public class WorkspaceSymbolsTest extends BaseTest {
 		provider	= ProjectContextProvider.getInstance();
 		index		= new ProjectIndex();
 		provider.setIndex( index );
-		testDir		= Paths.get( "src/test/resources/files/workspaceSymbolsTest" );
+		testDir = Paths.get( "src/test/resources/files/workspaceSymbolsTest" );
 
 		// Index all test files
 		for ( Path file : Files.list( testDir ).filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
@@ -48,9 +48,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testSearchClassByExactName() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "UserEntity" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "UserEntity" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -65,9 +65,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testSearchInterface() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "IUserRepository" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "IUserRepository" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -82,9 +82,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testSearchMethod() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "getDisplayName" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "getDisplayName" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -99,9 +99,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testSearchProperty() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "username" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "username" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -118,9 +118,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testFuzzyMatchPrefix() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "User" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "User" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -138,9 +138,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testFuzzyMatchSubstring() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "Repo" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "Repo" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -156,9 +156,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testCaseInsensitiveMatch() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "userentity" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "userentity" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -175,9 +175,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testMethodContainerName() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "findById" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "findById" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -197,9 +197,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testPropertyContainerName() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "email" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "email" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -221,9 +221,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testExactMatchRanksHigher() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "init" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "init" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -240,9 +240,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testPrefixMatchRanksHigher() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "save" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "save" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -261,9 +261,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testEmptyQueryReturnsSymbols() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -283,9 +283,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testSymbolKindsPresent() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();
@@ -305,9 +305,9 @@ public class WorkspaceSymbolsTest extends BaseTest {
 	 */
 	@Test
 	void testSymbolsHaveValidLocations() throws Exception {
-		WorkspaceSymbolParams params = new WorkspaceSymbolParams( "UserEntity" );
+		WorkspaceSymbolParams	params	= new WorkspaceSymbolParams( "UserEntity" );
 
-		var result = svc.symbol( params ).get();
+		var						result	= svc.symbol( params ).get();
 
 		assertThat( result ).isNotNull();
 		assertThat( result.isLeft() ).isTrue();

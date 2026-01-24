@@ -187,9 +187,9 @@ public class ComponentCompletionRule implements IRule<CompletionFacts, List<Comp
 				    return a.name().compareTo( b.name() );
 			    } )
 			    .forEach( attr -> {
-				    String	attrName		= attr.name().toString();
-				    boolean	isRequired		= attr.validators().contains( Validator.REQUIRED );
-				    Object	defaultValue	= attr.defaultValue();
+				    String attrName		= attr.name().toString();
+				    boolean isRequired	= attr.validators().contains( Validator.REQUIRED );
+				    Object defaultValue	= attr.defaultValue();
 
 				    doc.append( "- **" ).append( attrName ).append( "**" );
 

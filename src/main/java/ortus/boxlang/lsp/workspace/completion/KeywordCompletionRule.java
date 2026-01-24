@@ -87,11 +87,11 @@ public class KeywordCompletionRule implements IRule<CompletionFacts, List<Comple
 
 	@Override
 	public void then( CompletionFacts facts, List<CompletionItem> result ) {
-		CompletionContext	context				= facts.getContext();
-		String				containingClassName	= context.getContainingClassName();
-		String				containingMethodName = context.getContainingMethodName();
+		CompletionContext	context					= facts.getContext();
+		String				containingClassName		= context.getContainingClassName();
+		String				containingMethodName	= context.getContainingMethodName();
 
-		List<String>		keywords			= new ArrayList<>();
+		List<String>		keywords				= new ArrayList<>();
 
 		// Determine which keywords to include based on context
 		if ( containingMethodName != null ) {

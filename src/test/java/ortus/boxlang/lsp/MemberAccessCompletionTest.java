@@ -62,10 +62,10 @@ public class MemberAccessCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 3, 7 ) );	// After "user." on line 4 (0-indexed = line 3)
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( f.toURI(), params );
+		List<CompletionItem>		items			= pcp.getAvailableCompletions( f.toURI(), params );
 
 		// Should include User's methods
-		Optional<CompletionItem> getDisplayName = items.stream()
+		Optional<CompletionItem>	getDisplayName	= items.stream()
 		    .filter( item -> item.getLabel().equals( "getDisplayName" ) )
 		    .findFirst();
 
@@ -83,10 +83,10 @@ public class MemberAccessCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 3, 7 ) );	// After "user." on line 4 (0-indexed)
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( f.toURI(), params );
+		List<CompletionItem>		items		= pcp.getAvailableCompletions( f.toURI(), params );
 
 		// Should include inherited method from BaseEntity
-		Optional<CompletionItem> inherited = items.stream()
+		Optional<CompletionItem>	inherited	= items.stream()
 		    .filter( item -> item.getLabel().equals( "getCreatedAt" ) )
 		    .findFirst();
 
@@ -105,10 +105,10 @@ public class MemberAccessCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 3, 7 ) );	// After "user." on line 4 (0-indexed)
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( f.toURI(), params );
+		List<CompletionItem>		items		= pcp.getAvailableCompletions( f.toURI(), params );
 
 		// Should include properties
-		Optional<CompletionItem> username = items.stream()
+		Optional<CompletionItem>	username	= items.stream()
 		    .filter( item -> item.getLabel().equals( "username" ) && item.getKind() == CompletionItemKind.Property )
 		    .findFirst();
 
@@ -125,15 +125,15 @@ public class MemberAccessCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 3, 7 ) );	// After "user." on line 4 (0-indexed)
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( f.toURI(), params );
+		List<CompletionItem>		items		= pcp.getAvailableCompletions( f.toURI(), params );
 
 		// Should include getter for username property
-		Optional<CompletionItem> getUsername = items.stream()
+		Optional<CompletionItem>	getUsername	= items.stream()
 		    .filter( item -> item.getLabel().equals( "getUsername" ) )
 		    .findFirst();
 
 		// Should include setter for username property
-		Optional<CompletionItem> setUsername = items.stream()
+		Optional<CompletionItem>	setUsername	= items.stream()
 		    .filter( item -> item.getLabel().equals( "setUsername" ) )
 		    .findFirst();
 
@@ -157,10 +157,10 @@ public class MemberAccessCompletionTest extends BaseTest {
 			// Find the line with "return variables.username"
 			for ( int i = 0; i < lines.length; i++ ) {
 				if ( lines[ i ].contains( "return variables.username" ) ) {
-					completionPosition = new Position( i, 7 );	// After "this."
+					completionPosition	= new Position( i, 7 );	// After "this."
 					// Temporarily modify the file content in memory for completion context
-					lines[ i ] = "\t\tthis.";
-					fileContent = String.join( "\n", lines );
+					lines[ i ]			= "\t\tthis.";
+					fileContent			= String.join( "\n", lines );
 					break;
 				}
 			}
@@ -178,10 +178,10 @@ public class MemberAccessCompletionTest extends BaseTest {
 			params.setTextDocument( td );
 			params.setPosition( completionPosition );
 
-			List<CompletionItem> items = pcp.getAvailableCompletions( f.toURI(), params );
+			List<CompletionItem>		items			= pcp.getAvailableCompletions( f.toURI(), params );
 
 			// Should include User's own methods
-			Optional<CompletionItem> getDisplayName = items.stream()
+			Optional<CompletionItem>	getDisplayName	= items.stream()
 			    .filter( item -> item.getLabel().equals( "getDisplayName" ) )
 			    .findFirst();
 

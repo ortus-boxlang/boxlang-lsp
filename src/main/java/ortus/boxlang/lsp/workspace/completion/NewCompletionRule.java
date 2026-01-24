@@ -36,7 +36,7 @@ public class NewCompletionRule implements IRule<CompletionFacts, List<Completion
 		var				existingPrompt	= fileParseResult.readLine( facts.completionParams().getPosition().getLine() );
 
 		// Guard against cursor position beyond line length
-		int cursorPos = facts.completionParams().getPosition().getCharacter();
+		int				cursorPos		= facts.completionParams().getPosition().getCharacter();
 		if ( cursorPos > existingPrompt.length() ) {
 			cursorPos = existingPrompt.length();
 		}

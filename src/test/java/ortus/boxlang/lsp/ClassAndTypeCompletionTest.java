@@ -68,10 +68,10 @@ public class ClassAndTypeCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 3, 18 ) );	// After "new " on line 4 (0-indexed = line 3)
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( f.toURI(), params );
+		List<CompletionItem>		items	= pcp.getAvailableCompletions( f.toURI(), params );
 
 		// Should include User class
-		Optional<CompletionItem> user = items.stream()
+		Optional<CompletionItem>	user	= items.stream()
 		    .filter( item -> item.getLabel().equals( "User" ) && item.getKind() == CompletionItemKind.Class )
 		    .findFirst();
 
@@ -103,10 +103,10 @@ public class ClassAndTypeCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 3, 15 ) );	// Between quotes in extends="" on line 4 (0-indexed = line 3)
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( f.toURI(), params );
+		List<CompletionItem>		items		= pcp.getAvailableCompletions( f.toURI(), params );
 
 		// Should include classes
-		Optional<CompletionItem> baseEntity = items.stream()
+		Optional<CompletionItem>	baseEntity	= items.stream()
 		    .filter( item -> item.getLabel().equals( "BaseEntity" ) && item.getKind() == CompletionItemKind.Class )
 		    .findFirst();
 
@@ -130,10 +130,10 @@ public class ClassAndTypeCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 3, 18 ) );	// Between quotes in implements="" on line 4 (0-indexed = line 3)
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( f.toURI(), params );
+		List<CompletionItem>		items		= pcp.getAvailableCompletions( f.toURI(), params );
 
 		// Should include interfaces
-		Optional<CompletionItem> iRepository = items.stream()
+		Optional<CompletionItem>	iRepository	= items.stream()
 		    .filter( item -> item.getLabel().equals( "IRepository" ) && item.getKind() == CompletionItemKind.Interface )
 		    .findFirst();
 
@@ -169,10 +169,10 @@ public class ClassAndTypeCompletionTest extends BaseTest {
 			params.setTextDocument( td );
 			params.setPosition( new Position( 3, 20 ) );	// After "new Us"
 
-			List<CompletionItem> items = pcp.getAvailableCompletions( f.toURI(), params );
+			List<CompletionItem>		items	= pcp.getAvailableCompletions( f.toURI(), params );
 
 			// Should include User (matches "Us" prefix)
-			Optional<CompletionItem> user = items.stream()
+			Optional<CompletionItem>	user	= items.stream()
 			    .filter( item -> item.getLabel().equals( "User" ) )
 			    .findFirst();
 
@@ -200,10 +200,10 @@ public class ClassAndTypeCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 3, 18 ) );	// After "new "
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( f.toURI(), params );
+		List<CompletionItem>		items	= pcp.getAvailableCompletions( f.toURI(), params );
 
 		// Find User completion item
-		Optional<CompletionItem> user = items.stream()
+		Optional<CompletionItem>	user	= items.stream()
 		    .filter( item -> item.getLabel().equals( "User" ) )
 		    .findFirst();
 
@@ -223,10 +223,10 @@ public class ClassAndTypeCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 3, 18 ) );	// After "new "
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( f.toURI(), params );
+		List<CompletionItem>		items		= pcp.getAvailableCompletions( f.toURI(), params );
 
 		// Should include ProductRepository from subpackage
-		Optional<CompletionItem> productRepo = items.stream()
+		Optional<CompletionItem>	productRepo	= items.stream()
 		    .filter( item -> item.getLabel().equals( "ProductRepository" ) )
 		    .findFirst();
 

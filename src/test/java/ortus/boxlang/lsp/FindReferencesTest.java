@@ -38,7 +38,7 @@ public class FindReferencesTest extends BaseTest {
 		provider	= ProjectContextProvider.getInstance();
 		index		= new ProjectIndex();
 		provider.setIndex( index );
-		testDir		= Paths.get( "src/test/resources/files/findReferencesTest" );
+		testDir = Paths.get( "src/test/resources/files/findReferencesTest" );
 
 		// Index all test files
 		for ( Path file : Files.list( testDir ).filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
@@ -60,11 +60,11 @@ public class FindReferencesTest extends BaseTest {
 	 */
 	@Test
 	void testFindReferencesToClass() throws Exception {
-		Path	userFilePath	= testDir.resolve( "User.bx" );
-		String	userFileUri		= userFilePath.toUri().toString();
+		Path			userFilePath	= testDir.resolve( "User.bx" );
+		String			userFileUri		= userFilePath.toUri().toString();
 
 		// Position at 'class' keyword in User.bx (line 4, 0-indexed: 3)
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( userFileUri ) );
 		params.setPosition( new Position( 3, 2 ) ); // At 'class' keyword
 		params.setContext( new ReferenceContext( false ) ); // Don't include declaration
@@ -85,13 +85,13 @@ public class FindReferencesTest extends BaseTest {
 	 */
 	@Test
 	void testFindClassReferencesFromNewExpression() throws Exception {
-		Path	serviceFilePath	= testDir.resolve( "UserService.bx" );
-		String	serviceFileUri	= serviceFilePath.toUri().toString();
+		Path			serviceFilePath	= testDir.resolve( "UserService.bx" );
+		String			serviceFileUri	= serviceFilePath.toUri().toString();
 
 		// Position at 'User' in `new User()` in UserService.bx line 12 (0-indexed: 11)
-		// The line is: "        var user = new User();"
+		// The line is: " var user = new User();"
 		// 'User' starts at column 23 (0-indexed): 8 spaces + "var user = new "
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( serviceFileUri ) );
 		params.setPosition( new Position( 11, 23 ) ); // At 'User' in `new User()`
 		params.setContext( new ReferenceContext( true ) ); // Include declaration
@@ -108,11 +108,11 @@ public class FindReferencesTest extends BaseTest {
 	 */
 	@Test
 	void testFindReferencesToInterface() throws Exception {
-		Path	interfaceFilePath	= testDir.resolve( "IUserService.bx" );
-		String	interfaceFileUri	= interfaceFilePath.toUri().toString();
+		Path			interfaceFilePath	= testDir.resolve( "IUserService.bx" );
+		String			interfaceFileUri	= interfaceFilePath.toUri().toString();
 
 		// Position at 'interface' keyword in IUserService.bx (line 4, 0-indexed: 3)
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params				= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( interfaceFileUri ) );
 		params.setPosition( new Position( 3, 2 ) ); // At 'interface' keyword
 		params.setContext( new ReferenceContext( false ) );
@@ -131,13 +131,13 @@ public class FindReferencesTest extends BaseTest {
 	 */
 	@Test
 	void testFindReferencesToMethodSameFile() throws Exception {
-		Path	controllerFilePath	= testDir.resolve( "UserController.bx" );
-		String	controllerFileUri	= controllerFilePath.toUri().toString();
+		Path			controllerFilePath	= testDir.resolve( "UserController.bx" );
+		String			controllerFileUri	= controllerFilePath.toUri().toString();
 
 		// Position at 'getUser' function declaration in UserController.bx
 		// Line 18 (0-indexed: 17): `public User function getUser(...)`
-		// 'getUser' starts at column 25 (after "    public User function ")
-		ReferenceParams params = new ReferenceParams();
+		// 'getUser' starts at column 25 (after " public User function ")
+		ReferenceParams	params				= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( controllerFileUri ) );
 		params.setPosition( new Position( 17, 25 ) ); // At 'getUser'
 		params.setContext( new ReferenceContext( false ) );
@@ -154,12 +154,12 @@ public class FindReferencesTest extends BaseTest {
 	 */
 	@Test
 	void testFindReferencesToMethodAcrossFiles() throws Exception {
-		Path	serviceFilePath	= testDir.resolve( "UserService.bx" );
-		String	serviceFileUri	= serviceFilePath.toUri().toString();
+		Path			serviceFilePath	= testDir.resolve( "UserService.bx" );
+		String			serviceFileUri	= serviceFilePath.toUri().toString();
 
 		// Position at 'getUser' function declaration in UserService.bx
 		// Line 11 (0-indexed: 10): `public User function getUser(...)`
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( serviceFileUri ) );
 		params.setPosition( new Position( 10, 25 ) ); // At 'getUser'
 		params.setContext( new ReferenceContext( false ) );
@@ -176,12 +176,12 @@ public class FindReferencesTest extends BaseTest {
 	 */
 	@Test
 	void testFindReferencesToMethodWithInheritance() throws Exception {
-		Path	baseEntityFilePath	= testDir.resolve( "BaseEntity.bx" );
-		String	baseEntityFileUri	= baseEntityFilePath.toUri().toString();
+		Path			baseEntityFilePath	= testDir.resolve( "BaseEntity.bx" );
+		String			baseEntityFileUri	= baseEntityFilePath.toUri().toString();
 
 		// Position at 'save' function declaration in BaseEntity.bx
 		// Line 19 (0-indexed: 18): `public void function save()`
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params				= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( baseEntityFileUri ) );
 		params.setPosition( new Position( 18, 25 ) ); // At 'save'
 		params.setContext( new ReferenceContext( false ) );
@@ -202,12 +202,12 @@ public class FindReferencesTest extends BaseTest {
 	 */
 	@Test
 	void testFindReferencesToProperty() throws Exception {
-		Path	userFilePath	= testDir.resolve( "User.bx" );
-		String	userFileUri		= userFilePath.toUri().toString();
+		Path			userFilePath	= testDir.resolve( "User.bx" );
+		String			userFileUri		= userFilePath.toUri().toString();
 
 		// Position at 'username' property declaration in User.bx
 		// Line 6 (0-indexed: 5): `property name="username" type="string";`
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( userFileUri ) );
 		params.setPosition( new Position( 5, 20 ) ); // At 'username'
 		params.setContext( new ReferenceContext( false ) );
@@ -227,13 +227,13 @@ public class FindReferencesTest extends BaseTest {
 	 */
 	@Test
 	void testFindReferencesToLocalVariable() throws Exception {
-		Path	serviceFilePath	= testDir.resolve( "UserService.bx" );
-		String	serviceFileUri	= serviceFilePath.toUri().toString();
+		Path			serviceFilePath	= testDir.resolve( "UserService.bx" );
+		String			serviceFileUri	= serviceFilePath.toUri().toString();
 
 		// Position at 'user' variable declaration in UserService.bx getUser()
 		// Line 12 (0-indexed: 11): `var user = new User();`
-		// The 'user' identifier starts at column 12 (0-indexed) after "        var "
-		ReferenceParams params = new ReferenceParams();
+		// The 'user' identifier starts at column 12 (0-indexed) after " var "
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( serviceFileUri ) );
 		params.setPosition( new Position( 11, 12 ) ); // At 'user' in `var user`
 		params.setContext( new ReferenceContext( false ) );
@@ -252,13 +252,13 @@ public class FindReferencesTest extends BaseTest {
 	 */
 	@Test
 	void testLocalVariableReferencesAreScopedToFunction() throws Exception {
-		Path	serviceFilePath	= testDir.resolve( "UserService.bx" );
-		String	serviceFileUri	= serviceFilePath.toUri().toString();
+		Path			serviceFilePath	= testDir.resolve( "UserService.bx" );
+		String			serviceFileUri	= serviceFilePath.toUri().toString();
 
 		// Position at 'newUser' variable declaration in UserService.bx createUser()
 		// Line 28 (0-indexed: 27): `var newUser = new User();`
-		// The 'newUser' identifier starts at column 12 (0-indexed) after "        var "
-		ReferenceParams params = new ReferenceParams();
+		// The 'newUser' identifier starts at column 12 (0-indexed) after " var "
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( serviceFileUri ) );
 		params.setPosition( new Position( 27, 12 ) ); // At 'newUser'
 		params.setContext( new ReferenceContext( false ) );
@@ -281,11 +281,11 @@ public class FindReferencesTest extends BaseTest {
 	 */
 	@Test
 	void testFindReferencesOnNonSymbolReturnsEmpty() throws Exception {
-		Path	serviceFilePath	= testDir.resolve( "UserService.bx" );
-		String	serviceFileUri	= serviceFilePath.toUri().toString();
+		Path			serviceFilePath	= testDir.resolve( "UserService.bx" );
+		String			serviceFileUri	= serviceFilePath.toUri().toString();
 
 		// Position at a blank area
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( serviceFileUri ) );
 		params.setPosition( new Position( 0, 0 ) ); // At start of file
 		params.setContext( new ReferenceContext( false ) );
@@ -303,11 +303,11 @@ public class FindReferencesTest extends BaseTest {
 	 */
 	@Test
 	void testIncludeDeclarationFlag() throws Exception {
-		Path	serviceFilePath	= testDir.resolve( "UserService.bx" );
-		String	serviceFileUri	= serviceFilePath.toUri().toString();
+		Path			serviceFilePath	= testDir.resolve( "UserService.bx" );
+		String			serviceFileUri	= serviceFilePath.toUri().toString();
 
 		// Position at 'user' variable
-		ReferenceParams paramsWithDecl = new ReferenceParams();
+		ReferenceParams	paramsWithDecl	= new ReferenceParams();
 		paramsWithDecl.setTextDocument( new TextDocumentIdentifier( serviceFileUri ) );
 		paramsWithDecl.setPosition( new Position( 11, 8 ) );
 		paramsWithDecl.setContext( new ReferenceContext( true ) ); // Include declaration
@@ -317,8 +317,8 @@ public class FindReferencesTest extends BaseTest {
 		paramsWithoutDecl.setPosition( new Position( 11, 8 ) );
 		paramsWithoutDecl.setContext( new ReferenceContext( false ) ); // Exclude declaration
 
-		var refsWithDecl	= svc.references( paramsWithDecl ).get();
-		var refsWithoutDecl	= svc.references( paramsWithoutDecl ).get();
+		var	refsWithDecl	= svc.references( paramsWithDecl ).get();
+		var	refsWithoutDecl	= svc.references( paramsWithoutDecl ).get();
 
 		// When including declaration, there should be at least one more reference
 		// (the declaration itself)
@@ -331,12 +331,12 @@ public class FindReferencesTest extends BaseTest {
 	 */
 	@Test
 	void testFindReferencesToFunctionParameter() throws Exception {
-		Path	serviceFilePath	= testDir.resolve( "UserService.bx" );
-		String	serviceFileUri	= serviceFilePath.toUri().toString();
+		Path			serviceFilePath	= testDir.resolve( "UserService.bx" );
+		String			serviceFileUri	= serviceFilePath.toUri().toString();
 
 		// Position at 'id' parameter in getUser(required numeric id)
 		// Line 11 (0-indexed: 10): `public User function getUser( required numeric id )`
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( serviceFileUri ) );
 		params.setPosition( new Position( 10, 50 ) ); // At 'id' parameter
 		params.setContext( new ReferenceContext( false ) );

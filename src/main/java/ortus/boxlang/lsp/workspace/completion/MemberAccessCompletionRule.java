@@ -27,20 +27,20 @@ public class MemberAccessCompletionRule implements IRule<CompletionFacts, List<C
 		ProjectIndex		index			= ProjectContextProvider.getInstance().getIndex();
 
 		// Get the receiver text (expression before the dot)
-		String receiverText = context.getReceiverText();
+		String				receiverText	= context.getReceiverText();
 		if ( receiverText == null || receiverText.isEmpty() ) {
 			return;
 		}
 
 		// Get the partial text typed after the dot (for filtering)
-		String filterPrefix = context.getTriggerText();
+		String						filterPrefix		= context.getTriggerText();
 
 		// Get the containing class name (for visibility filtering)
-		String containingClassName = context.getContainingClassName();
+		String						containingClassName	= context.getContainingClassName();
 
 		// Create type inferrer and infer the type
-		MemberAccessTypeInferrer	inferrer		= new MemberAccessTypeInferrer( fileParseResult, index );
-		TypeInferenceResult			inferredType	= inferrer.inferType(
+		MemberAccessTypeInferrer	inferrer			= new MemberAccessTypeInferrer( fileParseResult, index );
+		TypeInferenceResult			inferredType		= inferrer.inferType(
 		    receiverText,
 		    context.getCursorPosition().getLine(),
 		    context.getCursorPosition().getCharacter()

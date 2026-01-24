@@ -77,16 +77,16 @@ public class DocumentSyncTest extends BaseTest {
 		    new TextDocumentItem( testFileUri.toString(), "boxlang", 1, initialContent ) ) );
 
 		// Create an incremental change - insert " World" after "Hello"
-		// Line 2 (0-indexed): "        return "Hello";"
+		// Line 2 (0-indexed): " return "Hello";"
 		// 8 spaces + "return " (7) + '"' (1) + "Hello" (5) = 21
 		// So position 21 is right after the 'o' in "Hello", before the closing quote
-		TextDocumentContentChangeEvent change = new TextDocumentContentChangeEvent(
+		TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent(
 		    new Range( new Position( 2, 21 ), new Position( 2, 21 ) ),
 		    0,
 		    " World"
 		);
 
-		VersionedTextDocumentIdentifier versionedId = new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
+		VersionedTextDocumentIdentifier	versionedId	= new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
 		svc.didChange( new DidChangeTextDocumentParams( versionedId, List.of( change ) ) );
 
 		// Verify the DocumentModel was updated immediately (before debounce)
@@ -120,15 +120,15 @@ public class DocumentSyncTest extends BaseTest {
 		    new TextDocumentItem( testFileUri.toString(), "boxlang", 1, initialContent ) ) );
 
 		// Replace "Hello" with "Goodbye"
-		// Line 2: "        return "Hello";"
+		// Line 2: " return "Hello";"
 		// "Hello" starts at column 16 and ends at column 21
-		TextDocumentContentChangeEvent change = new TextDocumentContentChangeEvent(
+		TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent(
 		    new Range( new Position( 2, 16 ), new Position( 2, 21 ) ),
 		    5,
 		    "Goodbye"
 		);
 
-		VersionedTextDocumentIdentifier versionedId = new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
+		VersionedTextDocumentIdentifier	versionedId	= new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
 		svc.didChange( new DidChangeTextDocumentParams( versionedId, List.of( change ) ) );
 
 		// Verify DocumentModel was updated immediately
@@ -163,15 +163,15 @@ public class DocumentSyncTest extends BaseTest {
 		    new TextDocumentItem( testFileUri.toString(), "boxlang", 1, initialContent ) ) );
 
 		// Delete " World" from the string
-		// Line 2: "        return "Hello World";"
+		// Line 2: " return "Hello World";"
 		// " World" starts at column 21 and ends at column 27
-		TextDocumentContentChangeEvent change = new TextDocumentContentChangeEvent(
+		TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent(
 		    new Range( new Position( 2, 21 ), new Position( 2, 27 ) ),
 		    6,
 		    ""
 		);
 
-		VersionedTextDocumentIdentifier versionedId = new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
+		VersionedTextDocumentIdentifier	versionedId	= new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
 		svc.didChange( new DidChangeTextDocumentParams( versionedId, List.of( change ) ) );
 
 		// Verify DocumentModel was updated immediately
@@ -205,15 +205,15 @@ public class DocumentSyncTest extends BaseTest {
 		svc.didOpen( new DidOpenTextDocumentParams(
 		    new TextDocumentItem( testFileUri.toString(), "boxlang", 1, initialContent ) ) );
 
-		// Replace "function a() {}\n    function b() {}" with a single new function
-		// Line 1-2: "    function a() {}" and "    function b() {}"
-		TextDocumentContentChangeEvent change = new TextDocumentContentChangeEvent(
+		// Replace "function a() {}\n function b() {}" with a single new function
+		// Line 1-2: " function a() {}" and " function b() {}"
+		TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent(
 		    new Range( new Position( 1, 4 ), new Position( 2, 19 ) ),
 		    0,
 		    "function combined() { return 1; }"
 		);
 
-		VersionedTextDocumentIdentifier versionedId = new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
+		VersionedTextDocumentIdentifier	versionedId	= new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
 		svc.didChange( new DidChangeTextDocumentParams( versionedId, List.of( change ) ) );
 
 		// Verify DocumentModel was updated immediately
@@ -245,18 +245,18 @@ public class DocumentSyncTest extends BaseTest {
 		svc.didOpen( new DidOpenTextDocumentParams(
 		    new TextDocumentItem( testFileUri.toString(), "boxlang", 1, initialContent ) ) );
 
-		String newContent = """
-		                    class {
-		                        function hello() {
-		                            return "Updated via full sync";
-		                        }
-		                    }
-		                    """;
+		String							newContent	= """
+		                                              class {
+		                                                  function hello() {
+		                                                      return "Updated via full sync";
+		                                                  }
+		                                              }
+		                                              """;
 
 		// Full sync - no range
-		TextDocumentContentChangeEvent change = new TextDocumentContentChangeEvent( newContent );
+		TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent( newContent );
 
-		VersionedTextDocumentIdentifier versionedId = new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
+		VersionedTextDocumentIdentifier	versionedId	= new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
 		svc.didChange( new DidChangeTextDocumentParams( versionedId, List.of( change ) ) );
 
 		// Verify DocumentModel was updated immediately
@@ -292,13 +292,13 @@ public class DocumentSyncTest extends BaseTest {
 
 		// Simulate rapid typing - 10 quick changes
 		for ( int i = 1; i <= 10; i++ ) {
-			String newContent = """
-			                    class {
-			                        function counter() {
-			                            var x = %d;
-			                        }
-			                    }
-			                    """.formatted( i );
+			String							newContent	= """
+			                                              class {
+			                                                  function counter() {
+			                                                      var x = %d;
+			                                                  }
+			                                              }
+			                                              """.formatted( i );
 
 			TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent( newContent );
 			VersionedTextDocumentIdentifier	versionedId	= new VersionedTextDocumentIdentifier( testFileUri.toString(), i + 1 );
@@ -338,13 +338,13 @@ public class DocumentSyncTest extends BaseTest {
 
 		// Make a rapid sequence of edits
 		for ( int i = 1; i <= 5; i++ ) {
-			String newContent = """
-			                    class {
-			                        function test() {
-			                            var x = %d;
-			                        }
-			                    }
-			                    """.formatted( i );
+			String							newContent	= """
+			                                              class {
+			                                                  function test() {
+			                                                      var x = %d;
+			                                                  }
+			                                              }
+			                                              """.formatted( i );
 
 			TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent( newContent );
 			VersionedTextDocumentIdentifier	versionedId	= new VersionedTextDocumentIdentifier( testFileUri.toString(), i + 1 );
@@ -377,9 +377,9 @@ public class DocumentSyncTest extends BaseTest {
 		assertThat( initialVersion ).isEqualTo( 1 );
 
 		// Update with version 2
-		TextDocumentContentChangeEvent change = new TextDocumentContentChangeEvent(
+		TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent(
 		    content.replace( "test", "test2" ) );
-		VersionedTextDocumentIdentifier versionedId = new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
+		VersionedTextDocumentIdentifier	versionedId	= new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
 		svc.didChange( new DidChangeTextDocumentParams( versionedId, List.of( change ) ) );
 
 		// Version should be updated
@@ -425,12 +425,12 @@ public class DocumentSyncTest extends BaseTest {
 		svc.didOpen( new DidOpenTextDocumentParams(
 		    new TextDocumentItem( testFileUri.toString(), "boxlang", 1, initialContent ) ) );
 
-		int						numThreads		= 10;
-		int						editsPerThread	= 5;
-		ExecutorService			executor		= Executors.newFixedThreadPool( numThreads );
-		CountDownLatch			startLatch		= new CountDownLatch( 1 );
-		CountDownLatch			doneLatch		= new CountDownLatch( numThreads );
-		AtomicInteger			versionCounter	= new AtomicInteger( 1 );
+		int				numThreads		= 10;
+		int				editsPerThread	= 5;
+		ExecutorService	executor		= Executors.newFixedThreadPool( numThreads );
+		CountDownLatch	startLatch		= new CountDownLatch( 1 );
+		CountDownLatch	doneLatch		= new CountDownLatch( numThreads );
+		AtomicInteger	versionCounter	= new AtomicInteger( 1 );
 
 		for ( int t = 0; t < numThreads; t++ ) {
 			final int threadId = t;
@@ -438,13 +438,13 @@ public class DocumentSyncTest extends BaseTest {
 				try {
 					startLatch.await();
 					for ( int e = 0; e < editsPerThread; e++ ) {
-						String newContent = """
-						                    class {
-						                        function concurrent() {
-						                            var value = %d;
-						                        }
-						                    }
-						                    """.formatted( threadId * 100 + e );
+						String							newContent	= """
+						                                              class {
+						                                                  function concurrent() {
+						                                                      var value = %d;
+						                                                  }
+						                                              }
+						                                              """.formatted( threadId * 100 + e );
 
 						TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent( newContent );
 						int								version		= versionCounter.incrementAndGet();
@@ -488,10 +488,10 @@ public class DocumentSyncTest extends BaseTest {
 		for ( int i = 0; i < numIterations; i++ ) {
 			final int		iteration	= i;
 			final String	content		= """
-			                        class {
-			                            function iteration%d() {}
-			                        }
-			                        """.formatted( iteration );
+			                              class {
+			                                  function iteration%d() {}
+			                              }
+			                              """.formatted( iteration );
 
 			// Open task
 			executor.submit( () -> {
@@ -526,12 +526,12 @@ public class DocumentSyncTest extends BaseTest {
 
 	@Test
 	void testSyncForBxFile() throws Exception {
-		Path	bxPath		= java.nio.file.Paths.get( "src/test/resources/files/syncTestClass.bx" );
-		String	content		= """
-		                 class {
-		                     function test() {}
-		                 }
-		                 """;
+		Path	bxPath	= java.nio.file.Paths.get( "src/test/resources/files/syncTestClass.bx" );
+		String	content	= """
+		                  class {
+		                      function test() {}
+		                  }
+		                  """;
 
 		svc.didOpen( new DidOpenTextDocumentParams(
 		    new TextDocumentItem( bxPath.toUri().toString(), "boxlang", 1, content ) ) );
@@ -545,8 +545,8 @@ public class DocumentSyncTest extends BaseTest {
 
 	@Test
 	void testSyncForBxmFile() throws Exception {
-		Path	bxmPath		= java.nio.file.Paths.get( "src/test/resources/files/syncTestTemplate.bxm" );
-		String	content		= """
+		Path	bxmPath	= java.nio.file.Paths.get( "src/test/resources/files/syncTestTemplate.bxm" );
+		String	content	= """
 		                  <bx:output>Hello World</bx:output>
 		                  """;
 
@@ -602,7 +602,7 @@ public class DocumentSyncTest extends BaseTest {
 		// Send multiple changes in one event (they should be applied in order)
 		// Note: In LSP, multiple changes in a single event should be applied in reverse order
 		// because positions are calculated based on the original document
-		List<TextDocumentContentChangeEvent> changes = List.of(
+		List<TextDocumentContentChangeEvent>	changes		= List.of(
 		    new TextDocumentContentChangeEvent(
 		        new Range( new Position( 1, 12 ), new Position( 1, 13 ) ),
 		        1,
@@ -610,7 +610,7 @@ public class DocumentSyncTest extends BaseTest {
 		    )
 		);
 
-		VersionedTextDocumentIdentifier versionedId = new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
+		VersionedTextDocumentIdentifier			versionedId	= new VersionedTextDocumentIdentifier( testFileUri.toString(), 2 );
 		svc.didChange( new DidChangeTextDocumentParams( versionedId, changes ) );
 
 		// Verify DocumentModel was updated

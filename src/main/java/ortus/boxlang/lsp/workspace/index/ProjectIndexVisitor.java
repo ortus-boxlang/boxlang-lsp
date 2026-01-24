@@ -60,15 +60,15 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 
 	@Override
 	public void visit( BoxClass node ) {
-		String			className				= getClassName();
-		Range			range					= BLASTTools.positionToRange( node.getPosition() );
-		List<BoxAnnotation>	annotations			= findAnnotations( node );
-		String			extendsClass			= extractExtends( annotations );
-		List<String>	implementsInterfaces	= extractImplements( annotations );
-		List<String>	modifiers				= extractModifiers( annotations );
-		String			documentation			= extractClassDocumentation( node );
+		String				className				= getClassName();
+		Range				range					= BLASTTools.positionToRange( node.getPosition() );
+		List<BoxAnnotation>	annotations				= findAnnotations( node );
+		String				extendsClass			= extractExtends( annotations );
+		List<String>		implementsInterfaces	= extractImplements( annotations );
+		List<String>		modifiers				= extractModifiers( annotations );
+		String				documentation			= extractClassDocumentation( node );
 
-		IndexedClass	indexedClass			= new IndexedClass(
+		IndexedClass		indexedClass			= new IndexedClass(
 		    className,
 		    fullyQualifiedName,
 		    fileUri != null ? fileUri.toString() : null,
@@ -149,12 +149,12 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 
 	@Override
 	public void visit( BoxProperty node ) {
-		String	name			= extractPropertyName( node );
-		Range	range			= BLASTTools.positionToRange( node.getPosition() );
-		String	typeHint		= extractPropertyType( node );
-		String	defaultValue	= extractPropertyDefault( node );
-		boolean	hasGetter		= extractPropertyAccessor( node, "getter" );
-		boolean	hasSetter		= extractPropertyAccessor( node, "setter" );
+		String			name			= extractPropertyName( node );
+		Range			range			= BLASTTools.positionToRange( node.getPosition() );
+		String			typeHint		= extractPropertyType( node );
+		String			defaultValue	= extractPropertyDefault( node );
+		boolean			hasGetter		= extractPropertyAccessor( node, "getter" );
+		boolean			hasSetter		= extractPropertyAccessor( node, "setter" );
 
 		IndexedProperty	indexedProperty	= new IndexedProperty(
 		    name,
@@ -202,7 +202,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 			String	pathStr			= relativePath.toString();
 
 			// Remove file extension
-			int dotIndex = pathStr.lastIndexOf( '.' );
+			int		dotIndex		= pathStr.lastIndexOf( '.' );
 			if ( dotIndex > 0 ) {
 				pathStr = pathStr.substring( 0, dotIndex );
 			}
@@ -455,7 +455,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 	 * Returns a formatted string containing the description and all documentation annotations.
 	 */
 	private String extractClassDocumentation( BoxClass node ) {
-		if ( !( node instanceof IBoxDocumentableNode documentableNode ) ) {
+		if ( ! ( node instanceof IBoxDocumentableNode documentableNode ) ) {
 			return null;
 		}
 
@@ -464,10 +464,10 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 			return null;
 		}
 
-		StringBuilder doc = new StringBuilder();
+		StringBuilder	doc			= new StringBuilder();
 
 		// Get the comment text (description)
-		String commentText = docComment.getCommentText();
+		String			commentText	= docComment.getCommentText();
 		if ( commentText != null && !commentText.isBlank() ) {
 			String cleanedDescription = cleanDocCommentDescription( commentText );
 			if ( !cleanedDescription.isBlank() ) {
@@ -482,8 +482,8 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 				if ( doc.length() > 0 ) {
 					doc.append( "\n" );
 				}
-				String key = annotation.getKey().getValue();
-				String value = "";
+				String	key		= annotation.getKey().getValue();
+				String	value	= "";
 				if ( annotation.getValue() != null ) {
 					value = annotation.getValue().getSourceText();
 					String tagPrefix = "@" + key + " ";
@@ -504,7 +504,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 	 * Returns a formatted string containing the description and all documentation annotations.
 	 */
 	private String extractInterfaceDocumentation( BoxInterface node ) {
-		if ( !( node instanceof IBoxDocumentableNode documentableNode ) ) {
+		if ( ! ( node instanceof IBoxDocumentableNode documentableNode ) ) {
 			return null;
 		}
 
@@ -513,10 +513,10 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 			return null;
 		}
 
-		StringBuilder doc = new StringBuilder();
+		StringBuilder	doc			= new StringBuilder();
 
 		// Get the comment text (description)
-		String commentText = docComment.getCommentText();
+		String			commentText	= docComment.getCommentText();
 		if ( commentText != null && !commentText.isBlank() ) {
 			String cleanedDescription = cleanDocCommentDescription( commentText );
 			if ( !cleanedDescription.isBlank() ) {
@@ -531,8 +531,8 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 				if ( doc.length() > 0 ) {
 					doc.append( "\n" );
 				}
-				String key = annotation.getKey().getValue();
-				String value = "";
+				String	key		= annotation.getKey().getValue();
+				String	value	= "";
 				if ( annotation.getValue() != null ) {
 					value = annotation.getValue().getSourceText();
 					String tagPrefix = "@" + key + " ";
@@ -553,7 +553,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 	 * Returns a formatted string containing the description and all documentation annotations.
 	 */
 	private String extractDocumentation( BoxFunctionDeclaration node ) {
-		if ( !( node instanceof IBoxDocumentableNode documentableNode ) ) {
+		if ( ! ( node instanceof IBoxDocumentableNode documentableNode ) ) {
 			return null;
 		}
 
@@ -562,10 +562,10 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 			return null;
 		}
 
-		StringBuilder doc = new StringBuilder();
+		StringBuilder	doc			= new StringBuilder();
 
 		// Get the comment text (description)
-		String commentText = docComment.getCommentText();
+		String			commentText	= docComment.getCommentText();
 		if ( commentText != null && !commentText.isBlank() ) {
 			// Clean up the comment text
 			String cleanedDescription = cleanDocCommentDescription( commentText );
@@ -581,8 +581,8 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 				if ( doc.length() > 0 ) {
 					doc.append( "\n" );
 				}
-				String key = annotation.getKey().getValue();
-				String value = "";
+				String	key		= annotation.getKey().getValue();
+				String	value	= "";
 				if ( annotation.getValue() != null ) {
 					value = annotation.getValue().getSourceText();
 					// Clean up the value - it may contain the tag prefix again

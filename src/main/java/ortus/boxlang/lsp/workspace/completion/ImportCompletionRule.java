@@ -81,6 +81,7 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 	 * @param line           The line number for completion
 	 * @param existingPrompt The full line text before cursor
 	 * @param currentFileUri The URI of the file being edited
+	 * 
 	 * @return List of completion items for BoxLang classes and packages
 	 */
 	private List<CompletionItem> getBoxLangCompletions( String prefix, int line, String existingPrompt, URI currentFileUri ) {
@@ -144,9 +145,9 @@ public class ImportCompletionRule implements IRule<CompletionFacts, List<Complet
 
 		// Convert classes to completion items
 		for ( IndexedClass indexedClass : classes ) {
-			String	fqn					= indexedClass.fullyQualifiedName();
-			String	simpleName			= indexedClass.name();
-			String	insertText			= simpleName;
+			String	fqn			= indexedClass.fullyQualifiedName();
+			String	simpleName	= indexedClass.name();
+			String	insertText	= simpleName;
 
 			// If user has typed a package prefix, insert only the simple name
 			// Otherwise insert the full FQN

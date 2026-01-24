@@ -34,7 +34,7 @@ public class PropertyDefinitionTest extends BaseTest {
 		provider	= ProjectContextProvider.getInstance();
 		index		= new ProjectIndex();
 		provider.setIndex( index );
-		testDir		= Paths.get( "src/test/resources/files/propertyDefinitionTest" );
+		testDir = Paths.get( "src/test/resources/files/propertyDefinitionTest" );
 
 		// Index all test files
 		for ( Path file : Files.list( testDir ).filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
@@ -55,11 +55,11 @@ public class PropertyDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnVariablesScopedProperty() throws Exception {
-		Path	testFilePath	= testDir.resolve( "User.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "User.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
 
 		// Position at 'username' in `return variables.username;` on line 13 (0-indexed: 12)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 12, 26 ) ); // Position at 'username' after 'variables.'
 
@@ -83,11 +83,11 @@ public class PropertyDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnThisScopedProperty() throws Exception {
-		Path	testFilePath	= testDir.resolve( "User.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "User.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
 
 		// Position at 'age' in `var userAge = this.age;` on line 45 (0-indexed: 44)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 44, 27 ) ); // Position at 'age' after 'this.'
 
@@ -111,11 +111,11 @@ public class PropertyDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnUnqualifiedProperty() throws Exception {
-		Path	testFilePath	= testDir.resolve( "User.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "User.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
 
 		// Position at 'email' in `var userEmail = email;` on line 42 (0-indexed: 41)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 41, 24 ) ); // Position at 'email'
 
@@ -139,13 +139,13 @@ public class PropertyDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnInheritedProperty() throws Exception {
-		Path	testFilePath	= testDir.resolve( "User.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
-		Path	baseFilePath	= testDir.resolve( "BaseEntity.bx" );
-		String	baseFileUri		= baseFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "User.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
+		Path				baseFilePath	= testDir.resolve( "BaseEntity.bx" );
+		String				baseFileUri		= baseFilePath.toUri().toString();
 
 		// Position at 'id' in `var entityId = variables.id;` on line 39 (0-indexed: 38)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 38, 35 ) ); // Position at 'id' after 'variables.'
 
@@ -169,11 +169,11 @@ public class PropertyDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnUnqualifiedPropertyInReturn() throws Exception {
-		Path	testFilePath	= testDir.resolve( "User.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "User.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
 
 		// Position at 'username' in `return username & ...` on line 60 (0-indexed: 59)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 59, 15 ) ); // Position at 'username'
 
@@ -197,11 +197,11 @@ public class PropertyDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnPropertyInSetter() throws Exception {
-		Path	testFilePath	= testDir.resolve( "User.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "User.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
 
 		// Position at 'username' in `variables.username = username;` on line 20 (0-indexed: 19)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 19, 18 ) ); // Position at 'username' after 'variables.'
 
@@ -226,12 +226,12 @@ public class PropertyDefinitionTest extends BaseTest {
 		// Create a temp file with a non-existent property reference
 		Path	tempFile	= testDir.resolve( "TempUnknownProperty.bx" );
 		String	content		= """
-		    class {
-		        public function test() {
-		            return variables.nonExistentProperty;
-		        }
-		    }
-		                        """;
+		                      class {
+		                          public function test() {
+		                              return variables.nonExistentProperty;
+		                          }
+		                      }
+		                                          """;
 
 		Files.writeString( tempFile, content );
 
@@ -264,12 +264,12 @@ public class PropertyDefinitionTest extends BaseTest {
 		// Create a temp file with an undefined variable and property access
 		Path	tempFile	= testDir.resolve( "TempUnknownReceiver.bx" );
 		String	content		= """
-		    class {
-		        public function test() {
-		            a.user;
-		        }
-		    }
-		                        """;
+		                      class {
+		                          public function test() {
+		                              a.user;
+		                          }
+		                      }
+		                                          """;
 
 		Files.writeString( tempFile, content );
 

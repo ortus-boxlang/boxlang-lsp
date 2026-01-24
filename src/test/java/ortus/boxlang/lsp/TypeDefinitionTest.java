@@ -43,7 +43,7 @@ public class TypeDefinitionTest extends BaseTest {
 		provider	= ProjectContextProvider.getInstance();
 		index		= new ProjectIndex();
 		provider.setIndex( index );
-		testDir		= Paths.get( "src/test/resources/files/typeDefinitionTest" );
+		testDir = Paths.get( "src/test/resources/files/typeDefinitionTest" );
 
 		// Index all test files
 		for ( Path file : Files.list( testDir ).filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
@@ -57,10 +57,10 @@ public class TypeDefinitionTest extends BaseTest {
 		}
 
 		// Set up file path references
-		testFilePath	= testDir.resolve( "UserService.bx" );
-		testFileUri		= testFilePath.toUri().toString();
-		userFilePath	= testDir.resolve( "User.bx" );
-		userFileUri		= userFilePath.toUri().toString();
+		testFilePath		= testDir.resolve( "UserService.bx" );
+		testFileUri			= testFilePath.toUri().toString();
+		userFilePath		= testDir.resolve( "User.bx" );
+		userFileUri			= userFilePath.toUri().toString();
 		userRepoFilePath	= testDir.resolve( "UserRepository.bx" );
 		userRepoFileUri		= userRepoFilePath.toUri().toString();
 	}

@@ -39,7 +39,7 @@ public class FindReferencesBxmTest extends BaseTest {
 		provider	= ProjectContextProvider.getInstance();
 		index		= new ProjectIndex();
 		provider.setIndex( index );
-		testDir		= Paths.get( "src/test/resources/files/findReferencesTest" );
+		testDir = Paths.get( "src/test/resources/files/findReferencesTest" );
 
 		// Index all .bx class files
 		try ( Stream<Path> stream = Files.list( testDir ) ) {
@@ -65,12 +65,12 @@ public class FindReferencesBxmTest extends BaseTest {
 	 */
 	@Test
 	void testFindClassReferencesIncludesBxmTemplate() throws Exception {
-		Path	userFilePath	= testDir.resolve( "User.bx" );
-		String	userFileUri		= userFilePath.toUri().toString();
-		String	bxmFileUri		= testDir.resolve( "UserTemplate.bxm" ).toUri().toString();
+		Path			userFilePath	= testDir.resolve( "User.bx" );
+		String			userFileUri		= userFilePath.toUri().toString();
+		String			bxmFileUri		= testDir.resolve( "UserTemplate.bxm" ).toUri().toString();
 
 		// Position at 'class' keyword in User.bx (line 4, 0-indexed: 3)
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( userFileUri ) );
 		params.setPosition( new Position( 3, 2 ) ); // At 'class' keyword
 		params.setContext( new ReferenceContext( false ) ); // Don't include declaration
@@ -90,12 +90,12 @@ public class FindReferencesBxmTest extends BaseTest {
 	 */
 	@Test
 	void testFindClassReferencesFromBxmScriptBlock() throws Exception {
-		Path	serviceFilePath	= testDir.resolve( "UserService.bx" );
-		String	serviceFileUri	= serviceFilePath.toUri().toString();
-		String	bxmFileUri		= testDir.resolve( "UserTemplate.bxm" ).toUri().toString();
+		Path			serviceFilePath	= testDir.resolve( "UserService.bx" );
+		String			serviceFileUri	= serviceFilePath.toUri().toString();
+		String			bxmFileUri		= testDir.resolve( "UserTemplate.bxm" ).toUri().toString();
 
 		// Position at 'class' keyword in UserService.bx (line 4, 0-indexed: 3)
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( serviceFileUri ) );
 		params.setPosition( new Position( 3, 2 ) ); // At 'class' keyword
 		params.setContext( new ReferenceContext( false ) );
@@ -117,12 +117,12 @@ public class FindReferencesBxmTest extends BaseTest {
 	 */
 	@Test
 	void testFindMethodReferencesIncludesBxmTemplate() throws Exception {
-		Path	serviceFilePath	= testDir.resolve( "UserService.bx" );
-		String	serviceFileUri	= serviceFilePath.toUri().toString();
+		Path			serviceFilePath	= testDir.resolve( "UserService.bx" );
+		String			serviceFileUri	= serviceFilePath.toUri().toString();
 
 		// Position at 'getUser' function declaration in UserService.bx
 		// Line 11 (0-indexed: 10): `public User function getUser(...)`
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( serviceFileUri ) );
 		params.setPosition( new Position( 10, 25 ) ); // At 'getUser'
 		params.setContext( new ReferenceContext( false ) );
@@ -142,12 +142,12 @@ public class FindReferencesBxmTest extends BaseTest {
 	 */
 	@Test
 	void testFindMethodReferencesInTemplateExpressions() throws Exception {
-		Path	userFilePath	= testDir.resolve( "User.bx" );
-		String	userFileUri		= userFilePath.toUri().toString();
+		Path			userFilePath	= testDir.resolve( "User.bx" );
+		String			userFileUri		= userFilePath.toUri().toString();
 
 		// Position at 'getDisplayName' function declaration in User.bx
 		// Line 12 (0-indexed: 11): `public string function getDisplayName()`
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( userFileUri ) );
 		params.setPosition( new Position( 11, 28 ) ); // At 'getDisplayName'
 		params.setContext( new ReferenceContext( false ) );
@@ -167,12 +167,12 @@ public class FindReferencesBxmTest extends BaseTest {
 	 */
 	@Test
 	void testFindMethodReferencesInBxmScriptBlock() throws Exception {
-		Path	serviceFilePath	= testDir.resolve( "UserService.bx" );
-		String	serviceFileUri	= serviceFilePath.toUri().toString();
+		Path			serviceFilePath	= testDir.resolve( "UserService.bx" );
+		String			serviceFileUri	= serviceFilePath.toUri().toString();
 
 		// Position at 'saveUser' function declaration in UserService.bx
 		// Line 20 (0-indexed: 19): `public void function saveUser(...)`
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( serviceFileUri ) );
 		params.setPosition( new Position( 19, 25 ) ); // At 'saveUser'
 		params.setContext( new ReferenceContext( false ) );
@@ -194,12 +194,12 @@ public class FindReferencesBxmTest extends BaseTest {
 	 */
 	@Test
 	void testFindPropertyReferencesInTemplateExpressions() throws Exception {
-		Path	userFilePath	= testDir.resolve( "User.bx" );
-		String	userFileUri		= userFilePath.toUri().toString();
+		Path			userFilePath	= testDir.resolve( "User.bx" );
+		String			userFileUri		= userFilePath.toUri().toString();
 
 		// Position at 'username' property declaration in User.bx
 		// Line 6 (0-indexed: 5): `property name="username" type="string";`
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( userFileUri ) );
 		params.setPosition( new Position( 5, 20 ) ); // At 'username'
 		params.setContext( new ReferenceContext( false ) );
@@ -219,11 +219,11 @@ public class FindReferencesBxmTest extends BaseTest {
 	 */
 	@Test
 	void testFindClassReferencesInTagAttribute() throws Exception {
-		Path	userFilePath	= testDir.resolve( "User.bx" );
-		String	userFileUri		= userFilePath.toUri().toString();
+		Path			userFilePath	= testDir.resolve( "User.bx" );
+		String			userFileUri		= userFilePath.toUri().toString();
 
 		// Position at 'class' keyword in User.bx
-		ReferenceParams params = new ReferenceParams();
+		ReferenceParams	params			= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( userFileUri ) );
 		params.setPosition( new Position( 3, 2 ) ); // At 'class' keyword
 		params.setContext( new ReferenceContext( false ) );
@@ -245,13 +245,13 @@ public class FindReferencesBxmTest extends BaseTest {
 	 */
 	@Test
 	void testFindReferencesFromBxmFile() throws Exception {
-		Path	bxmFilePath	= testDir.resolve( "UserTemplate.bxm" );
-		String	bxmFileUri	= bxmFilePath.toUri().toString();
+		Path			bxmFilePath	= testDir.resolve( "UserTemplate.bxm" );
+		String			bxmFileUri	= bxmFilePath.toUri().toString();
 
 		// Position at 'new User()' in the BXM script block
 		// Line 10 (0-indexed: 9): `var user = new User();`
-		// 'User' starts at column 27 after "            var user = new "
-		ReferenceParams params = new ReferenceParams();
+		// 'User' starts at column 27 after " var user = new "
+		ReferenceParams	params		= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( bxmFileUri ) );
 		params.setPosition( new Position( 9, 27 ) ); // At 'User' in `new User()`
 		params.setContext( new ReferenceContext( true ) );
@@ -268,13 +268,13 @@ public class FindReferencesBxmTest extends BaseTest {
 	 */
 	@Test
 	void testLocalVariableReferencesInBxmAreScoped() throws Exception {
-		Path	bxmFilePath	= testDir.resolve( "UserTemplate.bxm" );
-		String	bxmFileUri	= bxmFilePath.toUri().toString();
+		Path			bxmFilePath	= testDir.resolve( "UserTemplate.bxm" );
+		String			bxmFileUri	= bxmFilePath.toUri().toString();
 
 		// Position at 'user' variable declaration in BXM script block
 		// Line 10 (0-indexed: 9): `var user = new User();`
-		// 'user' starts at column 16 after "            var "
-		ReferenceParams params = new ReferenceParams();
+		// 'user' starts at column 16 after " var "
+		ReferenceParams	params		= new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( bxmFileUri ) );
 		params.setPosition( new Position( 9, 16 ) ); // At 'user'
 		params.setContext( new ReferenceContext( false ) );

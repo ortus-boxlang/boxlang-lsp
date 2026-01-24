@@ -39,8 +39,9 @@ public class DocumentModel {
 	 * Applies a list of content change events to the document.
 	 * Supports both incremental (range-based) and full document changes.
 	 *
-	 * @param changes The list of changes to apply
+	 * @param changes    The list of changes to apply
 	 * @param newVersion The new version number
+	 * 
 	 * @return true if the changes were applied, false if the version was stale
 	 */
 	public synchronized boolean applyChanges( List<TextDocumentContentChangeEvent> changes, int newVersion ) {
@@ -67,14 +68,15 @@ public class DocumentModel {
 	 * Applies a single incremental change to the document content.
 	 *
 	 * @param change The change event with a range
+	 * 
 	 * @return The updated content
 	 */
 	private String applyIncrementalChange( TextDocumentContentChangeEvent change ) {
-		Range	range	= change.getRange();
-		String	newText	= change.getText();
+		Range	range		= change.getRange();
+		String	newText		= change.getText();
 
-		int startOffset = positionToOffset( range.getStart() );
-		int endOffset	= positionToOffset( range.getEnd() );
+		int		startOffset	= positionToOffset( range.getStart() );
+		int		endOffset	= positionToOffset( range.getEnd() );
 
 		// Bounds checking
 		startOffset	= Math.max( 0, Math.min( startOffset, content.length() ) );
@@ -92,6 +94,7 @@ public class DocumentModel {
 	 * Converts an LSP Position (line, character) to an offset in the document content.
 	 *
 	 * @param position The LSP position (0-indexed line and character)
+	 * 
 	 * @return The offset in the content string
 	 */
 	private int positionToOffset( Position position ) {
@@ -115,14 +118,14 @@ public class DocumentModel {
 
 		// Add the character offset within the line
 		// Make sure we don't exceed the line length
-		int lineStart	= offset;
-		int lineEnd		= text.indexOf( '\n', lineStart );
+		int	lineStart	= offset;
+		int	lineEnd		= text.indexOf( '\n', lineStart );
 		if ( lineEnd == -1 ) {
 			lineEnd = text.length();
 		}
 
-		int lineLength	= lineEnd - lineStart;
-		int charOffset	= Math.min( targetChar, lineLength );
+		int	lineLength	= lineEnd - lineStart;
+		int	charOffset	= Math.min( targetChar, lineLength );
 
 		return offset + charOffset;
 	}
@@ -131,6 +134,7 @@ public class DocumentModel {
 	 * Gets the content of a specific line.
 	 *
 	 * @param lineNumber 0-indexed line number
+	 * 
 	 * @return The line content, or empty string if line doesn't exist
 	 */
 	public String getLine( int lineNumber ) {

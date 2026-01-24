@@ -18,10 +18,10 @@ public class VariableHoverTest extends BaseTest {
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
 
-		// Line 8 (0-indexed = 7): "        var localVar = "hello";"
+		// Line 8 (0-indexed = 7): " var localVar = "hello";"
 		// Let's try different positions to find where localVar is
-		// "        var localVar = "hello";"
-		//  01234567890123456789...
+		// " var localVar = "hello";"
+		// 01234567890123456789...
 		// Column 12 should be on 'l' of 'localVar'
 
 		HoverParams hoverParams = new HoverParams();
@@ -241,7 +241,7 @@ public class VariableHoverTest extends BaseTest {
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
 
-		// Line 10 (0-indexed = 9): "        x = new Thing();"
+		// Line 10 (0-indexed = 9): " x = new Thing();"
 		// Hover on "x" - should show type as "Thing", NOT "numeric"
 		HoverParams hoverParams = new HoverParams();
 		hoverParams.setTextDocument( new TextDocumentIdentifier( defPath.toUri().toString() ) );

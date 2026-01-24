@@ -74,8 +74,8 @@ public class VariableTypeCollectorVisitor extends VoidBoxVisitor {
 	@Override
 	public void visit( BoxAssignment node ) {
 		// Check if this is assigning a new expression to a variable
-		BoxNode left = node.getLeft();
-		BoxNode right = node.getRight();
+		BoxNode	left	= node.getLeft();
+		BoxNode	right	= node.getRight();
 
 		if ( left instanceof BoxIdentifier identifier && right instanceof BoxNew newExpr ) {
 			// Extract the class name from the new expression
@@ -96,11 +96,11 @@ public class VariableTypeCollectorVisitor extends VoidBoxVisitor {
 		BoxNode expression = newExpr.getExpression();
 
 		if ( expression instanceof BoxFQN fqn ) {
-			String fullPath = fqn.getValue();
+			String	fullPath		= fqn.getValue();
 			// Get just the class name (last part after any dots or colons)
-			int lastDot = fullPath.lastIndexOf( '.' );
-			int lastColon = fullPath.lastIndexOf( ':' );
-			int lastSeparator = Math.max( lastDot, lastColon );
+			int		lastDot			= fullPath.lastIndexOf( '.' );
+			int		lastColon		= fullPath.lastIndexOf( ':' );
+			int		lastSeparator	= Math.max( lastDot, lastColon );
 
 			if ( lastSeparator >= 0 && lastSeparator < fullPath.length() - 1 ) {
 				return fullPath.substring( lastSeparator + 1 );
@@ -114,9 +114,9 @@ public class VariableTypeCollectorVisitor extends VoidBoxVisitor {
 			if ( sourceText != null ) {
 				// Clean up and extract class name
 				sourceText = sourceText.trim();
-				int lastDot = sourceText.lastIndexOf( '.' );
-				int lastColon = sourceText.lastIndexOf( ':' );
-				int lastSeparator = Math.max( lastDot, lastColon );
+				int	lastDot			= sourceText.lastIndexOf( '.' );
+				int	lastColon		= sourceText.lastIndexOf( ':' );
+				int	lastSeparator	= Math.max( lastDot, lastColon );
 
 				if ( lastSeparator >= 0 && lastSeparator < sourceText.length() - 1 ) {
 					return sourceText.substring( lastSeparator + 1 );

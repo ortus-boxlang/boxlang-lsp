@@ -32,8 +32,8 @@ public class VariableDefinitionResolver {
 	    String name,
 	    BoxNode declarationNode,
 	    DeclarationType type,
-	    int declarationLine
-	) {}
+	    int declarationLine ) {
+	}
 
 	/**
 	 * Types of variable declarations.
@@ -46,21 +46,21 @@ public class VariableDefinitionResolver {
 	}
 
 	// The target identifier we're looking for
-	private final BoxIdentifier	targetIdentifier;
-	private final int			targetLine;
-	private final int			targetColumn;
+	private final BoxIdentifier												targetIdentifier;
+	private final int														targetLine;
+	private final int														targetColumn;
 
 	// Resolved declaration (if found)
-	private VariableDeclaration	resolvedDeclaration	= null;
+	private VariableDeclaration												resolvedDeclaration	= null;
 
 	// Map of function -> variable declarations within that function
 	private final Map<BoxFunctionDeclaration, List<VariableDeclaration>>	functionDeclarations;
 
 	// Class-level declarations (properties)
-	private final List<VariableDeclaration>						classDeclarations;
+	private final List<VariableDeclaration>									classDeclarations;
 
 	// Template-level declarations (variables outside functions, e.g., in BXM templates)
-	private final List<VariableDeclaration>						templateDeclarations;
+	private final List<VariableDeclaration>									templateDeclarations;
 
 	public VariableDefinitionResolver( BoxIdentifier targetIdentifier ) {
 		this.targetIdentifier		= targetIdentifier;
@@ -134,9 +134,9 @@ public class VariableDefinitionResolver {
 		}
 
 		if ( name != null ) {
-			int line = node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+			int					line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
 
-			VariableDeclaration decl = new VariableDeclaration(
+			VariableDeclaration	decl	= new VariableDeclaration(
 			    name,
 			    node,
 			    DeclarationType.PROPERTY,
@@ -153,10 +153,10 @@ public class VariableDefinitionResolver {
 	private void collectParameter( BoxArgumentDeclaration node ) {
 		BoxFunctionDeclaration containingFunc = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
 		if ( containingFunc != null ) {
-			String	name	= node.getName();
-			int		line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+			String				name	= node.getName();
+			int					line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
 
-			VariableDeclaration decl = new VariableDeclaration(
+			VariableDeclaration	decl	= new VariableDeclaration(
 			    name,
 			    node,
 			    DeclarationType.PARAMETER,
@@ -176,11 +176,11 @@ public class VariableDefinitionResolver {
 		    .anyMatch( m -> m == BoxAssignmentModifier.VAR );
 
 		if ( isVarScoped && node.getLeft() instanceof BoxIdentifier identifier ) {
-			BoxFunctionDeclaration containingFunc = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
-			String	name	= identifier.getName();
-			int		line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+			BoxFunctionDeclaration	containingFunc	= node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+			String					name			= identifier.getName();
+			int						line			= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
 
-			VariableDeclaration decl = new VariableDeclaration(
+			VariableDeclaration		decl			= new VariableDeclaration(
 			    name,
 			    node,
 			    DeclarationType.LOCAL_VAR,
@@ -200,10 +200,10 @@ public class VariableDefinitionResolver {
 			BoxFunctionDeclaration containingFunc = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
 			if ( containingFunc == null ) {
 				// Template-level assignment without var keyword
-				String	name	= identifier.getName();
-				int		line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+				String				name	= identifier.getName();
+				int					line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
 
-				VariableDeclaration decl = new VariableDeclaration(
+				VariableDeclaration	decl	= new VariableDeclaration(
 				    name,
 				    node,
 				    DeclarationType.SCOPED_VAR, // Treat as scoped var since it's template-level
@@ -220,10 +220,10 @@ public class VariableDefinitionResolver {
 				String scopeName = scopeId.getName().toLowerCase();
 				if ( scopeName.equals( "variables" ) || scopeName.equals( "this" ) ) {
 					if ( dotAccess.getAccess() instanceof BoxIdentifier propId ) {
-						String	name	= propId.getName();
-						int		line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+						String				name	= propId.getName();
+						int					line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
 
-						VariableDeclaration decl = new VariableDeclaration(
+						VariableDeclaration	decl	= new VariableDeclaration(
 						    name,
 						    node,
 						    DeclarationType.SCOPED_VAR,
@@ -241,10 +241,10 @@ public class VariableDefinitionResolver {
 	 * Resolve the target identifier to its declaration.
 	 */
 	private void resolveTarget() {
-		String targetName = targetIdentifier.getName().toLowerCase();
+		String					targetName			= targetIdentifier.getName().toLowerCase();
 
 		// Find the containing function for the target identifier
-		BoxFunctionDeclaration containingFunction = targetIdentifier.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+		BoxFunctionDeclaration	containingFunction	= targetIdentifier.getFirstAncestorOfType( BoxFunctionDeclaration.class );
 
 		if ( containingFunction != null ) {
 			// Look in the function's declarations

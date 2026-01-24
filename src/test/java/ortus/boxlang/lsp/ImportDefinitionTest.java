@@ -70,13 +70,13 @@ public class ImportDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnSimpleImport() throws Exception {
-		Path	testFilePath		= testDir.resolve( "UserServiceImpl.bx" );
-		String	testFileUri			= testFilePath.toUri().toString();
-		Path	userEntityPath		= testDir.resolve( "UserEntity.bx" );
-		String	userEntityUri		= userEntityPath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "UserServiceImpl.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
+		Path				userEntityPath	= testDir.resolve( "UserEntity.bx" );
+		String				userEntityUri	= userEntityPath.toUri().toString();
 
 		// Position at 'UserEntity' in `import UserEntity;` on line 5 (0-indexed: 4)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 4, 10 ) ); // Position within 'UserEntity'
 
@@ -100,13 +100,13 @@ public class ImportDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnInterfaceImport() throws Exception {
-		Path	testFilePath		= testDir.resolve( "UserServiceImpl.bx" );
-		String	testFileUri			= testFilePath.toUri().toString();
-		Path	interfacePath		= testDir.resolve( "IUserService.bx" );
-		String	interfaceUri		= interfacePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "UserServiceImpl.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
+		Path				interfacePath	= testDir.resolve( "IUserService.bx" );
+		String				interfaceUri	= interfacePath.toUri().toString();
 
 		// Position at 'IUserService' in `import IUserService;` on line 6 (0-indexed: 5)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 5, 10 ) ); // Position within 'IUserService'
 
@@ -130,13 +130,13 @@ public class ImportDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnAliasedImportClassName() throws Exception {
-		Path	testFilePath		= testDir.resolve( "AliasedImports.bx" );
-		String	testFileUri			= testFilePath.toUri().toString();
-		Path	userEntityPath		= testDir.resolve( "UserEntity.bx" );
-		String	userEntityUri		= userEntityPath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "AliasedImports.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
+		Path				userEntityPath	= testDir.resolve( "UserEntity.bx" );
+		String				userEntityUri	= userEntityPath.toUri().toString();
 
 		// Position at 'UserEntity' in `import UserEntity as User;` on line 5 (0-indexed: 4)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 4, 10 ) ); // Position within 'UserEntity'
 
@@ -160,14 +160,14 @@ public class ImportDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnAliasedImportAlias() throws Exception {
-		Path	testFilePath		= testDir.resolve( "AliasedImports.bx" );
-		String	testFileUri			= testFilePath.toUri().toString();
-		Path	userEntityPath		= testDir.resolve( "UserEntity.bx" );
-		String	userEntityUri		= userEntityPath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "AliasedImports.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
+		Path				userEntityPath	= testDir.resolve( "UserEntity.bx" );
+		String				userEntityUri	= userEntityPath.toUri().toString();
 
 		// Position at 'User' in `import UserEntity as User;` on line 5 (0-indexed: 4)
 		// The alias 'User' starts around column 23
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 4, 25 ) ); // Position within 'User' alias
 
@@ -190,11 +190,11 @@ public class ImportDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnJavaImportReturnsEmpty() throws Exception {
-		Path	testFilePath	= testDir.resolve( "JavaImports.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "JavaImports.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
 
 		// Position at 'ArrayList' in `import java:java.util.ArrayList;` on line 5 (0-indexed: 4)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 4, 25 ) ); // Position within 'ArrayList'
 
@@ -214,14 +214,14 @@ public class ImportDefinitionTest extends BaseTest {
 		// Create a temp file with an unknown import
 		Path	tempFile	= testDir.resolve( "TempUnknownImport.bx" );
 		String	content		= """
-		    import NonExistentClass;
+		                      import NonExistentClass;
 
-		    class {
-		        public function test() {
-		            var x = new NonExistentClass();
-		        }
-		    }
-		                        """;
+		                      class {
+		                          public function test() {
+		                              var x = new NonExistentClass();
+		                          }
+		                      }
+		                                          """;
 
 		Files.writeString( tempFile, content );
 
@@ -252,11 +252,11 @@ public class ImportDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnPackageQualifiedImportNotMatchingRoot() throws Exception {
-		Path	testFilePath	= testDir.resolve( "MainClass.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "MainClass.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
 
 		// Position at 'Item' in `import subpackage.Item;` on line 4 (0-indexed: 3)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 3, 18 ) ); // Position within 'Item'
 
@@ -275,13 +275,13 @@ public class ImportDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnPackageQualifiedImportExists() throws Exception {
-		Path	testFilePath	= testDir.resolve( "MainClass.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
-		Path	subThingPath	= testDir.resolve( "subpackage/SubThing.bx" );
-		String	subThingUri		= subThingPath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "MainClass.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
+		Path				subThingPath	= testDir.resolve( "subpackage/SubThing.bx" );
+		String				subThingUri		= subThingPath.toUri().toString();
 
 		// Position at 'SubThing' in `import subpackage.SubThing;` on line 5 (0-indexed: 4)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 4, 18 ) ); // Position within 'SubThing'
 

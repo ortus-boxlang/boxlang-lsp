@@ -34,16 +34,16 @@ import ortus.boxlang.runtime.BoxRuntime;
  */
 public class BxmTagCompletionTest extends BaseTest {
 
-	static BoxRuntime				instance;
+	static BoxRuntime						instance;
 	private static ProjectContextProvider	pcp;
-	private static Path				projectRoot;
-	private static Path				templatePath;
-	private static File				templateFile;
+	private static Path						projectRoot;
+	private static Path						templatePath;
+	private static File						templateFile;
 
 	@BeforeAll
 	static void loadFixtures() {
 		instance		= BoxRuntime.getInstance( true );
-		pcp			= ProjectContextProvider.getInstance();
+		pcp				= ProjectContextProvider.getInstance();
 		projectRoot		= Paths.get( System.getProperty( "user.dir" ) );
 		templatePath	= projectRoot.resolve( "src/test/resources/files/bxmTagCompletionTest/simpleTemplate.bxm" );
 		templateFile	= templatePath.toFile();
@@ -61,9 +61,9 @@ public class BxmTagCompletionTest extends BaseTest {
 	@DisplayName( "Should complete tag names after <bx:" )
 	void testTagNameCompletion() {
 		// Position: Line 6 (0-indexed), col 5 after "<bx:"
-		Position			position			= new Position( 6, 5 );
+		Position				position			= new Position( 6, 5 );
 		CompletionParams		completionParams	= new CompletionParams();
-		TextDocumentIdentifier	td				= new TextDocumentIdentifier( templatePath.toUri().toString() );
+		TextDocumentIdentifier	td					= new TextDocumentIdentifier( templatePath.toUri().toString() );
 		completionParams.setPosition( position );
 		completionParams.setTextDocument( td );
 
@@ -89,10 +89,10 @@ public class BxmTagCompletionTest extends BaseTest {
 	@Test
 	@DisplayName( "Should complete tag names with partial match" )
 	void testPartialTagNameCompletion() {
-		List<CompletionItem> items = getCompletionsAt( 9, 9 );
+		List<CompletionItem>	items		= getCompletionsAt( 9, 9 );
 
 		// Should still offer all tags but output should match
-		CompletionItem outputTag = findCompletion( items, "bx:output" );
+		CompletionItem			outputTag	= findCompletion( items, "bx:output" );
 		assertThat( outputTag ).isNotNull();
 	}
 
@@ -141,11 +141,11 @@ public class BxmTagCompletionTest extends BaseTest {
 	@DisplayName( "Should show required attributes first" )
 	void testRequiredAttributesPrioritized() {
 		// Position: Line 12 (0-indexed), after "<bx:output "
-		List<CompletionItem> items = getCompletionsAt( 12, 13 );
+		List<CompletionItem>	items		= getCompletionsAt( 12, 13 );
 
 		// Required attributes should have better sort order
 		// They should be marked with (required) in detail or have special sorting
-		List<CompletionItem> sortedItems = items.stream()
+		List<CompletionItem>	sortedItems	= items.stream()
 		    .filter( item -> item.getKind() == CompletionItemKind.Property )
 		    .sorted( ( a, b ) -> a.getSortText().compareTo( b.getSortText() ) )
 		    .toList();
@@ -172,9 +172,9 @@ public class BxmTagCompletionTest extends BaseTest {
 	@Test
 	@DisplayName( "Tag completion items should have proper detail/documentation" )
 	void testTagCompletionHasDocumentation() {
-		List<CompletionItem> items = getCompletionsAt( 6, 5 );
+		List<CompletionItem>	items		= getCompletionsAt( 6, 5 );
 
-		CompletionItem outputTag = findCompletion( items, "bx:output" );
+		CompletionItem			outputTag	= findCompletion( items, "bx:output" );
 		assertThat( outputTag ).isNotNull();
 
 		// Should have detail showing signature
@@ -185,10 +185,10 @@ public class BxmTagCompletionTest extends BaseTest {
 	@Test
 	@DisplayName( "Attribute completion items should have proper kind" )
 	void testAttributeCompletionKind() {
-		List<CompletionItem> items = getCompletionsAt( 12, 13 );
+		List<CompletionItem>	items		= getCompletionsAt( 12, 13 );
 
 		// Attributes should use CompletionItemKind.Property
-		List<CompletionItem> attributes = items.stream()
+		List<CompletionItem>	attributes	= items.stream()
 		    .filter( item -> item.getKind() == CompletionItemKind.Property )
 		    .toList();
 
@@ -225,9 +225,9 @@ public class BxmTagCompletionTest extends BaseTest {
 	 * Helper method to get completions at a specific position
 	 */
 	private List<CompletionItem> getCompletionsAt( int line, int character ) {
-		Position			position			= new Position( line, character );
+		Position				position			= new Position( line, character );
 		CompletionParams		completionParams	= new CompletionParams();
-		TextDocumentIdentifier	td				= new TextDocumentIdentifier( templatePath.toUri().toString() );
+		TextDocumentIdentifier	td					= new TextDocumentIdentifier( templatePath.toUri().toString() );
 		completionParams.setPosition( position );
 		completionParams.setTextDocument( td );
 		return pcp.getAvailableCompletions( templateFile.toURI(), completionParams );

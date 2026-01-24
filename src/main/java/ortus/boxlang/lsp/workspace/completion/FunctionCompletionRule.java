@@ -54,8 +54,8 @@ public class FunctionCompletionRule implements IRule<CompletionFacts, List<Compl
 		item.setKind( CompletionItemKind.Function );
 
 		// Build signature for detail
-		StringBuilder signature = new StringBuilder( func.getName() ).append( "(" );
-		List<BoxArgumentDeclaration> args = func.getArgs();
+		StringBuilder					signature	= new StringBuilder( func.getName() ).append( "(" );
+		List<BoxArgumentDeclaration>	args		= func.getArgs();
 		for ( int i = 0; i < args.size(); i++ ) {
 			BoxArgumentDeclaration arg = args.get( i );
 			if ( i > 0 ) {

@@ -34,7 +34,7 @@ public class ClassDefinitionTest extends BaseTest {
 		provider	= ProjectContextProvider.getInstance();
 		index		= new ProjectIndex();
 		provider.setIndex( index );
-		testDir		= Paths.get( "src/test/resources/files/classDefinitionTest" );
+		testDir = Paths.get( "src/test/resources/files/classDefinitionTest" );
 
 		// Index all test files
 		for ( Path file : Files.list( testDir ).filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
@@ -55,14 +55,14 @@ public class ClassDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnNewExpression() throws Exception {
-		Path	testFilePath	= testDir.resolve( "UserService.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
-		Path	userFilePath	= testDir.resolve( "User.bx" );
-		String	userFileUri		= userFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "UserService.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
+		Path				userFilePath	= testDir.resolve( "User.bx" );
+		String				userFileUri		= userFilePath.toUri().toString();
 
 		// Position at 'User' in `var defaultUser = new User();` on line 28 (0-indexed: 27)
 		// Character position at 'User' after 'new '
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 27, 30 ) ); // Position at 'User'
 
@@ -86,14 +86,14 @@ public class ClassDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnExtendsClause() throws Exception {
-		Path	testFilePath		= testDir.resolve( "User.bx" );
-		String	testFileUri			= testFilePath.toUri().toString();
-		Path	abstractFilePath	= testDir.resolve( "AbstractEntity.bx" );
-		String	abstractFileUri		= abstractFilePath.toUri().toString();
+		Path				testFilePath		= testDir.resolve( "User.bx" );
+		String				testFileUri			= testFilePath.toUri().toString();
+		Path				abstractFilePath	= testDir.resolve( "AbstractEntity.bx" );
+		String				abstractFileUri		= abstractFilePath.toUri().toString();
 
 		// Position at 'AbstractEntity' in `class extends="AbstractEntity"` on line 6
 		// Line 6 (0-indexed: 5), character position at 'AbstractEntity'
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params				= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 5, 20 ) ); // Position within 'AbstractEntity'
 
@@ -117,14 +117,14 @@ public class ClassDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnImplementsClause() throws Exception {
-		Path	testFilePath		= testDir.resolve( "UserRepository.bx" );
-		String	testFileUri			= testFilePath.toUri().toString();
-		Path	interfaceFilePath	= testDir.resolve( "IRepository.bx" );
-		String	interfaceFileUri	= interfaceFilePath.toUri().toString();
+		Path				testFilePath		= testDir.resolve( "UserRepository.bx" );
+		String				testFileUri			= testFilePath.toUri().toString();
+		Path				interfaceFilePath	= testDir.resolve( "IRepository.bx" );
+		String				interfaceFileUri	= interfaceFilePath.toUri().toString();
 
 		// Position at 'IRepository' in `class implements="IRepository"` on line 6
 		// Line 6 (0-indexed: 5), character position at 'IRepository'
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params				= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 5, 23 ) ); // Position within 'IRepository'
 
@@ -148,14 +148,14 @@ public class ClassDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnReturnTypeHint() throws Exception {
-		Path	testFilePath	= testDir.resolve( "UserService.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
-		Path	userFilePath	= testDir.resolve( "User.bx" );
-		String	userFileUri		= userFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "UserService.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
+		Path				userFilePath	= testDir.resolve( "User.bx" );
+		String				userFileUri		= userFilePath.toUri().toString();
 
 		// Position at 'User' in `public User function createUser(...)` on line 16
 		// Line 16 (0-indexed: 15), character position at 'User' (return type)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 15, 12 ) ); // Position at 'User'
 
@@ -179,14 +179,14 @@ public class ClassDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnParameterTypeHint() throws Exception {
-		Path	testFilePath	= testDir.resolve( "UserService.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
-		Path	userFilePath	= testDir.resolve( "User.bx" );
-		String	userFileUri		= userFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "UserService.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
+		Path				userFilePath	= testDir.resolve( "User.bx" );
+		String				userFileUri		= userFilePath.toUri().toString();
 
 		// Position at 'User' in `required User user` on line 16
 		// Line 16 (0-indexed: 15), character position at 'User' (parameter type)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 15, 44 ) ); // Position at 'User' in parameter
 
@@ -210,16 +210,16 @@ public class ClassDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testGoToDefinitionOnInterface() throws Exception {
-		Path	interfaceFilePath	= testDir.resolve( "IRepository.bx" );
-		String	interfaceFileUri	= interfaceFilePath.toUri().toString();
+		Path				interfaceFilePath	= testDir.resolve( "IRepository.bx" );
+		String				interfaceFileUri	= interfaceFilePath.toUri().toString();
 
 		// UserService.bx has `implements="IRepository"` on line 7
-		Path	testFilePath	= testDir.resolve( "UserService.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
+		Path				testFilePath		= testDir.resolve( "UserService.bx" );
+		String				testFileUri			= testFilePath.toUri().toString();
 
 		// Position at 'IRepository' in `implements="IRepository"` on line 7
 		// Line 7 (0-indexed: 6), character position at 'IRepository'
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params				= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 6, 50 ) ); // Position within 'IRepository'
 
@@ -244,12 +244,12 @@ public class ClassDefinitionTest extends BaseTest {
 		// Create a temp file with an unknown class reference
 		Path	tempFile	= testDir.resolve( "TempUnknownClass.bx" );
 		String	content		= """
-		    class {
-		        public function test() {
-		            var unknown = new NonExistentClass();
-		        }
-		    }
-		                        """;
+		                      class {
+		                          public function test() {
+		                              var unknown = new NonExistentClass();
+		                          }
+		                      }
+		                                          """;
 
 		Files.writeString( tempFile, content );
 

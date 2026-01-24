@@ -91,10 +91,10 @@ public class FunctionCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 30, 8 ) ); // Inside testFunctionCalls()
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items		= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Find setName function and verify it has a signature
-		CompletionItem setNameItem = findItem( items, "setName" );
+		CompletionItem			setNameItem	= findItem( items, "setName" );
 		assertThat( setNameItem ).isNotNull();
 		assertThat( setNameItem.getDetail() ).isNotNull();
 		assertThat( setNameItem.getDetail() ).contains( "setName" );
@@ -109,10 +109,10 @@ public class FunctionCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 30, 8 ) ); // Inside testFunctionCalls()
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items		= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Find getName which has a string return type
-		CompletionItem getNameItem = findItem( items, "getName" );
+		CompletionItem			getNameItem	= findItem( items, "getName" );
 		assertThat( getNameItem ).isNotNull();
 		assertThat( getNameItem.getDetail() ).isNotNull();
 		assertThat( getNameItem.getDetail() ).contains( "string" );
@@ -126,10 +126,10 @@ public class FunctionCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 30, 8 ) ); // Inside testFunctionCalls()
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items		= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Verify UDFs have snippet insert text
-		CompletionItem setNameItem = findItem( items, "setName" );
+		CompletionItem			setNameItem	= findItem( items, "setName" );
 		assertThat( setNameItem ).isNotNull();
 		assertThat( setNameItem.getInsertText() ).contains( "setName" );
 		assertThat( setNameItem.getInsertText() ).contains( "(" );
@@ -144,10 +144,10 @@ public class FunctionCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 30, 8 ) ); // Inside testFunctionCalls()
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items	= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Verify BIFs have signatures
-		CompletionItem lenItem = findItem( items, "len" );
+		CompletionItem			lenItem	= findItem( items, "len" );
 		assertThat( lenItem ).isNotNull();
 		assertThat( lenItem.getDetail() ).isNotNull();
 		assertThat( lenItem.getDetail().toLowerCase() ).contains( "len" );
@@ -162,11 +162,11 @@ public class FunctionCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 30, 8 ) ); // Inside testFunctionCalls()
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items		= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Verify sort order
-		CompletionItem setNameItem = findItem( items, "setName" );
-		CompletionItem lenItem = findItem( items, "len" );
+		CompletionItem			setNameItem	= findItem( items, "setName" );
+		CompletionItem			lenItem		= findItem( items, "len" );
 
 		assertThat( setNameItem ).isNotNull();
 		assertThat( lenItem ).isNotNull();

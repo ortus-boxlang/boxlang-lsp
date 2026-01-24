@@ -56,7 +56,7 @@ public class ImportPathCompletionDebugTest extends BaseTest {
 
 	@Test
 	void debugIndexContents() throws Exception {
-		ProjectIndex			index	= pcp.getIndex();
+		ProjectIndex index = pcp.getIndex();
 
 		System.out.println( "============ DEBUG: Index Contents ============" );
 		System.out.println( "Workspace root: " + index.getWorkspaceRoot() );

@@ -47,10 +47,10 @@ public class ClassAndTypeCompletionRule implements IRule<CompletionFacts, List<C
 	 * Check if cursor is inside an extends="..." attribute.
 	 */
 	private boolean isInExtendsAttribute( CompletionFacts facts ) {
-		int		line		= facts.completionParams().getPosition().getLine();
-		String	lineText	= facts.fileParseResult().readLine( line );
-		int		col			= facts.completionParams().getPosition().getCharacter();
-		String	beforeCursor = lineText.substring( 0, Math.min( col, lineText.length() ) );
+		int		line			= facts.completionParams().getPosition().getLine();
+		String	lineText		= facts.fileParseResult().readLine( line );
+		int		col				= facts.completionParams().getPosition().getCharacter();
+		String	beforeCursor	= lineText.substring( 0, Math.min( col, lineText.length() ) );
 
 		// Check if we're inside extends="..."
 		// Pattern: extends="partial or extends=" or class extends="
@@ -61,10 +61,10 @@ public class ClassAndTypeCompletionRule implements IRule<CompletionFacts, List<C
 	 * Check if cursor is inside an implements="..." attribute.
 	 */
 	private boolean isInImplementsAttribute( CompletionFacts facts ) {
-		int		line		= facts.completionParams().getPosition().getLine();
-		String	lineText	= facts.fileParseResult().readLine( line );
-		int		col			= facts.completionParams().getPosition().getCharacter();
-		String	beforeCursor = lineText.substring( 0, Math.min( col, lineText.length() ) );
+		int		line			= facts.completionParams().getPosition().getLine();
+		String	lineText		= facts.fileParseResult().readLine( line );
+		int		col				= facts.completionParams().getPosition().getCharacter();
+		String	beforeCursor	= lineText.substring( 0, Math.min( col, lineText.length() ) );
 
 		// Check if we're inside implements="..."
 		// Pattern: implements="partial or implements=" or class implements="
@@ -82,16 +82,17 @@ public class ClassAndTypeCompletionRule implements IRule<CompletionFacts, List<C
 
 		// Determine if we should filter for interfaces or classes
 		boolean				onlyInterfaces	= ContextChecker.isImplementsExpression( facts ) || isInImplementsAttribute( facts );
-		boolean				onlyClasses		= ContextChecker.isNewExpression( facts ) || ContextChecker.isExtendsExpression( facts ) || isInExtendsAttribute( facts );
+		boolean				onlyClasses		= ContextChecker.isNewExpression( facts ) || ContextChecker.isExtendsExpression( facts )
+		    || isInExtendsAttribute( facts );
 
 		// Filter based on context and prefix
-		List<IndexedClass> filteredClasses = allClasses.stream()
+		List<IndexedClass>	filteredClasses	= allClasses.stream()
 		    .filter( cls -> matchesContextRequirements( cls, onlyInterfaces, onlyClasses ) )
 		    .filter( cls -> matchesPrefix( cls, prefix ) )
 		    .collect( Collectors.toList() );
 
 		// Get currently imported classes to check if auto-import is needed
-		List<String> currentImports = getImportedClasses( facts );
+		List<String>		currentImports	= getImportedClasses( facts );
 
 		// Convert to completion items
 		for ( IndexedClass indexedClass : filteredClasses ) {
@@ -151,8 +152,8 @@ public class ClassAndTypeCompletionRule implements IRule<CompletionFacts, List<C
 		item.setDetail( indexedClass.fullyQualifiedName() );
 
 		// Add label details showing the package/file location
-		CompletionItemLabelDetails labelDetails = new CompletionItemLabelDetails();
-		String packagePath = getPackagePathFromFQN( indexedClass.fullyQualifiedName() );
+		CompletionItemLabelDetails	labelDetails	= new CompletionItemLabelDetails();
+		String						packagePath		= getPackagePathFromFQN( indexedClass.fullyQualifiedName() );
 		if ( packagePath != null && !packagePath.isEmpty() ) {
 			labelDetails.setDescription( packagePath );
 		}
@@ -199,10 +200,10 @@ public class ClassAndTypeCompletionRule implements IRule<CompletionFacts, List<C
 	 * - Then alphabetically by name
 	 */
 	private String calculateSortText( IndexedClass indexedClass, CompletionFacts facts ) {
-		String currentFilePackage = getCurrentFilePackage( facts );
-		String classPackage = getPackagePathFromFQN( indexedClass.fullyQualifiedName() );
+		String	currentFilePackage	= getCurrentFilePackage( facts );
+		String	classPackage		= getPackagePathFromFQN( indexedClass.fullyQualifiedName() );
 
-		String priority;
+		String	priority;
 		if ( classPackage.equals( currentFilePackage ) ) {
 			priority = "0"; // Same package
 		} else if ( classPackage.isEmpty() ) {
@@ -219,9 +220,9 @@ public class ClassAndTypeCompletionRule implements IRule<CompletionFacts, List<C
 	 */
 	private String getCurrentFilePackage( CompletionFacts facts ) {
 		try {
-			URI		fileUri		= URI.create( facts.fileParseResult().getURI().toString() );
-			Path	filePath	= Paths.get( fileUri );
-			Path	workspaceRoot = ProjectContextProvider.getInstance().getIndex().getWorkspaceRoot();
+			URI		fileUri			= URI.create( facts.fileParseResult().getURI().toString() );
+			Path	filePath		= Paths.get( fileUri );
+			Path	workspaceRoot	= ProjectContextProvider.getInstance().getIndex().getWorkspaceRoot();
 
 			if ( workspaceRoot != null && filePath.startsWith( workspaceRoot ) ) {
 				Path	relativePath	= workspaceRoot.relativize( filePath );
@@ -270,8 +271,8 @@ public class ClassAndTypeCompletionRule implements IRule<CompletionFacts, List<C
 		}
 
 		// Also check if it's in the same package (no import needed)
-		String currentPackage = getCurrentFilePackage( facts );
-		String classPackage = getPackagePathFromFQN( indexedClass.fullyQualifiedName() );
+		String	currentPackage	= getCurrentFilePackage( facts );
+		String	classPackage	= getPackagePathFromFQN( indexedClass.fullyQualifiedName() );
 
 		return currentPackage.equals( classPackage );
 	}
@@ -286,10 +287,10 @@ public class ClassAndTypeCompletionRule implements IRule<CompletionFacts, List<C
 
 		if ( importPosition != null ) {
 			// Create the import statement
-			String importStatement = "import " + indexedClass.fullyQualifiedName() + ";\n";
+			String		importStatement	= "import " + indexedClass.fullyQualifiedName() + ";\n";
 
 			// Create a text edit to insert the import
-			TextEdit importEdit = new TextEdit();
+			TextEdit	importEdit		= new TextEdit();
 			importEdit.setRange( new Range( importPosition, importPosition ) );
 			importEdit.setNewText( importStatement );
 
@@ -318,7 +319,7 @@ public class ClassAndTypeCompletionRule implements IRule<CompletionFacts, List<C
 				// No imports yet - insert at the beginning
 				// Check if there's a class declaration and insert before it
 				if ( root.getChildren() != null && !root.getChildren().isEmpty() ) {
-					BoxNode firstNode = root.getChildren().get( 0 );
+					BoxNode	firstNode	= root.getChildren().get( 0 );
 					int		line		= Math.max( 0, firstNode.getPosition().getStart().getLine() - 1 );
 					position[ 0 ] = new Position( line, 0 );
 				}

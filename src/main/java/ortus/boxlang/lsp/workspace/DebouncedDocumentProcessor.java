@@ -18,14 +18,14 @@ import ortus.boxlang.lsp.App;
  */
 public class DebouncedDocumentProcessor {
 
-	private static final long									DEFAULT_DEBOUNCE_DELAY_MS	= 300;
+	private static final long					DEFAULT_DEBOUNCE_DELAY_MS	= 300;
 
-	private final ScheduledExecutorService						scheduler;
-	private final Map<URI, ScheduledFuture<?>>					pendingTasks;
-	private final Map<URI, Runnable>							pendingActions;
-	private final long											debounceDelayMs;
+	private final ScheduledExecutorService		scheduler;
+	private final Map<URI, ScheduledFuture<?>>	pendingTasks;
+	private final Map<URI, Runnable>			pendingActions;
+	private final long							debounceDelayMs;
 
-	private Consumer<URI>										onProcessDocument;
+	private Consumer<URI>						onProcessDocument;
 
 	public DebouncedDocumentProcessor() {
 		this( DEFAULT_DEBOUNCE_DELAY_MS );
@@ -67,7 +67,7 @@ public class DebouncedDocumentProcessor {
 	 * If a previous processing is already scheduled, it is cancelled
 	 * and a new one is scheduled.
 	 *
-	 * @param uri The document URI to process
+	 * @param uri          The document URI to process
 	 * @param customAction Optional custom action to run instead of default callback
 	 */
 	public void scheduleProcessing( URI uri, Runnable customAction ) {
@@ -141,6 +141,7 @@ public class DebouncedDocumentProcessor {
 	 * Checks if a document has pending processing.
 	 *
 	 * @param uri The document URI
+	 * 
 	 * @return true if processing is pending
 	 */
 	public boolean hasPendingProcessing( URI uri ) {

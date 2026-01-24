@@ -22,19 +22,21 @@ public class CompletionContext {
 
 	// Patterns for detecting context from text
 	// Note: \s* used (not \s+) to match even when cursor is immediately after keyword
-	private static final Pattern	NEW_PATTERN			= Pattern.compile( "\\bnew\\s*(\\w[\\w\\d\\$\\-_\\.]*)?$", Pattern.CASE_INSENSITIVE );
-	private static final Pattern	IMPORT_PATTERN		= Pattern.compile( "^\\s*import\\s*(\\w[\\w\\d\\$\\-_\\.]*)?$", Pattern.CASE_INSENSITIVE );
-	private static final Pattern	EXTENDS_PATTERN		= Pattern.compile( "\\bextends\\s*(\\w[\\w\\d\\$\\-_\\.]*)?$", Pattern.CASE_INSENSITIVE );
-	private static final Pattern	IMPLEMENTS_PATTERN	= Pattern.compile( "\\bimplements\\s*(\\w[\\w\\d\\$\\-_,\\s\\.]*)?$", Pattern.CASE_INSENSITIVE );
+	private static final Pattern		NEW_PATTERN				= Pattern.compile( "\\bnew\\s*(\\w[\\w\\d\\$\\-_\\.]*)?$", Pattern.CASE_INSENSITIVE );
+	private static final Pattern		IMPORT_PATTERN			= Pattern.compile( "^\\s*import\\s*(\\w[\\w\\d\\$\\-_\\.]*)?$", Pattern.CASE_INSENSITIVE );
+	private static final Pattern		EXTENDS_PATTERN			= Pattern.compile( "\\bextends\\s*(\\w[\\w\\d\\$\\-_\\.]*)?$", Pattern.CASE_INSENSITIVE );
+	private static final Pattern		IMPLEMENTS_PATTERN		= Pattern.compile( "\\bimplements\\s*(\\w[\\w\\d\\$\\-_,\\s\\.]*)?$",
+	    Pattern.CASE_INSENSITIVE );
 	// Member access matches: identifier., identifier.partial, expr().partial, etc.
 	// The receiver group captures what's before the last dot (simplified - may include parens)
-	private static final Pattern	MEMBER_ACCESS_PATTERN = Pattern.compile( "([\\w\\d\\$_\\)\\]]+)\\s*\\.\\s*(\\w[\\w\\d\\$_]*)?$" );
-	private static final Pattern	BXM_TAG_PATTERN		= Pattern.compile( "<bx:(\\w*)$", Pattern.CASE_INSENSITIVE );
+	private static final Pattern		MEMBER_ACCESS_PATTERN	= Pattern.compile( "([\\w\\d\\$_\\)\\]]+)\\s*\\.\\s*(\\w[\\w\\d\\$_]*)?$" );
+	private static final Pattern		BXM_TAG_PATTERN			= Pattern.compile( "<bx:(\\w*)$", Pattern.CASE_INSENSITIVE );
 	// Pattern for BXM tag attributes: <bx:tagname followed by space and optional partial attribute name
 	// Captures: group(1) = tag name, group(2) = partial attribute name (if any)
-	private static final Pattern	BXM_TAG_ATTR_PATTERN	= Pattern.compile( "<bx:(\\w+)\\s+(?:[\\w\\-]+=[\"'][^\"']*[\"']\\s+)*([\\w\\-]*)$", Pattern.CASE_INSENSITIVE );
-	private static final Pattern	TEMPLATE_EXPR_PATTERN = Pattern.compile( "#(\\w*)$" );
-	private static final Pattern	IDENTIFIER_PATTERN	= Pattern.compile( "(\\w+)$" );
+	private static final Pattern		BXM_TAG_ATTR_PATTERN	= Pattern.compile( "<bx:(\\w+)\\s+(?:[\\w\\-]+=[\"'][^\"']*[\"']\\s+)*([\\w\\-]*)$",
+	    Pattern.CASE_INSENSITIVE );
+	private static final Pattern		TEMPLATE_EXPR_PATTERN	= Pattern.compile( "#(\\w*)$" );
+	private static final Pattern		IDENTIFIER_PATTERN		= Pattern.compile( "(\\w+)$" );
 
 	// Instance fields
 	private final CompletionContextKind	kind;
@@ -72,19 +74,19 @@ public class CompletionContext {
 	 * Analyze the file and cursor position to determine the completion context.
 	 *
 	 * @param fileParseResult The parsed file
-	 * @param params		  The completion parameters from the client
+	 * @param params          The completion parameters from the client
 	 *
 	 * @return A CompletionContext describing the current context
 	 */
 	public static CompletionContext analyze( FileParseResult fileParseResult, CompletionParams params ) {
-		Position	cursorPosition	= params.getPosition();
-		String		lineText		= fileParseResult.readLine( cursorPosition.getLine() );
-		int			cursorCol		= cursorPosition.getCharacter();
-		String		textBeforeCursor = lineText.substring( 0, Math.min( cursorCol, lineText.length() ) );
+		Position	cursorPosition			= params.getPosition();
+		String		lineText				= fileParseResult.readLine( cursorPosition.getLine() );
+		int			cursorCol				= cursorPosition.getCharacter();
+		String		textBeforeCursor		= lineText.substring( 0, Math.min( cursorCol, lineText.length() ) );
 
 		// Find containing method and class from AST
-		String	containingMethodName	= findContainingMethodName( fileParseResult, cursorPosition );
-		String	containingClassName		= findContainingClassName( fileParseResult, cursorPosition );
+		String		containingMethodName	= findContainingMethodName( fileParseResult, cursorPosition );
+		String		containingClassName		= findContainingClassName( fileParseResult, cursorPosition );
 
 		// Check if we're in a context where completion shouldn't be offered
 		if ( isInsideStringLiteral( textBeforeCursor ) || isInsideComment( lineText, cursorCol ) ) {
@@ -105,8 +107,8 @@ public class CompletionContext {
 			// Check for BXM tag attributes first (more specific than BXM tag)
 			Matcher bxmTagAttrMatcher = BXM_TAG_ATTR_PATTERN.matcher( textBeforeCursor );
 			if ( bxmTagAttrMatcher.find() ) {
-				String tagName = bxmTagAttrMatcher.group( 1 );
-				String partialAttr = bxmTagAttrMatcher.group( 2 ) != null ? bxmTagAttrMatcher.group( 2 ) : "";
+				String	tagName		= bxmTagAttrMatcher.group( 1 );
+				String	partialAttr	= bxmTagAttrMatcher.group( 2 ) != null ? bxmTagAttrMatcher.group( 2 ) : "";
 				return new CompletionContext(
 				    CompletionContextKind.BXM_TAG_ATTRIBUTE,
 				    partialAttr,
@@ -198,9 +200,9 @@ public class CompletionContext {
 		// Check for implements keyword
 		Matcher implementsMatcher = IMPLEMENTS_PATTERN.matcher( textBeforeCursor );
 		if ( implementsMatcher.find() ) {
-			String group = implementsMatcher.group( 1 );
+			String	group		= implementsMatcher.group( 1 );
 			// Get the last interface being typed (after the last comma if any)
-			String triggerText = "";
+			String	triggerText	= "";
 			if ( group != null ) {
 				String[] parts = group.split( "," );
 				triggerText = parts[ parts.length - 1 ].trim();
@@ -236,12 +238,12 @@ public class CompletionContext {
 		int argumentIndex = calculateArgumentIndex( textBeforeCursor );
 		if ( argumentIndex >= 0 ) {
 			// Extract any partial text after the last comma or opening paren
-			String	triggerText		= "";
-			Matcher	identifierMatcher = IDENTIFIER_PATTERN.matcher( textBeforeCursor );
+			String	triggerText			= "";
+			Matcher	identifierMatcher	= IDENTIFIER_PATTERN.matcher( textBeforeCursor );
 			if ( identifierMatcher.find() ) {
 				// Make sure this identifier is after the function call start
-				int identEnd = identifierMatcher.end();
-				int lastParenOrComma = Math.max( textBeforeCursor.lastIndexOf( '(' ), textBeforeCursor.lastIndexOf( ',' ) );
+				int	identEnd			= identifierMatcher.end();
+				int	lastParenOrComma	= Math.max( textBeforeCursor.lastIndexOf( '(' ), textBeforeCursor.lastIndexOf( ',' ) );
 				if ( identEnd > lastParenOrComma ) {
 					triggerText = identifierMatcher.group( 1 );
 				}
@@ -260,8 +262,8 @@ public class CompletionContext {
 		}
 
 		// Default: general identifier context
-		String	triggerText		= "";
-		Matcher	identifierMatcher = IDENTIFIER_PATTERN.matcher( textBeforeCursor );
+		String	triggerText			= "";
+		Matcher	identifierMatcher	= IDENTIFIER_PATTERN.matcher( textBeforeCursor );
 		if ( identifierMatcher.find() ) {
 			triggerText = identifierMatcher.group( 1 );
 		}
@@ -283,15 +285,15 @@ public class CompletionContext {
 	 * Returns -1 if not inside a function call.
 	 */
 	private static int calculateArgumentIndex( String textBeforeCursor ) {
-		int parenDepth = 0;
-		int bracketDepth = 0;
-		int braceDepth = 0;
-		int argumentIndex = 0;
-		boolean inString = false;
-		char stringChar = 0;
+		int		parenDepth		= 0;
+		int		bracketDepth	= 0;
+		int		braceDepth		= 0;
+		int		argumentIndex	= 0;
+		boolean	inString		= false;
+		char	stringChar		= 0;
 
 		// Find the opening paren of the current function call
-		int funcCallStart = -1;
+		int		funcCallStart	= -1;
 		for ( int i = textBeforeCursor.length() - 1; i >= 0; i-- ) {
 			char c = textBeforeCursor.charAt( i );
 
@@ -340,7 +342,7 @@ public class CompletionContext {
 		}
 
 		// Count commas to determine argument index
-		String	argsText	= textBeforeCursor.substring( funcCallStart + 1 );
+		String argsText = textBeforeCursor.substring( funcCallStart + 1 );
 		inString		= false;
 		parenDepth		= 0;
 		bracketDepth	= 0;
@@ -429,10 +431,10 @@ public class CompletionContext {
 	 * The class name is typically derived from the filename.
 	 */
 	private static String getClassNameFromFile( FileParseResult fileParseResult ) {
-		String uriString = fileParseResult.getURI().toString();
-		int lastSlash = uriString.lastIndexOf( '/' );
-		String filename = lastSlash >= 0 ? uriString.substring( lastSlash + 1 ) : uriString;
-		int dotIndex = filename.lastIndexOf( '.' );
+		String	uriString	= fileParseResult.getURI().toString();
+		int		lastSlash	= uriString.lastIndexOf( '/' );
+		String	filename	= lastSlash >= 0 ? uriString.substring( lastSlash + 1 ) : uriString;
+		int		dotIndex	= filename.lastIndexOf( '.' );
 		return dotIndex > 0 ? filename.substring( 0, dotIndex ) : filename;
 	}
 

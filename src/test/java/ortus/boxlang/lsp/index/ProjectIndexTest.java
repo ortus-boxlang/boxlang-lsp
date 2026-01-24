@@ -27,7 +27,7 @@ import ortus.boxlang.runtime.BoxRuntime;
 class ProjectIndexTest extends BaseTest {
 
 	@TempDir
-	Path				tempDir;
+	Path					tempDir;
 
 	private ProjectIndex	index;
 
@@ -46,17 +46,17 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testIndexSimpleClass() throws Exception {
-		String classCode = """
-		                   class {
-		                       property name="firstName" type="string";
+		String	classCode	= """
+		                      class {
+		                          property name="firstName" type="string";
 
-		                       public function getName() {
-		                           return variables.firstName;
-		                       }
-		                   }
-		                   """;
+		                          public function getName() {
+		                              return variables.firstName;
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "User.bx", classCode );
+		Path	testFile	= createTestFile( "User.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		// Verify class was indexed
@@ -81,13 +81,13 @@ class ProjectIndexTest extends BaseTest {
 		Path modelsDir = tempDir.resolve( "models" );
 		Files.createDirectories( modelsDir );
 
-		String classCode = """
-		                   class {
-		                       function init() { return this; }
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function init() { return this; }
+		                      }
+		                      """;
 
-		Path testFile = modelsDir.resolve( "User.bx" );
+		Path	testFile	= modelsDir.resolve( "User.bx" );
 		Files.writeString( testFile, classCode );
 		index.indexFile( testFile.toUri() );
 
@@ -104,28 +104,28 @@ class ProjectIndexTest extends BaseTest {
 	@Test
 	void testFindAllClassesByName() throws Exception {
 		// Create two classes with similar names in different locations
-		Path modelsDir = tempDir.resolve( "models" );
-		Path servicesDir = tempDir.resolve( "services" );
+		Path	modelsDir	= tempDir.resolve( "models" );
+		Path	servicesDir	= tempDir.resolve( "services" );
 		Files.createDirectories( modelsDir );
 		Files.createDirectories( servicesDir );
 
-		String classCode = """
-		                   class {
-		                       function init() { return this; }
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function init() { return this; }
+		                      }
+		                      """;
 
-		Path modelUser = modelsDir.resolve( "User.bx" );
+		Path	modelUser	= modelsDir.resolve( "User.bx" );
 		Files.writeString( modelUser, classCode );
 		index.indexFile( modelUser.toUri() );
 
 		// Different class but same search matches
-		String serviceCode = """
-		                     class {
-		                         function getUser() { return null; }
-		                     }
-		                     """;
-		Path userService = servicesDir.resolve( "UserService.bx" );
+		String	serviceCode	= """
+		                      class {
+		                          function getUser() { return null; }
+		                      }
+		                      """;
+		Path	userService	= servicesDir.resolve( "UserService.bx" );
 		Files.writeString( userService, serviceCode );
 		index.indexFile( userService.toUri() );
 
@@ -139,12 +139,12 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testRemoveFile() throws Exception {
-		String classCode = """
-		                   class {
-		                       property name="data";
-		                       function getData() { return variables.data; }
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          property name="data";
+		                          function getData() { return variables.data; }
+		                      }
+		                      """;
 
 		Path	testFile	= createTestFile( "TempClass.bx", classCode );
 		URI		fileUri		= testFile.toUri();
@@ -165,11 +165,11 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testReindexFile() throws Exception {
-		String classCode = """
-		                   class {
-		                       function oldMethod() {}
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function oldMethod() {}
+		                      }
+		                      """;
 
 		Path	testFile	= createTestFile( "ChangingClass.bx", classCode );
 		URI		fileUri		= testFile.toUri();
@@ -196,16 +196,16 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testSearchSymbols() throws Exception {
-		String classCode = """
-		                   class {
-		                       property name="userName";
-		                       property name="userEmail";
-		                       function getUserName() { return variables.userName; }
-		                       function getEmail() { return variables.userEmail; }
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          property name="userName";
+		                          property name="userEmail";
+		                          function getUserName() { return variables.userName; }
+		                          function getEmail() { return variables.userEmail; }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "SearchTest.bx", classCode );
+		Path	testFile	= createTestFile( "SearchTest.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		// Search for "user" should find class, properties, and methods containing "user"
@@ -219,8 +219,8 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testGetAllClasses() throws Exception {
-		String classCode1 = "class { }";
-		String classCode2 = "class { }";
+		String	classCode1	= "class { }";
+		String	classCode2	= "class { }";
 
 		createTestFile( "Class1.bx", classCode1 );
 		createTestFile( "Class2.bx", classCode2 );
@@ -234,15 +234,15 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testGetAllMethods() throws Exception {
-		String classCode = """
-		                   class {
-		                       function method1() {}
-		                       function method2() {}
-		                       function method3() {}
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function method1() {}
+		                          function method2() {}
+		                          function method3() {}
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "MethodTest.bx", classCode );
+		Path	testFile	= createTestFile( "MethodTest.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<IndexedMethod> allMethods = index.getAllMethods();
@@ -251,14 +251,14 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testGetAllProperties() throws Exception {
-		String classCode = """
-		                   class {
-		                       property name="prop1";
-		                       property name="prop2";
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          property name="prop1";
+		                          property name="prop2";
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "PropertyTest.bx", classCode );
+		Path	testFile	= createTestFile( "PropertyTest.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<IndexedProperty> allProperties = index.getAllProperties();
@@ -267,15 +267,15 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testFindPropertiesOfClass() throws Exception {
-		String classCode = """
-		                   class {
-		                       property name="firstName" type="string";
-		                       property name="lastName" type="string";
-		                       property name="age" type="numeric";
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          property name="firstName" type="string";
+		                          property name="lastName" type="string";
+		                          property name="age" type="numeric";
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "Person.bx", classCode );
+		Path	testFile	= createTestFile( "Person.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<IndexedProperty> properties = index.findPropertiesOfClass( "Person" );
@@ -288,13 +288,13 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testFindMethodInClass() throws Exception {
-		String classCode = """
-		                   class {
-		                       function specificMethod() {}
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function specificMethod() {}
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "MethodClass.bx", classCode );
+		Path	testFile	= createTestFile( "MethodClass.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		Optional<IndexedMethod> method = index.findMethod( "MethodClass", "specificMethod" );
@@ -304,14 +304,14 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testClear() throws Exception {
-		String classCode = """
-		                   class {
-		                       property name="data";
-		                       function getData() {}
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          property name="data";
+		                          function getData() {}
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "ClearTest.bx", classCode );
+		Path	testFile	= createTestFile( "ClearTest.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		// Verify indexed
@@ -342,13 +342,13 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testCaseInsensitiveSearch() throws Exception {
-		String classCode = """
-		                   class {
-		                       function MyMethod() {}
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function MyMethod() {}
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "CaseTest.bx", classCode );
+		Path	testFile	= createTestFile( "CaseTest.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		// Search should be case-insensitive
@@ -378,14 +378,14 @@ class ProjectIndexTest extends BaseTest {
 	@Test
 	void testCachePersistence() throws Exception {
 		// Create and index a file
-		String classCode = """
-		                   class {
-		                       property name="cached" type="string";
-		                       function getCached() { return variables.cached; }
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          property name="cached" type="string";
+		                          function getCached() { return variables.cached; }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "CacheTest.bx", classCode );
+		Path	testFile	= createTestFile( "CacheTest.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		// Verify it's indexed
@@ -410,13 +410,13 @@ class ProjectIndexTest extends BaseTest {
 	@Test
 	void testCacheFreshnessValidation() throws Exception {
 		// Create and index a file
-		String classCode = """
-		                   class {
-		                       function oldMethod() {}
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function oldMethod() {}
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "FreshnessTest.bx", classCode );
+		Path	testFile	= createTestFile( "FreshnessTest.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		// Save cache
@@ -447,8 +447,8 @@ class ProjectIndexTest extends BaseTest {
 	@Test
 	void testCacheHandlesDeletedFiles() throws Exception {
 		// Create and index a file
-		String classCode = "class { }";
-		Path testFile = createTestFile( "DeletedFile.bx", classCode );
+		String	classCode	= "class { }";
+		Path	testFile	= createTestFile( "DeletedFile.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		// Save cache
@@ -471,8 +471,8 @@ class ProjectIndexTest extends BaseTest {
 	@Test
 	void testCacheCorruptionHandling() throws Exception {
 		// Create and index a file
-		String classCode = "class { }";
-		Path testFile = createTestFile( "CorruptionTest.bx", classCode );
+		String	classCode	= "class { }";
+		Path	testFile	= createTestFile( "CorruptionTest.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		// Save cache
@@ -508,13 +508,13 @@ class ProjectIndexTest extends BaseTest {
 	@Test
 	void testCacheWithMultipleFiles() throws Exception {
 		// Create and index multiple files
-		String class1 = "class { function method1() {} }";
-		String class2 = "class { function method2() {} }";
-		String class3 = "class { function method3() {} }";
+		String	class1	= "class { function method1() {} }";
+		String	class2	= "class { function method2() {} }";
+		String	class3	= "class { function method3() {} }";
 
-		Path file1 = createTestFile( "Multi1.bx", class1 );
-		Path file2 = createTestFile( "Multi2.bx", class2 );
-		Path file3 = createTestFile( "Multi3.bx", class3 );
+		Path	file1	= createTestFile( "Multi1.bx", class1 );
+		Path	file2	= createTestFile( "Multi2.bx", class2 );
+		Path	file3	= createTestFile( "Multi3.bx", class3 );
 
 		index.indexFile( file1.toUri() );
 		index.indexFile( file2.toUri() );
@@ -552,17 +552,17 @@ class ProjectIndexTest extends BaseTest {
 	@Test
 	void testFindFunction() throws Exception {
 		// Create a .bxs script file with a standalone function (no class)
-		String scriptCode = """
-		                    function greet( name ) {
-		                        return "Hello, " & name;
-		                    }
+		String	scriptCode	= """
+		                      function greet( name ) {
+		                          return "Hello, " & name;
+		                      }
 
-		                    function farewell( name ) {
-		                        return "Goodbye, " & name;
-		                    }
-		                    """;
+		                      function farewell( name ) {
+		                          return "Goodbye, " & name;
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "utilities.bxs", scriptCode );
+		Path	testFile	= createTestFile( "utilities.bxs", scriptCode );
 		index.indexFile( testFile.toUri() );
 
 		// Find the standalone function
@@ -579,13 +579,13 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testFindFunctionCaseInsensitive() throws Exception {
-		String scriptCode = """
-		                    function MyFunction() {
-		                        return true;
-		                    }
-		                    """;
+		String	scriptCode	= """
+		                      function MyFunction() {
+		                          return true;
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "test.bxs", scriptCode );
+		Path	testFile	= createTestFile( "test.bxs", scriptCode );
 		index.indexFile( testFile.toUri() );
 
 		// Case insensitive search
@@ -597,13 +597,13 @@ class ProjectIndexTest extends BaseTest {
 	@Test
 	void testFindFunctionDoesNotFindClassMethods() throws Exception {
 		// Create a class with a method
-		String classCode = """
-		                   class {
-		                       function classMethod() {}
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function classMethod() {}
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "MyClass.bx", classCode );
+		Path	testFile	= createTestFile( "MyClass.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		// findFunction should NOT find class methods (only standalone functions)
@@ -617,13 +617,13 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testFindFunctionsInFile() throws Exception {
-		String scriptCode = """
-		                    function func1() {}
-		                    function func2() {}
-		                    function func3() {}
-		                    """;
+		String	scriptCode	= """
+		                      function func1() {}
+		                      function func2() {}
+		                      function func3() {}
+		                      """;
 
-		Path testFile = createTestFile( "multi_func.bxs", scriptCode );
+		Path	testFile	= createTestFile( "multi_func.bxs", scriptCode );
 		index.indexFile( testFile.toUri() );
 
 		List<IndexedMethod> functions = index.findFunctionsInFile( testFile.toUri().toString() );
@@ -638,14 +638,14 @@ class ProjectIndexTest extends BaseTest {
 	@Test
 	void testFindFunctionsInFileExcludesClassMethods() throws Exception {
 		// Create a class file with methods
-		String classCode = """
-		                   class {
-		                       function method1() {}
-		                       function method2() {}
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function method1() {}
+		                          function method2() {}
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "ClassFile.bx", classCode );
+		Path	testFile	= createTestFile( "ClassFile.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		// findFunctionsInFile should return empty for class files (only returns standalone functions)
@@ -660,25 +660,25 @@ class ProjectIndexTest extends BaseTest {
 		inheritanceGraph.addClassRelationship( "ChildClass", "ParentClass", List.of() );
 
 		// Create parent class with a method
-		String parentCode = """
-		                    class {
-		                        function baseMethod() {
-		                            return "parent";
-		                        }
-		                    }
-		                    """;
-		Path parentFile = createTestFile( "ParentClass.bx", parentCode );
+		String	parentCode	= """
+		                      class {
+		                          function baseMethod() {
+		                              return "parent";
+		                          }
+		                      }
+		                      """;
+		Path	parentFile	= createTestFile( "ParentClass.bx", parentCode );
 		index.indexFile( parentFile.toUri() );
 
 		// Create child class that overrides the method
-		String childCode = """
-		                   class {
-		                       function baseMethod() {
-		                           return "child";
-		                       }
-		                   }
-		                   """;
-		Path childFile = createTestFile( "ChildClass.bx", childCode );
+		String	childCode	= """
+		                      class {
+		                          function baseMethod() {
+		                              return "child";
+		                          }
+		                      }
+		                      """;
+		Path	childFile	= createTestFile( "ChildClass.bx", childCode );
 		index.indexFile( childFile.toUri() );
 
 		// Find overrides of baseMethod in ParentClass
@@ -695,9 +695,9 @@ class ProjectIndexTest extends BaseTest {
 		inheritanceGraph.addClassRelationship( "GrandChild", "Child", List.of() );
 
 		// Create all three classes with the same method
-		Path parentFile = createTestFile( "Parent.bx", "class { function myMethod() {} }" );
-		Path childFile = createTestFile( "Child.bx", "class { function myMethod() {} }" );
-		Path grandChildFile = createTestFile( "GrandChild.bx", "class { function myMethod() {} }" );
+		Path	parentFile		= createTestFile( "Parent.bx", "class { function myMethod() {} }" );
+		Path	childFile		= createTestFile( "Child.bx", "class { function myMethod() {} }" );
+		Path	grandChildFile	= createTestFile( "GrandChild.bx", "class { function myMethod() {} }" );
 
 		index.indexFile( parentFile.toUri() );
 		index.indexFile( childFile.toUri() );
@@ -715,8 +715,8 @@ class ProjectIndexTest extends BaseTest {
 	@Test
 	void testFindOverridesNoOverrides() throws Exception {
 		// Create a class with a method that has no overrides
-		String classCode = "class { function uniqueMethod() {} }";
-		Path testFile = createTestFile( "UniqueClass.bx", classCode );
+		String	classCode	= "class { function uniqueMethod() {} }";
+		Path	testFile	= createTestFile( "UniqueClass.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<IndexedMethod> overrides = index.findOverrides( "UniqueClass", "uniqueMethod" );
@@ -726,14 +726,14 @@ class ProjectIndexTest extends BaseTest {
 	@Test
 	void testGetAllFunctions() throws Exception {
 		// Create both class methods and standalone functions
-		String classCode = "class { function classMethod() {} }";
-		String scriptCode = """
-		                    function standaloneFunc1() {}
-		                    function standaloneFunc2() {}
-		                    """;
+		String	classCode	= "class { function classMethod() {} }";
+		String	scriptCode	= """
+		                      function standaloneFunc1() {}
+		                      function standaloneFunc2() {}
+		                      """;
 
-		Path classFile = createTestFile( "MyClass.bx", classCode );
-		Path scriptFile = createTestFile( "helpers.bxs", scriptCode );
+		Path	classFile	= createTestFile( "MyClass.bx", classCode );
+		Path	scriptFile	= createTestFile( "helpers.bxs", scriptCode );
 
 		index.indexFile( classFile.toUri() );
 		index.indexFile( scriptFile.toUri() );
@@ -750,15 +750,15 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testGetMethodsOfClass() throws Exception {
-		String classCode = """
-		                   class {
-		                       function method1() {}
-		                       function method2() {}
-		                       function method3() {}
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function method1() {}
+		                          function method2() {}
+		                          function method3() {}
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "MethodsClass.bx", classCode );
+		Path	testFile	= createTestFile( "MethodsClass.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<IndexedMethod> methods = index.getMethodsOfClass( "MethodsClass" );
@@ -772,8 +772,8 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testGetMethodsOfClassCaseInsensitive() throws Exception {
-		String classCode = "class { function someMethod() {} }";
-		Path testFile = createTestFile( "CasedClass.bx", classCode );
+		String	classCode	= "class { function someMethod() {} }";
+		Path	testFile	= createTestFile( "CasedClass.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		// Case insensitive lookup
@@ -784,13 +784,13 @@ class ProjectIndexTest extends BaseTest {
 
 	@Test
 	void testGetIndexedFiles() throws Exception {
-		String code1 = "class { }";
-		String code2 = "class { }";
-		String code3 = "function test() {}";
+		String	code1	= "class { }";
+		String	code2	= "class { }";
+		String	code3	= "function test() {}";
 
-		Path file1 = createTestFile( "File1.bx", code1 );
-		Path file2 = createTestFile( "File2.bx", code2 );
-		Path file3 = createTestFile( "script.bxs", code3 );
+		Path	file1	= createTestFile( "File1.bx", code1 );
+		Path	file2	= createTestFile( "File2.bx", code2 );
+		Path	file3	= createTestFile( "script.bxs", code3 );
 
 		index.indexFile( file1.toUri() );
 		index.indexFile( file2.toUri() );
@@ -809,10 +809,10 @@ class ProjectIndexTest extends BaseTest {
 		Path subDir = tempDir.resolve( "subdir" );
 		Files.createDirectories( subDir );
 
-		String code = "class { }";
-		Path file1 = createTestFile( "Root1.bx", code );
-		Path file2 = subDir.resolve( "Sub1.bx" );
-		Path file3 = subDir.resolve( "Sub2.bx" );
+		String	code	= "class { }";
+		Path	file1	= createTestFile( "Root1.bx", code );
+		Path	file2	= subDir.resolve( "Sub1.bx" );
+		Path	file3	= subDir.resolve( "Sub2.bx" );
 		Files.writeString( file2, code );
 		Files.writeString( file3, code );
 

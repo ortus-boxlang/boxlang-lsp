@@ -47,7 +47,7 @@ public class GoToImplementationTest extends BaseTest {
 		provider	= ProjectContextProvider.getInstance();
 		index		= new ProjectIndex();
 		provider.setIndex( index );
-		testDir		= Paths.get( "src/test/resources/files/goToImplementationTest" );
+		testDir = Paths.get( "src/test/resources/files/goToImplementationTest" );
 
 		// Index all test files
 		for ( Path file : Files.list( testDir ).filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
@@ -61,11 +61,11 @@ public class GoToImplementationTest extends BaseTest {
 		}
 
 		// Set up file path references
-		interfaceFileUri			= testDir.resolve( "IRepository.bx" ).toUri().toString();
-		userRepoFileUri				= testDir.resolve( "UserRepository.bx" ).toUri().toString();
-		productRepoFileUri			= testDir.resolve( "ProductRepository.bx" ).toUri().toString();
-		abstractEntityFileUri		= testDir.resolve( "AbstractEntity.bx" ).toUri().toString();
-		concreteEntityFileUri		= testDir.resolve( "ConcreteEntity.bx" ).toUri().toString();
+		interfaceFileUri				= testDir.resolve( "IRepository.bx" ).toUri().toString();
+		userRepoFileUri					= testDir.resolve( "UserRepository.bx" ).toUri().toString();
+		productRepoFileUri				= testDir.resolve( "ProductRepository.bx" ).toUri().toString();
+		abstractEntityFileUri			= testDir.resolve( "AbstractEntity.bx" ).toUri().toString();
+		concreteEntityFileUri			= testDir.resolve( "ConcreteEntity.bx" ).toUri().toString();
 		anotherConcreteEntityFileUri	= testDir.resolve( "AnotherConcreteEntity.bx" ).toUri().toString();
 	}
 

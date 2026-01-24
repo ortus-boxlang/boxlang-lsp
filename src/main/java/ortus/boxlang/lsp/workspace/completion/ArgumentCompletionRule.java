@@ -55,13 +55,13 @@ public class ArgumentCompletionRule implements IRule<CompletionFacts, List<Compl
 		int					argumentIndex	= context.getArgumentIndex();
 
 		// Find the function/method call node containing the cursor
-		BoxNode callNode = findCallNodeAtCursor( facts );
+		BoxNode				callNode		= findCallNodeAtCursor( facts );
 		if ( callNode == null ) {
 			return;
 		}
 
 		// Get parameter information based on call type
-		List<ParameterInfo>	parameters		= getParametersForCall( facts, callNode );
+		List<ParameterInfo> parameters = getParametersForCall( facts, callNode );
 		if ( parameters == null || parameters.isEmpty() ) {
 			return;
 		}
@@ -156,10 +156,10 @@ public class ArgumentCompletionRule implements IRule<CompletionFacts, List<Compl
 	 * Get parameters for a function invocation (UDF or BIF).
 	 */
 	private List<ParameterInfo> getParametersForFunctionInvocation( CompletionFacts facts, BoxFunctionInvocation fnInvocation ) {
-		String functionName = fnInvocation.getName();
+		String	functionName	= fnInvocation.getName();
 
 		// Try UDF first
-		var udfParams = facts.fileParseResult().findAstRoot()
+		var		udfParams		= facts.fileParseResult().findAstRoot()
 		    .flatMap( root -> root.getDescendantsOfType( BoxFunctionDeclaration.class,
 		        n -> n.getName().equalsIgnoreCase( functionName ) )
 		        .stream()
@@ -179,15 +179,15 @@ public class ArgumentCompletionRule implements IRule<CompletionFacts, List<Compl
 	 * Get parameters for a method invocation.
 	 */
 	private List<ParameterInfo> getParametersForMethodInvocation( CompletionFacts facts, BoxMethodInvocation methodInvocation ) {
-		String methodName = methodInvocation.getName().getSourceText();
+		String	methodName	= methodInvocation.getName().getSourceText();
 
 		// Try to resolve the receiver's type
-		BoxNode obj = methodInvocation.getObj();
+		BoxNode	obj			= methodInvocation.getObj();
 		if ( obj instanceof BoxIdentifier objIdentifier ) {
-			String varName = objIdentifier.getName();
+			String	varName			= objIdentifier.getName();
 
 			// Collect variable types
-			var typeCollector = new VariableTypeCollectorVisitor();
+			var		typeCollector	= new VariableTypeCollectorVisitor();
 			facts.fileParseResult().findAstRoot().ifPresent( root -> root.accept( typeCollector ) );
 			String className = typeCollector.getVariableType( varName );
 
@@ -303,8 +303,8 @@ public class ArgumentCompletionRule implements IRule<CompletionFacts, List<Compl
 		if ( arguments != null ) {
 			for ( BoxArgument arg : arguments ) {
 				// Named arguments can be BoxIdentifier or BoxStringLiteral
-				BoxNode nameNode = arg.getName();
-				String	argName	= null;
+				BoxNode	nameNode	= arg.getName();
+				String	argName		= null;
 
 				if ( nameNode instanceof BoxIdentifier nameId ) {
 					argName = nameId.getName();
@@ -361,18 +361,18 @@ public class ArgumentCompletionRule implements IRule<CompletionFacts, List<Compl
 		facts.fileParseResult().findAstRoot().ifPresent( root -> root.accept( scopeCollector ) );
 
 		// Find containing function
-		BoxFunctionDeclaration containingFunction = facts.fileParseResult().findAstRoot()
+		BoxFunctionDeclaration			containingFunction	= facts.fileParseResult().findAstRoot()
 		    .flatMap( root -> {
-			    int line = facts.getContext().getCursorPosition().getLine() + 1;
-			    int col = facts.getContext().getCursorPosition().getCharacter();
-			    return root.getDescendantsOfType( BoxFunctionDeclaration.class ).stream()
-			        .filter( func -> BLASTTools.containsPosition( func, line, col ) )
-			        .findFirst();
-		    } )
+																    int line = facts.getContext().getCursorPosition().getLine() + 1;
+																    int col	= facts.getContext().getCursorPosition().getCharacter();
+																    return root.getDescendantsOfType( BoxFunctionDeclaration.class ).stream()
+																        .filter( func -> BLASTTools.containsPosition( func, line, col ) )
+																        .findFirst();
+															    } )
 		    .orElse( null );
 
 		// Collect variable types
-		VariableTypeCollectorVisitor typeCollector = new VariableTypeCollectorVisitor();
+		VariableTypeCollectorVisitor	typeCollector		= new VariableTypeCollectorVisitor();
 		facts.fileParseResult().findAstRoot().ifPresent( root -> root.accept( typeCollector ) );
 
 		// Get all visible variables
@@ -440,8 +440,8 @@ public class ArgumentCompletionRule implements IRule<CompletionFacts, List<Compl
 			return false;
 		}
 
-		String vt = varType.toLowerCase();
-		String pt = paramType.toLowerCase();
+		String	vt	= varType.toLowerCase();
+		String	pt	= paramType.toLowerCase();
 
 		// Exact match
 		if ( vt.equals( pt ) ) {
@@ -471,6 +471,7 @@ public class ArgumentCompletionRule implements IRule<CompletionFacts, List<Compl
 	 * Holds parameter information.
 	 */
 	private static class ParameterInfo {
+
 		String	name;
 		String	type;
 		boolean	required;

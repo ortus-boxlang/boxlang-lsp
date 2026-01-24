@@ -34,7 +34,7 @@ public class DebugImplementationTest extends BaseTest {
 		provider	= ProjectContextProvider.getInstance();
 		index		= new ProjectIndex();
 		provider.setIndex( index );
-		testDir		= Paths.get( "src/test/resources/files/goToImplementationTest" );
+		testDir = Paths.get( "src/test/resources/files/goToImplementationTest" );
 
 		// Index all test files
 		for ( Path file : Files.list( testDir ).filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
@@ -89,8 +89,8 @@ public class DebugImplementationTest extends BaseTest {
 
 		// Check the inheritance graph directly
 		System.out.println( "Checking inheritance graph directly..." );
-		var graph = index.getInheritanceGraph();
-		var graphImplementors = graph.getImplementors( "IRepository" );
+		var	graph				= index.getInheritanceGraph();
+		var	graphImplementors	= graph.getImplementors( "IRepository" );
 		System.out.println( "Graph implementors for 'IRepository': " + graphImplementors );
 		var graphImplementorsFQN = graph.getImplementors( interfaceFQN );
 		System.out.println( "Graph implementors for FQN '" + interfaceFQN + "': " + graphImplementorsFQN );
@@ -100,11 +100,11 @@ public class DebugImplementationTest extends BaseTest {
 
 	@Test
 	void debugGoToImplementationOnInterfaceName() throws Exception {
-		String interfaceFileUri = testDir.resolve( "IRepository.bx" ).toUri().toString();
+		String					interfaceFileUri	= testDir.resolve( "IRepository.bx" ).toUri().toString();
 
 		// Line 4: interface IRepository {
 		// Trying position at 'IRepository' (0-indexed: line 3, col 10)
-		ImplementationParams params = new ImplementationParams();
+		ImplementationParams	params				= new ImplementationParams();
 		params.setTextDocument( new TextDocumentIdentifier( interfaceFileUri ) );
 		params.setPosition( new Position( 3, 10 ) );
 

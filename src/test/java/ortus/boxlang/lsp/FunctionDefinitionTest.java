@@ -34,7 +34,7 @@ public class FunctionDefinitionTest extends BaseTest {
 		provider	= ProjectContextProvider.getInstance();
 		index		= new ProjectIndex();
 		provider.setIndex( index );
-		testDir		= Paths.get( "src/test/resources/files/functionDefinitionTest" );
+		testDir = Paths.get( "src/test/resources/files/functionDefinitionTest" );
 
 		// Index all test files
 		for ( Path file : Files.list( testDir ).filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
@@ -55,12 +55,12 @@ public class FunctionDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testSameFileFunctionInvocation() throws Exception {
-		Path	testFilePath	= testDir.resolve( "ClassThatUsesService.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "ClassThatUsesService.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
 
 		// Position at 'helperFunction' in the call on line 43: var result = helperFunction( "test input" );
 		// Line 43 (0-indexed: 42), character position at 'helperFunction'
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 42, 20 ) );
 
@@ -83,12 +83,12 @@ public class FunctionDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testAnotherSameFileFunctionCall() throws Exception {
-		Path	testFilePath	= testDir.resolve( "ClassThatUsesService.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "ClassThatUsesService.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
 
 		// Position at 'helperFunction' in anotherCaller() on line 63: return helperFunction( "another test" );
 		// Line 63 (0-indexed: 62), character at 'helperFunction'
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 62, 12 ) );
 
@@ -111,14 +111,14 @@ public class FunctionDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testCrossFileMethodInvocation() throws Exception {
-		Path	testFilePath		= testDir.resolve( "ClassThatUsesService.bx" );
-		String	testFileUri			= testFilePath.toUri().toString();
-		Path	serviceFilePath		= testDir.resolve( "ServiceClass.bx" );
-		String	serviceFileUri		= serviceFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "ClassThatUsesService.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
+		Path				serviceFilePath	= testDir.resolve( "ServiceClass.bx" );
+		String				serviceFileUri	= serviceFilePath.toUri().toString();
 
 		// Position at 'getUserById' on line 14: var user = service.getUserById( 123 );
 		// Line 14 (0-indexed: 13), character at 'getUserById'
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 13, 25 ) );
 
@@ -142,14 +142,14 @@ public class FunctionDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testOverriddenMethodGoesToOverride() throws Exception {
-		Path	testFilePath	= testDir.resolve( "ClassThatUsesService.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
-		Path	childFilePath	= testDir.resolve( "ChildClass.bx" );
-		String	childFileUri	= childFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "ClassThatUsesService.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
+		Path				childFilePath	= testDir.resolve( "ChildClass.bx" );
+		String				childFileUri	= childFilePath.toUri().toString();
 
 		// Position at 'getGreeting' on line 30: var greeting = child.getGreeting();
 		// Line 30 (0-indexed: 29), character at 'getGreeting'
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 29, 24 ) );
 
@@ -173,14 +173,14 @@ public class FunctionDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testInheritedMethodGoesToParent() throws Exception {
-		Path	testFilePath	= testDir.resolve( "ClassThatUsesService.bx" );
-		String	testFileUri		= testFilePath.toUri().toString();
-		Path	baseFilePath	= testDir.resolve( "BaseClass.bx" );
-		String	baseFileUri		= baseFilePath.toUri().toString();
+		Path				testFilePath	= testDir.resolve( "ClassThatUsesService.bx" );
+		String				testFileUri		= testFilePath.toUri().toString();
+		Path				baseFilePath	= testDir.resolve( "BaseClass.bx" );
+		String				baseFileUri		= baseFilePath.toUri().toString();
 
 		// Position at 'logMessage' on line 33: var logged = child.logMessage( "test" );
 		// Line 33 (0-indexed: 32), character at 'logMessage'
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( testFileUri ) );
 		params.setPosition( new Position( 32, 22 ) );
 
@@ -203,12 +203,12 @@ public class FunctionDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testBIFReturnsNoResult() throws Exception {
-		Path	serviceFilePath	= testDir.resolve( "ServiceClass.bx" );
-		String	serviceFileUri	= serviceFilePath.toUri().toString();
+		Path				serviceFilePath	= testDir.resolve( "ServiceClass.bx" );
+		String				serviceFileUri	= serviceFilePath.toUri().toString();
 
 		// Position at 'trim' in sanitizeInput() on line 37: return trim( input );
 		// Line 37 (0-indexed: 36), character at 'trim'
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( serviceFileUri ) );
 		params.setPosition( new Position( 36, 10 ) );
 
@@ -227,12 +227,12 @@ public class FunctionDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testThisMethodInvocation() throws Exception {
-		Path	childFilePath	= testDir.resolve( "ChildClass.bx" );
-		String	childFileUri	= childFilePath.toUri().toString();
+		Path				childFilePath	= testDir.resolve( "ChildClass.bx" );
+		String				childFileUri	= childFilePath.toUri().toString();
 
 		// Position at 'getGreeting' in multiGreet() on line 26: result &= this.getGreeting() & " ";
 		// Line 26 (0-indexed: 25), character at 'getGreeting' (starts at position 14)
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params			= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( childFileUri ) );
 		params.setPosition( new Position( 25, 18 ) );
 

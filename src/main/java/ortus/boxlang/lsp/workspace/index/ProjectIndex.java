@@ -430,7 +430,7 @@ public class ProjectIndex {
 			return new ArrayList<>();
 		}
 
-		String		lowerQuery	= query.toLowerCase();
+		String			lowerQuery	= query.toLowerCase();
 		List<Object>	results		= new ArrayList<>();
 
 		// Search classes
@@ -552,8 +552,8 @@ public class ProjectIndex {
 		}
 
 		// Find methods with the same name in descendant classes
-		String lowerMethodName = methodName.toLowerCase();
-		List<IndexedMethod> overrides = new ArrayList<>();
+		String				lowerMethodName	= methodName.toLowerCase();
+		List<IndexedMethod>	overrides		= new ArrayList<>();
 
 		for ( String descendant : descendants ) {
 			// Look for methods in this descendant class that match the method name
@@ -617,8 +617,8 @@ public class ProjectIndex {
 		return fileModifiedTimes.keySet().stream()
 		    .filter( fileUri -> {
 			    try {
-				    URI uri = URI.create( fileUri );
-				    String filePath = Paths.get( uri ).toString().replace( '\\', '/' );
+				    URI	uri			= URI.create( fileUri );
+				    String filePath	= Paths.get( uri ).toString().replace( '\\', '/' );
 				    return filePath.startsWith( dirPrefix ) || filePath.contains( "/" + dirPrefix );
 			    } catch ( Exception e ) {
 				    return false;
@@ -926,10 +926,10 @@ public class ProjectIndex {
 			// Ensure parent directory exists
 			Files.createDirectories( cacheFilePath.getParent() );
 
-			JsonObject cacheObject = new JsonObject();
+			JsonObject	cacheObject		= new JsonObject();
 
 			// Save file modification times
-			JsonObject fileTimesObj = new JsonObject();
+			JsonObject	fileTimesObj	= new JsonObject();
 			for ( Map.Entry<String, Instant> entry : fileModifiedTimes.entrySet() ) {
 				fileTimesObj.addProperty( entry.getKey(), entry.getValue().toString() );
 			}

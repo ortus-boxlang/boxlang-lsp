@@ -38,7 +38,7 @@ public class InheritanceDefinitionTest extends BaseTest {
 		index		= new ProjectIndex();
 		index.initialize( Paths.get( "src/test/resources/files/inheritanceTest" ) );
 		provider.setIndex( index );
-		testDir		= Paths.get( "src/test/resources/files/inheritanceTest" );
+		testDir = Paths.get( "src/test/resources/files/inheritanceTest" );
 
 		// Index all test files
 		for ( Path file : Files.list( testDir ).filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
@@ -58,14 +58,14 @@ public class InheritanceDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testInheritedFunctionWithoutReceiver() throws Exception {
-		Path	childPath	= testDir.resolve( "Child.bx" );
-		String	childUri	= childPath.toUri().toString();
-		Path	parentPath	= testDir.resolve( "Parent.bx" );
-		String	parentUri	= parentPath.toUri().toString();
+		Path				childPath	= testDir.resolve( "Child.bx" );
+		String				childUri	= childPath.toUri().toString();
+		Path				parentPath	= testDir.resolve( "Parent.bx" );
+		String				parentUri	= parentPath.toUri().toString();
 
 		// Position at 'parentFunc' on line 8: parentFunc();
 		// Line 8 (0-indexed: 7), character at 'parentFunc'
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params		= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( childUri ) );
 		params.setPosition( new Position( 7, 5 ) );
 
@@ -88,14 +88,14 @@ public class InheritanceDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testMethodInvocationOnObject() throws Exception {
-		Path	depPath		= testDir.resolve( "ChildDependency.bx" );
-		String	depUri		= depPath.toUri().toString();
-		Path	childPath	= testDir.resolve( "Child.bx" );
-		String	childUri	= childPath.toUri().toString();
+		Path				depPath		= testDir.resolve( "ChildDependency.bx" );
+		String				depUri		= depPath.toUri().toString();
+		Path				childPath	= testDir.resolve( "Child.bx" );
+		String				childUri	= childPath.toUri().toString();
 
 		// Position at 'childFunc' on line 10: child.childFunc();
 		// Line 10 (0-indexed: 9), character at 'childFunc'
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params		= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( depUri ) );
 		params.setPosition( new Position( 9, 10 ) );
 
@@ -118,14 +118,14 @@ public class InheritanceDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testInheritedMethodInvocationOnObject() throws Exception {
-		Path	depPath		= testDir.resolve( "ChildDependency.bx" );
-		String	depUri		= depPath.toUri().toString();
-		Path	parentPath	= testDir.resolve( "Parent.bx" );
-		String	parentUri	= parentPath.toUri().toString();
+		Path				depPath		= testDir.resolve( "ChildDependency.bx" );
+		String				depUri		= depPath.toUri().toString();
+		Path				parentPath	= testDir.resolve( "Parent.bx" );
+		String				parentUri	= parentPath.toUri().toString();
 
 		// Position at 'parentFunc' on line 13: child.parentFunc();
 		// Line 13 (0-indexed: 12), character at 'parentFunc'
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params		= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( depUri ) );
 		params.setPosition( new Position( 12, 10 ) );
 
@@ -148,14 +148,14 @@ public class InheritanceDefinitionTest extends BaseTest {
 	 */
 	@Test
 	void testInheritedFunctionWithThisPrefix() throws Exception {
-		Path	childPath	= testDir.resolve( "Child.bx" );
-		String	childUri	= childPath.toUri().toString();
-		Path	parentPath	= testDir.resolve( "Parent.bx" );
-		String	parentUri	= parentPath.toUri().toString();
+		Path				childPath	= testDir.resolve( "Child.bx" );
+		String				childUri	= childPath.toUri().toString();
+		Path				parentPath	= testDir.resolve( "Parent.bx" );
+		String				parentUri	= parentPath.toUri().toString();
 
 		// Position at 'parentFunc' on line 13: this.parentFunc();
 		// Line 13 (0-indexed: 12), character at 'parentFunc' (after "this.")
-		DefinitionParams params = new DefinitionParams();
+		DefinitionParams	params		= new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( childUri ) );
 		params.setPosition( new Position( 12, 8 ) );
 

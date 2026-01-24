@@ -148,10 +148,10 @@ public class SnippetCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 6, 2 ) );
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items		= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Find an if snippet
-		CompletionItem ifSnippet = items.stream()
+		CompletionItem			ifSnippet	= items.stream()
 		    .filter( item -> item.getLabel().equals( "if" ) && item.getKind() == CompletionItemKind.Snippet )
 		    .findFirst()
 		    .orElse( null );
@@ -168,10 +168,10 @@ public class SnippetCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 6, 2 ) );
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items		= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Find a for snippet
-		CompletionItem forSnippet = items.stream()
+		CompletionItem			forSnippet	= items.stream()
 		    .filter( item -> item.getLabel().equals( "for" ) && item.getKind() == CompletionItemKind.Snippet )
 		    .findFirst()
 		    .orElse( null );
@@ -190,10 +190,10 @@ public class SnippetCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 6, 2 ) );
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items		= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Find an if snippet
-		CompletionItem ifSnippet = items.stream()
+		CompletionItem			ifSnippet	= items.stream()
 		    .filter( item -> item.getLabel().equals( "if" ) && item.getKind() == CompletionItemKind.Snippet )
 		    .findFirst()
 		    .orElse( null );
@@ -211,10 +211,10 @@ public class SnippetCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 5, 1 ) );
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items		= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Find function snippet with "fun" trigger
-		CompletionItem funSnippet = items.stream()
+		CompletionItem			funSnippet	= items.stream()
 		    .filter( item -> item.getLabel().equals( "fun" ) && item.getKind() == CompletionItemKind.Snippet )
 		    .findFirst()
 		    .orElse( null );
@@ -234,10 +234,10 @@ public class SnippetCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 6, 2 ) );
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items			= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Find ifelse snippet
-		CompletionItem ifelseSnippet = items.stream()
+		CompletionItem			ifelseSnippet	= items.stream()
 		    .filter( item -> item.getLabel().equals( "ifelse" ) && item.getKind() == CompletionItemKind.Snippet )
 		    .findFirst()
 		    .orElse( null );
@@ -256,10 +256,10 @@ public class SnippetCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 5, 1 ) );
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items		= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Find property snippet
-		CompletionItem propSnippet = items.stream()
+		CompletionItem			propSnippet	= items.stream()
 		    .filter( item -> item.getLabel().equals( "prop" ) && item.getKind() == CompletionItemKind.Snippet )
 		    .findFirst()
 		    .orElse( null );
@@ -278,10 +278,10 @@ public class SnippetCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 6, 2 ) );
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items		= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Find try snippet
-		CompletionItem trySnippet = items.stream()
+		CompletionItem			trySnippet	= items.stream()
 		    .filter( item -> item.getLabel().equals( "try" ) && item.getKind() == CompletionItemKind.Snippet )
 		    .findFirst()
 		    .orElse( null );
@@ -308,12 +308,12 @@ public class SnippetCompletionTest extends BaseTest {
 		assertThat( hasSnippet( items, "func" ) ).isTrue();
 
 		// Verify they have the same body content (both create function definitions)
-		CompletionItem funSnippet = items.stream()
+		CompletionItem	funSnippet		= items.stream()
 		    .filter( item -> item.getLabel().equals( "fun" ) && item.getKind() == CompletionItemKind.Snippet )
 		    .findFirst()
 		    .orElse( null );
 
-		CompletionItem functionSnippet = items.stream()
+		CompletionItem	functionSnippet	= items.stream()
 		    .filter( item -> item.getLabel().equals( "function" ) && item.getKind() == CompletionItemKind.Snippet )
 		    .findFirst()
 		    .orElse( null );

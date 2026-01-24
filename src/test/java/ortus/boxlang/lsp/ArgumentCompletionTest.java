@@ -59,9 +59,9 @@ public class ArgumentCompletionTest extends BaseTest {
 	public void testNamedArgumentsInEmptyCall() throws Exception {
 		// Test: createUser(|) should suggest name=, age=, active=
 		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test1 = createUser(\"John\", 30, true);",
-			"var test1 = createUser();",
-			29, 25  // Inside the parens (column 25 = after '(')
+		    "var test1 = createUser(\"John\", 30, true);",
+		    "var test1 = createUser();",
+		    29, 25  // Inside the parens (column 25 = after '(')
 		);
 
 		// Should suggest all parameter names with trailing equals
@@ -74,9 +74,9 @@ public class ArgumentCompletionTest extends BaseTest {
 	public void testNamedArgumentsAfterFirstArgument() throws Exception {
 		// Test: createUser(name="Jane", |) should suggest age=, active= (not name=)
 		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test2 = createUser(name=\"Jane\", age=25, active=false);",
-			"var test2 = createUser(name=\"Jane\", );",
-			30, 37  // Line 31, after comma
+		    "var test2 = createUser(name=\"Jane\", age=25, active=false);",
+		    "var test2 = createUser(name=\"Jane\", );",
+		    30, 37  // Line 31, after comma
 		);
 
 		// Should suggest remaining parameters
@@ -89,26 +89,26 @@ public class ArgumentCompletionTest extends BaseTest {
 
 	@Test
 	public void testNamedArgumentsHaveCorrectKind() throws Exception {
-		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test1 = createUser(\"John\", 30, true);",
-			"var test1 = createUser();",
-			29, 25
+		List<CompletionItem>	items		= getCompletionsWithModifiedLine(
+		    "var test1 = createUser(\"John\", 30, true);",
+		    "var test1 = createUser();",
+		    29, 25
 		);
 
-		CompletionItem nameItem = findItem( items, "name=" );
+		CompletionItem			nameItem	= findItem( items, "name=" );
 		assertThat( nameItem ).isNotNull();
 		assertThat( nameItem.getKind() ).isEqualTo( CompletionItemKind.Field );
 	}
 
 	@Test
 	public void testRequiredParametersMarked() throws Exception {
-		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test1 = createUser(\"John\", 30, true);",
-			"var test1 = createUser();",
-			29, 25
+		List<CompletionItem>	items		= getCompletionsWithModifiedLine(
+		    "var test1 = createUser(\"John\", 30, true);",
+		    "var test1 = createUser();",
+		    29, 25
 		);
 
-		CompletionItem nameItem = findItem( items, "name=" );
+		CompletionItem			nameItem	= findItem( items, "name=" );
 		assertThat( nameItem ).isNotNull();
 		// Detail should indicate it's required and show type
 		assertThat( nameItem.getDetail() ).contains( "required" );
@@ -128,14 +128,14 @@ public class ArgumentCompletionTest extends BaseTest {
 
 	@Test
 	public void testRequiredParametersSortFirst() throws Exception {
-		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test1 = createUser(\"John\", 30, true);",
-			"var test1 = createUser();",
-			29, 25
+		List<CompletionItem>	items		= getCompletionsWithModifiedLine(
+		    "var test1 = createUser(\"John\", 30, true);",
+		    "var test1 = createUser();",
+		    29, 25
 		);
 
-		CompletionItem nameItem = findItem( items, "name=" );
-		CompletionItem activeItem = findItem( items, "active=" );
+		CompletionItem			nameItem	= findItem( items, "name=" );
+		CompletionItem			activeItem	= findItem( items, "active=" );
 
 		assertThat( nameItem ).isNotNull();
 		assertThat( activeItem ).isNotNull();
@@ -150,19 +150,19 @@ public class ArgumentCompletionTest extends BaseTest {
 	public void testVariableSuggestionsMatchingType() throws Exception {
 		// Test: createUser(|) should suggest userName (string) if type inference works
 		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test1 = createUser(\"John\", 30, true);",
-			"var test1 = createUser();",
-			29, 25
+		    "var test1 = createUser(\"John\", 30, true);",
+		    "var test1 = createUser();",
+		    29, 25
 		);
 
 		// Variable suggestions depend on type inference, which may have limitations
 		// Just verify we get named arguments at minimum
 		assertThat( hasItem( items, "name=" ) ).isTrue();
-		
+
 		// If variable completion works, userName should be present
 		// But this is optional/advanced functionality
 		boolean hasUserName = hasItemWithKind( items, "userName", CompletionItemKind.Variable );
-		System.out.println("Variable completion working: " + hasUserName);
+		System.out.println( "Variable completion working: " + hasUserName );
 	}
 
 	@Test
@@ -170,9 +170,9 @@ public class ArgumentCompletionTest extends BaseTest {
 		// Simplified: Just reuse the testNamedArgumentsAfterFirstArgument scenario
 		// This tests that after providing one named argument, we get suggestions for remaining ones
 		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test2 = createUser(name=\"Jane\", age=25, active=false);",
-			"var test2 = createUser(name=\"Jane\", );",
-			30, 37  // Line 31, after comma and space
+		    "var test2 = createUser(name=\"Jane\", age=25, active=false);",
+		    "var test2 = createUser(name=\"Jane\", );",
+		    30, 37  // Line 31, after comma and space
 		);
 
 		// Should suggest remaining parameters (this is actually tested elsewhere,
@@ -185,34 +185,34 @@ public class ArgumentCompletionTest extends BaseTest {
 	public void testVariableSuggestionsForThirdParameter() throws Exception {
 		// Test: createUser("John", 30, |) should suggest isActive (boolean)
 		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test1 = createUser(\"John\", 30, true);",
-			"var test1 = createUser(\"John\", 30, );",
-			29, 37  // After second comma and space
+		    "var test1 = createUser(\"John\", 30, true);",
+		    "var test1 = createUser(\"John\", 30, );",
+		    29, 37  // After second comma and space
 		);
 
 		// Should at least have named arguments
 		assertThat( hasItem( items, "active=" ) ).isTrue();
-		
+
 		// Variable suggestions are advanced - may or may not work depending on type inference
 	}
 
 	@Test
 	public void testVariableCompletionShowsType() throws Exception {
 		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test1 = createUser(\"John\", 30, true);",
-			"var test1 = createUser();",
-			29, 25
+		    "var test1 = createUser(\"John\", 30, true);",
+		    "var test1 = createUser();",
+		    29, 25
 		);
 
 		// This test is optional - variable completion is an advanced feature
 		// Just verify we get some completions
 		assertThat( items ).isNotEmpty();
-		
+
 		CompletionItem userNameItem = findItemWithKind( items, "userName", CompletionItemKind.Variable );
-		if (userNameItem != null) {
+		if ( userNameItem != null ) {
 			// If variable completion works, verify detail shows type
 			assertThat( userNameItem.getDetail() ).isNotNull();
-			System.out.println("Variable detail: " + userNameItem.getDetail());
+			System.out.println( "Variable detail: " + userNameItem.getDetail() );
 		}
 	}
 
@@ -222,9 +222,9 @@ public class ArgumentCompletionTest extends BaseTest {
 	public void testBooleanLiteralsForBooleanParameter() throws Exception {
 		// Test: createUser("John", 30, |) should suggest true and false
 		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test1 = createUser(\"John\", 30, true);",
-			"var test1 = createUser(\"John\", 30, );",
-			29, 37  // After second comma and space
+		    "var test1 = createUser(\"John\", 30, true);",
+		    "var test1 = createUser(\"John\", 30, );",
+		    29, 37  // After second comma and space
 		);
 
 		// Should suggest boolean literals
@@ -236,9 +236,9 @@ public class ArgumentCompletionTest extends BaseTest {
 	public void testBooleanLiteralsNotForNonBooleanParameter() throws Exception {
 		// Test: createUser(|) - first parameter is string, should NOT suggest true/false
 		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test1 = createUser(\"John\", 30, true);",
-			"var test1 = createUser();",
-			29, 25
+		    "var test1 = createUser(\"John\", 30, true);",
+		    "var test1 = createUser();",
+		    29, 25
 		);
 
 		// Should NOT suggest boolean literals for string parameter
@@ -252,9 +252,9 @@ public class ArgumentCompletionTest extends BaseTest {
 	public void testMethodCallArgumentCompletion() throws Exception {
 		// Test: updateUser(|) should suggest parameter names
 		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test3 = updateUser(\"123\", \"Bob\", 40, true);",
-			"var test3 = updateUser();",
-			31, 25  // Line 32, inside parens
+		    "var test3 = updateUser(\"123\", \"Bob\", 40, true);",
+		    "var test3 = updateUser();",
+		    31, 25  // Line 32, inside parens
 		);
 
 		// Should suggest all parameter names
@@ -271,36 +271,36 @@ public class ArgumentCompletionTest extends BaseTest {
 
 	// @Test
 	// public void testBIFArgumentCompletion() throws Exception {
-	// 	// Create test content with arrayAppend BIF call
-	// 	List<CompletionItem> items = getCompletionsWithModifiedLine(
-	// 		"arrayAppend(arr, 4);",
-	// 		"arrayAppend();",
-	// 		32, 12  // Line 33 (0-indexed: 32), inside parens (after '(')
-	// 	);
+	// // Create test content with arrayAppend BIF call
+	// List<CompletionItem> items = getCompletionsWithModifiedLine(
+	// "arrayAppend(arr, 4);",
+	// "arrayAppend();",
+	// 32, 12 // Line 33 (0-indexed: 32), inside parens (after '(')
+	// );
 	//
-	// 	// BIF parameters should be suggested
-	// 	// Note: arrayAppend has "array" and "value" parameters
-	// 	assertThat( hasItem( items, "array=" ) ).isTrue();
+	// // BIF parameters should be suggested
+	// // Note: arrayAppend has "array" and "value" parameters
+	// assertThat( hasItem( items, "array=" ) ).isTrue();
 	// }
 
 	// ==================== Constructor Argument Completion Tests ====================
-	// TODO: Constructor argument completion is not yet fully implemented  
+	// TODO: Constructor argument completion is not yet fully implemented
 	// The context detection doesn't recognize constructor calls as FUNCTION_ARGUMENT context
 	// This would require enhancing the CompletionContext logic to handle new ClassName() calls
 
 	// @Test
 	// public void testConstructorArgumentCompletion() throws Exception {
-	// 	// Test resource file needs a class with constructor
-	// 	// This test verifies completion works for new ClassName() calls
-	// 	List<CompletionItem> items = getCompletionsWithModifiedLine(
-	// 		"var user = new User(\"john\", \"john@example.com\");",
-	// 		"var user = new User();",
-	// 		33, 20  // Line 34 (0-indexed: 33), inside parens (after '(')
-	// 	);
+	// // Test resource file needs a class with constructor
+	// // This test verifies completion works for new ClassName() calls
+	// List<CompletionItem> items = getCompletionsWithModifiedLine(
+	// "var user = new User(\"john\", \"john@example.com\");",
+	// "var user = new User();",
+	// 33, 20 // Line 34 (0-indexed: 33), inside parens (after '(')
+	// );
 	//
-	// 	// User has init method with username and email parameters
-	// 	assertThat( hasItem( items, "username=" ) ).isTrue();
-	// 	assertThat( hasItem( items, "email=" ) ).isTrue();
+	// // User has init method with username and email parameters
+	// assertThat( hasItem( items, "username=" ) ).isTrue();
+	// assertThat( hasItem( items, "email=" ) ).isTrue();
 	// }
 
 	// ==================== Edge Case Tests ====================
@@ -309,9 +309,9 @@ public class ArgumentCompletionTest extends BaseTest {
 	public void testNoCompletionOutsideFunctionCall() throws Exception {
 		// Test that we don't get argument completion when not in a function call
 		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test1 = createUser(\"John\", 30, true);",
-			"var x = 5;",
-			34, 10  // Line 35, middle of assignment
+		    "var test1 = createUser(\"John\", 30, true);",
+		    "var x = 5;",
+		    34, 10  // Line 35, middle of assignment
 		);
 
 		// Should NOT have named argument completions when not in function call
@@ -324,9 +324,9 @@ public class ArgumentCompletionTest extends BaseTest {
 		// Test: createUser(name="J|") should complete inside string
 		// This should return NONE context (inside string literal)
 		List<CompletionItem> items = getCompletionsWithModifiedLine(
-			"var test2 = createUser(name=\"Jane\", age=25, active=false);",
-			"var test2 = createUser(name=\"J\", );",
-			30, 32  // Line 31, inside string
+		    "var test2 = createUser(name=\"Jane\", age=25, active=false);",
+		    "var test2 = createUser(name=\"J\", );",
+		    30, 32  // Line 31, inside string
 		);
 
 		// When inside string literal, should not get argument completions
@@ -340,17 +340,17 @@ public class ArgumentCompletionTest extends BaseTest {
 	/**
 	 * Helper method to get completions after modifying a specific line in the test file.
 	 */
-	private List<CompletionItem> getCompletionsWithModifiedLine(String oldLine, String newLine, int line, int column) throws Exception {
+	private List<CompletionItem> getCompletionsWithModifiedLine( String oldLine, String newLine, int line, int column ) throws Exception {
 		Path	testFile	= testDir.resolve( "TestClass.bx" );
 		File	f			= testFile.toFile();
-		
+
 		// Read and modify content
-		String content = Files.readString( testFile );
-		content = content.replace(oldLine, newLine);
-		
+		String	content		= Files.readString( testFile );
+		content = content.replace( oldLine, newLine );
+
 		// Track the modified content
 		pcp.trackDocumentOpen( f.toURI(), content );
-		
+
 		// Create completion request
 		CompletionParams		params	= new CompletionParams();
 		TextDocumentIdentifier	td		= new TextDocumentIdentifier( testFile.toUri().toString() );
@@ -365,9 +365,8 @@ public class ArgumentCompletionTest extends BaseTest {
 	}
 
 	private boolean hasItemWithKind( List<CompletionItem> items, String label, CompletionItemKind kind ) {
-		return items.stream().anyMatch( item -> 
-			item.getLabel().equals( label ) && 
-			item.getKind() == kind 
+		return items.stream().anyMatch( item -> item.getLabel().equals( label ) &&
+		    item.getKind() == kind
 		);
 	}
 

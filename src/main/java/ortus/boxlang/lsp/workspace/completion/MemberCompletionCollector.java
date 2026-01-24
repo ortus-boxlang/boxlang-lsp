@@ -35,7 +35,7 @@ public class MemberCompletionCollector {
 	/**
 	 * Collect all completion items for members of the given class.
 	 *
-	 * @param className	  The class name to get members for
+	 * @param className    The class name to get members for
 	 * @param filterPrefix Optional prefix to filter member names
 	 *
 	 * @return List of CompletionItems for methods and properties
@@ -159,8 +159,8 @@ public class MemberCompletionCollector {
 		item.setInsertTextFormat( InsertTextFormat.Snippet );
 
 		// Build parameter snippet
-		StringBuilder insertText = new StringBuilder( method.name() ).append( "(" );
-		List<IndexedParameter> params = method.parameters();
+		StringBuilder			insertText	= new StringBuilder( method.name() ).append( "(" );
+		List<IndexedParameter>	params		= method.parameters();
 		if ( params != null && !params.isEmpty() ) {
 			for ( int i = 0; i < params.size(); i++ ) {
 				if ( i > 0 )

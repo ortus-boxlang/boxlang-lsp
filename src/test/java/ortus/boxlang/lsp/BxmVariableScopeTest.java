@@ -52,7 +52,7 @@ public class BxmVariableScopeTest extends BaseTest {
 		    new TextDocumentItem( bxmFileUri, "boxlang", 1, Files.readString( bxmFilePath ) ) ) );
 
 		// Position at 'y' in the bx:script block (line 6, 0-indexed: 5)
-		// The line is: "    y = "what""
+		// The line is: " y = "what""
 		// 'y' starts at column 4 (0-indexed)
 		ReferenceParams params = new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( bxmFileUri ) );
@@ -90,8 +90,8 @@ public class BxmVariableScopeTest extends BaseTest {
 		    new TextDocumentItem( bxmFileUri, "boxlang", 1, Files.readString( bxmFilePath ) ) ) );
 
 		// Position at 'y' in the bx:output block (line 10, 0-indexed: 9)
-		// The line is: "    #y#"
-		// 'y' starts at column 5 (after "    #")
+		// The line is: " #y#"
+		// 'y' starts at column 5 (after " #")
 		ReferenceParams params = new ReferenceParams();
 		params.setTextDocument( new TextDocumentIdentifier( bxmFileUri ) );
 		params.setPosition( new Position( 9, 5 ) ); // At 'y' in #y#
@@ -126,8 +126,8 @@ public class BxmVariableScopeTest extends BaseTest {
 		    new TextDocumentItem( bxmFileUri, "boxlang", 1, Files.readString( bxmFilePath ) ) ) );
 
 		// Position at 'y' in the bx:output block (line 10, 0-indexed: 9)
-		// The line is: "    #y#"
-		// 'y' starts at column 5 (after "    #")
+		// The line is: " #y#"
+		// 'y' starts at column 5 (after " #")
 		DefinitionParams params = new DefinitionParams();
 		params.setTextDocument( new TextDocumentIdentifier( bxmFileUri ) );
 		params.setPosition( new Position( 9, 5 ) ); // At 'y' in #y#

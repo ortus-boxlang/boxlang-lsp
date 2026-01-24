@@ -143,10 +143,10 @@ public class KeywordCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 5, 2 ) ); // Inside function body
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items		= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Find a keyword and verify it has the correct kind
-		CompletionItem ifKeyword = findKeyword( items, "if" );
+		CompletionItem			ifKeyword	= findKeyword( items, "if" );
 		assertThat( ifKeyword ).isNotNull();
 		assertThat( ifKeyword.getKind() ).isEqualTo( CompletionItemKind.Keyword );
 	}
@@ -159,10 +159,10 @@ public class KeywordCompletionTest extends BaseTest {
 		params.setTextDocument( td );
 		params.setPosition( new Position( 5, 2 ) ); // Inside function body
 
-		List<CompletionItem> items = pcp.getAvailableCompletions( testFile.toUri(), params );
+		List<CompletionItem>	items		= pcp.getAvailableCompletions( testFile.toUri(), params );
 
 		// Keywords should have a sortText that prioritizes them
-		CompletionItem ifKeyword = findKeyword( items, "if" );
+		CompletionItem			ifKeyword	= findKeyword( items, "if" );
 		assertThat( ifKeyword ).isNotNull();
 		assertThat( ifKeyword.getSortText() ).isNotNull();
 		// Keywords should sort before most other items (using "1" prefix)

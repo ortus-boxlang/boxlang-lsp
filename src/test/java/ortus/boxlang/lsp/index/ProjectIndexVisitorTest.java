@@ -27,7 +27,7 @@ import ortus.boxlang.runtime.BoxRuntime;
 class ProjectIndexVisitorTest extends BaseTest {
 
 	@TempDir
-	Path			tempDir;
+	Path				tempDir;
 
 	static BoxRuntime	runtime;
 
@@ -38,21 +38,21 @@ class ProjectIndexVisitorTest extends BaseTest {
 
 	@Test
 	void testExtractSimpleClass() throws Exception {
-		String classCode = """
-		                   class {
-		                       function init() {
-		                           return this;
-		                       }
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function init() {
+		                              return this;
+		                          }
+		                      }
+		                      """;
 
 		Path	testFile	= tempDir.resolve( "SimpleClass.bx" );
 		Files.writeString( testFile, classCode );
-		URI		fileUri		= testFile.toUri();
+		URI					fileUri	= testFile.toUri();
 
-		ProjectIndexVisitor visitor = parseAndVisit( fileUri, tempDir );
+		ProjectIndexVisitor	visitor	= parseAndVisit( fileUri, tempDir );
 
-		List<IndexedClass> classes = visitor.getIndexedClasses();
+		List<IndexedClass>	classes	= visitor.getIndexedClasses();
 		assertThat( classes ).hasSize( 1 );
 
 		IndexedClass indexedClass = classes.get( 0 );
@@ -63,25 +63,25 @@ class ProjectIndexVisitorTest extends BaseTest {
 
 	@Test
 	void testExtractClassWithMethods() throws Exception {
-		String classCode = """
-		                   class {
-		                       public function doSomething() {
-		                           return "hello";
-		                       }
+		String	classCode	= """
+		                      class {
+		                          public function doSomething() {
+		                              return "hello";
+		                          }
 
-		                       private function helperMethod(required string name) {
-		                           return name;
-		                       }
-		                   }
-		                   """;
+		                          private function helperMethod(required string name) {
+		                              return name;
+		                          }
+		                      }
+		                      """;
 
 		Path	testFile	= tempDir.resolve( "ClassWithMethods.bx" );
 		Files.writeString( testFile, classCode );
-		URI		fileUri		= testFile.toUri();
+		URI					fileUri	= testFile.toUri();
 
-		ProjectIndexVisitor visitor = parseAndVisit( fileUri, tempDir );
+		ProjectIndexVisitor	visitor	= parseAndVisit( fileUri, tempDir );
 
-		List<IndexedMethod> methods = visitor.getIndexedMethods();
+		List<IndexedMethod>	methods	= visitor.getIndexedMethods();
 		assertThat( methods ).hasSize( 2 );
 
 		// Check first method
@@ -107,21 +107,21 @@ class ProjectIndexVisitorTest extends BaseTest {
 
 	@Test
 	void testExtractClassWithProperties() throws Exception {
-		String classCode = """
-		                   class {
-		                       property name="firstName" type="string";
-		                       property name="lastName" type="string" default="Smith";
-		                       property name="age" type="numeric";
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          property name="firstName" type="string";
+		                          property name="lastName" type="string" default="Smith";
+		                          property name="age" type="numeric";
+		                      }
+		                      """;
 
 		Path	testFile	= tempDir.resolve( "ClassWithProperties.bx" );
 		Files.writeString( testFile, classCode );
-		URI		fileUri		= testFile.toUri();
+		URI						fileUri		= testFile.toUri();
 
-		ProjectIndexVisitor visitor = parseAndVisit( fileUri, tempDir );
+		ProjectIndexVisitor		visitor		= parseAndVisit( fileUri, tempDir );
 
-		List<IndexedProperty> properties = visitor.getIndexedProperties();
+		List<IndexedProperty>	properties	= visitor.getIndexedProperties();
 		assertThat( properties ).hasSize( 3 );
 
 		// Check firstName property
@@ -144,25 +144,25 @@ class ProjectIndexVisitorTest extends BaseTest {
 
 	@Test
 	void testExtractMethodWithMultipleParameters() throws Exception {
-		String classCode = """
-		                   class {
-		                       public function createUser(
-		                           required string username,
-		                           string email,
-		                           numeric age
-		                       ) {
-		                           return {};
-		                       }
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          public function createUser(
+		                              required string username,
+		                              string email,
+		                              numeric age
+		                          ) {
+		                              return {};
+		                          }
+		                      }
+		                      """;
 
 		Path	testFile	= tempDir.resolve( "MultiParamClass.bx" );
 		Files.writeString( testFile, classCode );
-		URI		fileUri		= testFile.toUri();
+		URI					fileUri	= testFile.toUri();
 
-		ProjectIndexVisitor visitor = parseAndVisit( fileUri, tempDir );
+		ProjectIndexVisitor	visitor	= parseAndVisit( fileUri, tempDir );
 
-		List<IndexedMethod> methods = visitor.getIndexedMethods();
+		List<IndexedMethod>	methods	= visitor.getIndexedMethods();
 		assertThat( methods ).hasSize( 1 );
 
 		IndexedMethod createUser = methods.get( 0 );
@@ -184,29 +184,29 @@ class ProjectIndexVisitorTest extends BaseTest {
 
 	@Test
 	void testExtractMethodWithReturnType() throws Exception {
-		String classCode = """
-		                   class {
-		                       public string function getName() {
-		                           return "test";
-		                       }
+		String	classCode	= """
+		                      class {
+		                          public string function getName() {
+		                              return "test";
+		                          }
 
-		                       public numeric function getAge() {
-		                           return 25;
-		                       }
+		                          public numeric function getAge() {
+		                              return 25;
+		                          }
 
-		                       public function noReturnType() {
-		                           return null;
-		                       }
-		                   }
-		                   """;
+		                          public function noReturnType() {
+		                              return null;
+		                          }
+		                      }
+		                      """;
 
 		Path	testFile	= tempDir.resolve( "ReturnTypeClass.bx" );
 		Files.writeString( testFile, classCode );
-		URI		fileUri		= testFile.toUri();
+		URI					fileUri	= testFile.toUri();
 
-		ProjectIndexVisitor visitor = parseAndVisit( fileUri, tempDir );
+		ProjectIndexVisitor	visitor	= parseAndVisit( fileUri, tempDir );
 
-		List<IndexedMethod> methods = visitor.getIndexedMethods();
+		List<IndexedMethod>	methods	= visitor.getIndexedMethods();
 		assertThat( methods ).hasSize( 3 );
 
 		IndexedMethod getName = methods.stream()
@@ -237,21 +237,21 @@ class ProjectIndexVisitorTest extends BaseTest {
 		Path modelsDir = tempDir.resolve( "models" );
 		Files.createDirectories( modelsDir );
 
-		String classCode = """
-		                   class {
-		                       function init() {
-		                           return this;
-		                       }
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function init() {
+		                              return this;
+		                          }
+		                      }
+		                      """;
 
 		Path	testFile	= modelsDir.resolve( "User.bx" );
 		Files.writeString( testFile, classCode );
-		URI		fileUri		= testFile.toUri();
+		URI					fileUri	= testFile.toUri();
 
-		ProjectIndexVisitor visitor = parseAndVisit( fileUri, tempDir );
+		ProjectIndexVisitor	visitor	= parseAndVisit( fileUri, tempDir );
 
-		List<IndexedClass> classes = visitor.getIndexedClasses();
+		List<IndexedClass>	classes	= visitor.getIndexedClasses();
 		assertThat( classes ).hasSize( 1 );
 
 		IndexedClass indexedClass = classes.get( 0 );
@@ -261,20 +261,20 @@ class ProjectIndexVisitorTest extends BaseTest {
 
 	@Test
 	void testExtractPropertyWithShorthandName() throws Exception {
-		String classCode = """
-		                   class {
-		                       property firstName;
-		                       property lastName;
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          property firstName;
+		                          property lastName;
+		                      }
+		                      """;
 
 		Path	testFile	= tempDir.resolve( "ShorthandProps.bx" );
 		Files.writeString( testFile, classCode );
-		URI		fileUri		= testFile.toUri();
+		URI						fileUri		= testFile.toUri();
 
-		ProjectIndexVisitor visitor = parseAndVisit( fileUri, tempDir );
+		ProjectIndexVisitor		visitor		= parseAndVisit( fileUri, tempDir );
 
-		List<IndexedProperty> properties = visitor.getIndexedProperties();
+		List<IndexedProperty>	properties	= visitor.getIndexedProperties();
 		assertThat( properties ).hasSize( 2 );
 
 		assertThat( properties.stream().map( IndexedProperty::name ).toList() )
@@ -283,19 +283,19 @@ class ProjectIndexVisitorTest extends BaseTest {
 
 	@Test
 	void testMethodKeyGeneration() throws Exception {
-		String classCode = """
-		                   class {
-		                       function myMethod() {}
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          function myMethod() {}
+		                      }
+		                      """;
 
 		Path	testFile	= tempDir.resolve( "KeyTestClass.bx" );
 		Files.writeString( testFile, classCode );
-		URI		fileUri		= testFile.toUri();
+		URI					fileUri	= testFile.toUri();
 
-		ProjectIndexVisitor visitor = parseAndVisit( fileUri, tempDir );
+		ProjectIndexVisitor	visitor	= parseAndVisit( fileUri, tempDir );
 
-		List<IndexedMethod> methods = visitor.getIndexedMethods();
+		List<IndexedMethod>	methods	= visitor.getIndexedMethods();
 		assertThat( methods ).hasSize( 1 );
 
 		IndexedMethod method = methods.get( 0 );

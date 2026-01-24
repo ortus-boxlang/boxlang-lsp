@@ -212,7 +212,7 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 		int		lastSlash	= Math.max( path.lastIndexOf( '/' ), path.lastIndexOf( '\\' ) );
 		String	fileName	= lastSlash >= 0 ? path.substring( lastSlash + 1 ) : path;
 
-		int dotIndex = fileName.lastIndexOf( '.' );
+		int		dotIndex	= fileName.lastIndexOf( '.' );
 		return dotIndex > 0 ? fileName.substring( 0, dotIndex ) : fileName;
 	}
 

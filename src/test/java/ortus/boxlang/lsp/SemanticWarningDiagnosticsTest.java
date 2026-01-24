@@ -74,18 +74,18 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testEmptyCatchBlock() throws Exception {
-		String code = """
-		              class {
-		                  function doSomething() {
-		                      try {
-		                          var x = 1;
-		                      } catch (any e) {
+		String	code		= """
+		                      class {
+		                          function doSomething() {
+		                              try {
+		                                  var x = 1;
+		                              } catch (any e) {
+		                              }
+		                          }
 		                      }
-		                  }
-		              }
-		              """;
+		                      """;
 
-		Path testFile = createTestFile( "EmptyCatch.bx", code );
+		Path	testFile	= createTestFile( "EmptyCatch.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -102,19 +102,19 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testNonEmptyCatchBlockNoWarning() throws Exception {
-		String code = """
-		              class {
-		                  function doSomething() {
-		                      try {
-		                          var x = 1;
-		                      } catch (any e) {
-		                          log(e.message);
+		String	code		= """
+		                      class {
+		                          function doSomething() {
+		                              try {
+		                                  var x = 1;
+		                              } catch (any e) {
+		                                  log(e.message);
+		                              }
+		                          }
 		                      }
-		                  }
-		              }
-		              """;
+		                      """;
 
-		Path testFile = createTestFile( "NonEmptyCatch.bx", code );
+		Path	testFile	= createTestFile( "NonEmptyCatch.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -132,16 +132,16 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testUnreachableCodeAfterReturn() throws Exception {
-		String code = """
-		              class {
-		                  function calculate() {
-		                      return 42;
-		                      var x = 1;
-		                  }
-		              }
-		              """;
+		String	code		= """
+		                      class {
+		                          function calculate() {
+		                              return 42;
+		                              var x = 1;
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "UnreachableReturn.bx", code );
+		Path	testFile	= createTestFile( "UnreachableReturn.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -159,16 +159,16 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testUnreachableCodeAfterThrow() throws Exception {
-		String code = """
-		              class {
-		                  function validate() {
-		                      throw "Invalid input";
-		                      return false;
-		                  }
-		              }
-		              """;
+		String	code		= """
+		                      class {
+		                          function validate() {
+		                              throw "Invalid input";
+		                              return false;
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "UnreachableThrow.bx", code );
+		Path	testFile	= createTestFile( "UnreachableThrow.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -184,20 +184,20 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testUnreachableCodeAfterBreak() throws Exception {
-		String code = """
-		              class {
-		                  function search() {
-		                      for (var i = 0; i < 10; i++) {
-		                          if (i == 5) {
-		                              break;
-		                              var found = true;
+		String	code		= """
+		                      class {
+		                          function search() {
+		                              for (var i = 0; i < 10; i++) {
+		                                  if (i == 5) {
+		                                      break;
+		                                      var found = true;
+		                                  }
+		                              }
 		                          }
 		                      }
-		                  }
-		              }
-		              """;
+		                      """;
 
-		Path testFile = createTestFile( "UnreachableBreak.bx", code );
+		Path	testFile	= createTestFile( "UnreachableBreak.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -213,20 +213,20 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testUnreachableCodeAfterContinue() throws Exception {
-		String code = """
-		              class {
-		                  function process() {
-		                      for (var i = 0; i < 10; i++) {
-		                          if (i == 5) {
-		                              continue;
-		                              var skipped = true;
+		String	code		= """
+		                      class {
+		                          function process() {
+		                              for (var i = 0; i < 10; i++) {
+		                                  if (i == 5) {
+		                                      continue;
+		                                      var skipped = true;
+		                                  }
+		                              }
 		                          }
 		                      }
-		                  }
-		              }
-		              """;
+		                      """;
 
-		Path testFile = createTestFile( "UnreachableContinue.bx", code );
+		Path	testFile	= createTestFile( "UnreachableContinue.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -242,22 +242,22 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testNoUnreachableCodeWarningForDocComment() throws Exception {
-		String code = """
-		              class extends="Something" {
-		                  property name="AnotherThing";
+		String	code		= """
+		                      class extends="Something" {
+		                          property name="AnotherThing";
 
-		                  /**
-		                   * Greets with the given greeting
-		                   * @param greeting The greeting to use
-		                   * @return A greeting message
-		                   */
-		                  public string function greet( string greeting ) {
-		                      return greeting & ", " & this.name;
-		                  }
-		              }
-		              """;
+		                          /**
+		                           * Greets with the given greeting
+		                           * @param greeting The greeting to use
+		                           * @return A greeting message
+		                           */
+		                          public string function greet( string greeting ) {
+		                              return greeting & ", " & this.name;
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "DocCommentNotUnreachable.bx", code );
+		Path	testFile	= createTestFile( "DocCommentNotUnreachable.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -273,18 +273,18 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testNoUnreachableCodeWarningForConditionalReturn() throws Exception {
-		String code = """
-		              class {
-		                  function calculate(required numeric value) {
-		                      if (value > 0) {
-		                          return value;
+		String	code		= """
+		                      class {
+		                          function calculate(required numeric value) {
+		                              if (value > 0) {
+		                                  return value;
+		                              }
+		                              return 0;
+		                          }
 		                      }
-		                      return 0;
-		                  }
-		              }
-		              """;
+		                      """;
 
-		Path testFile = createTestFile( "ConditionalReturn.bx", code );
+		Path	testFile	= createTestFile( "ConditionalReturn.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -302,16 +302,16 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testShadowedVariableLocalShadowsParameter() throws Exception {
-		String code = """
-		              class {
-		                  function process(required string name) {
-		                      var name = "different";
-		                      return name;
-		                  }
-		              }
-		              """;
+		String	code		= """
+		                      class {
+		                          function process(required string name) {
+		                              var name = "different";
+		                              return name;
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "ShadowedParam.bx", code );
+		Path	testFile	= createTestFile( "ShadowedParam.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -328,16 +328,16 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testNoShadowWarningForDifferentNames() throws Exception {
-		String code = """
-		              class {
-		                  function process(required string firstName) {
-		                      var lastName = "Smith";
-		                      return firstName & " " & lastName;
-		                  }
-		              }
-		              """;
+		String	code		= """
+		                      class {
+		                          function process(required string firstName) {
+		                              var lastName = "Smith";
+		                              return firstName & " " & lastName;
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "NoShadow.bx", code );
+		Path	testFile	= createTestFile( "NoShadow.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -355,15 +355,15 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testMissingReturnWithReturnTypeHint() throws Exception {
-		String code = """
-		              class {
-		                  string function getName() {
-		                      var name = "test";
-		                  }
-		              }
-		              """;
+		String	code		= """
+		                      class {
+		                          string function getName() {
+		                              var name = "test";
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "MissingReturn.bx", code );
+		Path	testFile	= createTestFile( "MissingReturn.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -382,15 +382,15 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testNoMissingReturnWarningForVoidFunction() throws Exception {
-		String code = """
-		              class {
-		                  void function doSomething() {
-		                      var x = 1;
-		                  }
-		              }
-		              """;
+		String	code		= """
+		                      class {
+		                          void function doSomething() {
+		                              var x = 1;
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "VoidFunction.bx", code );
+		Path	testFile	= createTestFile( "VoidFunction.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -406,15 +406,15 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testNoMissingReturnWarningWhenReturnExists() throws Exception {
-		String code = """
-		              class {
-		                  string function getName() {
-		                      return "test";
-		                  }
-		              }
-		              """;
+		String	code		= """
+		                      class {
+		                          string function getName() {
+		                              return "test";
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "HasReturn.bx", code );
+		Path	testFile	= createTestFile( "HasReturn.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -432,19 +432,19 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testUnusedPrivateMethod() throws Exception {
-		String code = """
-		              class {
-		                  public function publicMethod() {
-		                      return;
-		                  }
+		String	code		= """
+		                      class {
+		                          public function publicMethod() {
+		                              return;
+		                          }
 
-		                  private function unusedHelper() {
-		                      return;
-		                  }
-		              }
-		              """;
+		                          private function unusedHelper() {
+		                              return;
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "UnusedPrivate.bx", code );
+		Path	testFile	= createTestFile( "UnusedPrivate.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -462,19 +462,19 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testUsedPrivateMethodNoWarning() throws Exception {
-		String code = """
-		              class {
-		                  public function publicMethod() {
-		                      helperMethod();
-		                  }
+		String	code		= """
+		                      class {
+		                          public function publicMethod() {
+		                              helperMethod();
+		                          }
 
-		                  private function helperMethod() {
-		                      return;
-		                  }
-		              }
-		              """;
+		                          private function helperMethod() {
+		                              return;
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "UsedPrivate.bx", code );
+		Path	testFile	= createTestFile( "UsedPrivate.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -492,17 +492,17 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testUnusedImport() throws Exception {
-		String code = """
-		              import java:java.util.ArrayList;
+		String	code		= """
+		                      import java:java.util.ArrayList;
 
-		              class {
-		                  function void doSomething() {
-		                      var x = 1;
-		                  }
-		              }
-		              """;
+		                      class {
+		                          function void doSomething() {
+		                              var x = 1;
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "UnusedImport.bx", code );
+		Path	testFile	= createTestFile( "UnusedImport.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -520,17 +520,17 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testUsedImportNoWarning() throws Exception {
-		String code = """
-		              import java:java.util.ArrayList;
+		String	code		= """
+		                      import java:java.util.ArrayList;
 
-		              class {
-		                  function void doSomething() {
-		                      var list = new ArrayList();
-		                  }
-		              }
-		              """;
+		                      class {
+		                          function void doSomething() {
+		                              var list = new ArrayList();
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "UsedImport.bx", code );
+		Path	testFile	= createTestFile( "UsedImport.bx", code );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );

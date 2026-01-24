@@ -71,13 +71,13 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testInvalidExtendsClassNotFound() throws Exception {
-		String classCode = """
-		                   class extends="NonExistentClass" {
-		                       function init() { return this; }
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class extends="NonExistentClass" {
+		                          function init() { return this; }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "Child.bx", classCode );
+		Path	testFile	= createTestFile( "Child.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -95,21 +95,21 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 	@Test
 	void testValidExtendsNoError() throws Exception {
 		// First create the parent class
-		String parentCode = """
-		                    class {
-		                        function init() { return this; }
-		                    }
-		                    """;
-		Path parentFile = createTestFile( "ParentClass.bx", parentCode );
+		String	parentCode	= """
+		                      class {
+		                          function init() { return this; }
+		                      }
+		                      """;
+		Path	parentFile	= createTestFile( "ParentClass.bx", parentCode );
 		index.indexFile( parentFile.toUri() );
 
 		// Now create a child that extends the parent
-		String childCode = """
-		                   class extends="ParentClass" {
-		                       function init() { return super.init(); }
-		                   }
-		                   """;
-		Path childFile = createTestFile( "ChildClass.bx", childCode );
+		String	childCode	= """
+		                      class extends="ParentClass" {
+		                          function init() { return super.init(); }
+		                      }
+		                      """;
+		Path	childFile	= createTestFile( "ChildClass.bx", childCode );
 		index.indexFile( childFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( childFile.toUri() );
@@ -128,13 +128,13 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testInvalidImplementsInterfaceNotFound() throws Exception {
-		String classCode = """
-		                   class implements="NonExistentInterface" {
-		                       function init() { return this; }
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class implements="NonExistentInterface" {
+		                          function init() { return this; }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "MyClass.bx", classCode );
+		Path	testFile	= createTestFile( "MyClass.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -152,21 +152,21 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 	@Test
 	void testValidImplementsNoError() throws Exception {
 		// First create the interface
-		String interfaceCode = """
-		                       interface {
-		                           function getData();
-		                       }
-		                       """;
-		Path interfaceFile = createTestFile( "MyInterface.bx", interfaceCode );
+		String	interfaceCode	= """
+		                          interface {
+		                              function getData();
+		                          }
+		                          """;
+		Path	interfaceFile	= createTestFile( "MyInterface.bx", interfaceCode );
 		index.indexFile( interfaceFile.toUri() );
 
 		// Now create a class that implements it
-		String classCode = """
-		                   class implements="MyInterface" {
-		                       function getData() { return "data"; }
-		                   }
-		                   """;
-		Path classFile = createTestFile( "MyClass.bx", classCode );
+		String	classCode	= """
+		                      class implements="MyInterface" {
+		                          function getData() { return "data"; }
+		                      }
+		                      """;
+		Path	classFile	= createTestFile( "MyClass.bx", classCode );
 		index.indexFile( classFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( classFile.toUri() );
@@ -183,13 +183,13 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testMultipleInvalidImplements() throws Exception {
-		String classCode = """
-		                   class implements="Interface1,Interface2,Interface3" {
-		                       function init() { return this; }
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class implements="Interface1,Interface2,Interface3" {
+		                          function init() { return this; }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "MultiImpl.bx", classCode );
+		Path	testFile	= createTestFile( "MultiImpl.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -207,19 +207,19 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testDuplicateMethodDefinition() throws Exception {
-		String classCode = """
-		                   class {
-		                       function myMethod() {
-		                           return 1;
-		                       }
+		String	classCode	= """
+		                      class {
+		                          function myMethod() {
+		                              return 1;
+		                          }
 
-		                       function myMethod() {
-		                           return 2;
-		                       }
-		                   }
-		                   """;
+		                          function myMethod() {
+		                              return 2;
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "DuplicateMethods.bx", classCode );
+		Path	testFile	= createTestFile( "DuplicateMethods.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -236,19 +236,19 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testNoDuplicateMethodsWithDifferentNames() throws Exception {
-		String classCode = """
-		                   class {
-		                       function methodOne() {
-		                           return 1;
-		                       }
+		String	classCode	= """
+		                      class {
+		                          function methodOne() {
+		                              return 1;
+		                          }
 
-		                       function methodTwo() {
-		                           return 2;
-		                       }
-		                   }
-		                   """;
+		                          function methodTwo() {
+		                              return 2;
+		                          }
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "UniqueMethods.bx", classCode );
+		Path	testFile	= createTestFile( "UniqueMethods.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -266,14 +266,14 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testDuplicatePropertyDefinition() throws Exception {
-		String classCode = """
-		                   class {
-		                       property name="data" type="string";
-		                       property name="data" type="numeric";
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          property name="data" type="string";
+		                          property name="data" type="numeric";
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "DuplicateProperties.bx", classCode );
+		Path	testFile	= createTestFile( "DuplicateProperties.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
@@ -290,14 +290,14 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 
 	@Test
 	void testNoDuplicatePropertiesWithDifferentNames() throws Exception {
-		String classCode = """
-		                   class {
-		                       property name="firstName" type="string";
-		                       property name="lastName" type="string";
-		                   }
-		                   """;
+		String	classCode	= """
+		                      class {
+		                          property name="firstName" type="string";
+		                          property name="lastName" type="string";
+		                      }
+		                      """;
 
-		Path testFile = createTestFile( "UniqueProperties.bx", classCode );
+		Path	testFile	= createTestFile( "UniqueProperties.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );

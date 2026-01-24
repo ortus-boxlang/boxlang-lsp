@@ -47,13 +47,14 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 	    int declarationLine,
 	    boolean isRequired,
 	    String defaultValue,
-	    BoxNode declarationNode
-	) {}
+	    BoxNode declarationNode ) {
+	}
 
 	/**
 	 * Variable scope types in BoxLang.
 	 */
 	public enum VariableScope {
+
 		LOCAL( "local" ),
 		ARGUMENTS( "arguments" ),
 		VARIABLES( "variables" ),
@@ -73,9 +74,9 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 	}
 
 	// Maps property names (lowercase) to their info (class-level scope)
-	private final Map<String, VariableInfo>								properties		= new HashMap<>();
+	private final Map<String, VariableInfo>									properties		= new HashMap<>();
 	// The current function being visited
-	private BoxFunctionDeclaration										currentFunction	= null;
+	private BoxFunctionDeclaration											currentFunction	= null;
 	// Maps function to its variable info (includes both parameters and local variables)
 	private final Map<BoxFunctionDeclaration, Map<String, VariableInfo>>	functionVariables;
 
@@ -88,7 +89,7 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 	 * Variables are properly scoped to their containing function - parameters from other functions
 	 * are not visible.
 	 *
-	 * @param variableName The variable name (case-insensitive)
+	 * @param variableName       The variable name (case-insensitive)
 	 * @param containingFunction The function context (may be null for class-level)
 	 *
 	 * @return The VariableInfo if found, null otherwise
@@ -140,8 +141,8 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 	 * Get all scope keywords as VariableInfo objects.
 	 */
 	public Map<String, VariableInfo> getScopeKeywords() {
-		Map<String, VariableInfo> keywords = new HashMap<>();
-		String[] scopes = {
+		Map<String, VariableInfo>	keywords	= new HashMap<>();
+		String[]					scopes		= {
 		    "variables", "local", "this", "arguments", "request", "session",
 		    "application", "server", "cgi", "form", "url", "cookie"
 		};
@@ -234,17 +235,17 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 
 	@Override
 	public void visit( BoxArgumentDeclaration node ) {
-		String		name			= node.getName();
-		String		typeHint		= node.getType() != null ? node.getType().toString() : null;
+		String			name			= node.getName();
+		String			typeHint		= node.getType() != null ? node.getType().toString() : null;
 
 		// Get required status directly from the node
-		boolean		isRequired		= node.getRequired();
+		boolean			isRequired		= node.getRequired();
 
-		String		defaultValue	= node.getValue() != null ? node.getValue().getSourceText() : null;
+		String			defaultValue	= node.getValue() != null ? node.getValue().getSourceText() : null;
 
-		int			line			= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+		int				line			= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
 
-		VariableInfo info = new VariableInfo(
+		VariableInfo	info			= new VariableInfo(
 		    name,
 		    VariableScope.ARGUMENTS,
 		    typeHint,
@@ -277,9 +278,9 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 		}
 
 		if ( name != null ) {
-			int line = node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+			int				line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
 
-			VariableInfo info = new VariableInfo(
+			VariableInfo	info	= new VariableInfo(
 			    name,
 			    VariableScope.PROPERTY,
 			    typeHint,
@@ -353,13 +354,13 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 				String scopeName = scopeId.getName().toLowerCase();
 				if ( scopeName.equals( "variables" ) || scopeName.equals( "this" ) ) {
 					if ( dotAccess.getAccess() instanceof BoxIdentifier propId ) {
-						String	name			= propId.getName();
-						String	inferredType	= inferTypeFromExpression( node.getRight() );
-						int		line			= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+						String			name			= propId.getName();
+						String			inferredType	= inferTypeFromExpression( node.getRight() );
+						int				line			= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
 
-						VariableScope scope = scopeName.equals( "this" ) ? VariableScope.THIS : VariableScope.VARIABLES;
+						VariableScope	scope			= scopeName.equals( "this" ) ? VariableScope.THIS : VariableScope.VARIABLES;
 
-						VariableInfo info = new VariableInfo(
+						VariableInfo	info			= new VariableInfo(
 						    name,
 						    scope,
 						    null,
@@ -405,9 +406,9 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 				String sourceText = expr.getSourceText();
 				if ( sourceText != null ) {
 					// Get just the class name (last part)
-					int lastDot = sourceText.lastIndexOf( '.' );
-					int lastColon = sourceText.lastIndexOf( ':' );
-					int lastSeparator = Math.max( lastDot, lastColon );
+					int	lastDot			= sourceText.lastIndexOf( '.' );
+					int	lastColon		= sourceText.lastIndexOf( ':' );
+					int	lastSeparator	= Math.max( lastDot, lastColon );
 					if ( lastSeparator >= 0 && lastSeparator < sourceText.length() - 1 ) {
 						return sourceText.substring( lastSeparator + 1 );
 					}
@@ -431,9 +432,9 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 		// The variable name is usually in an identifier child of the catch block
 		for ( BoxNode child : node.getChildren() ) {
 			if ( child instanceof BoxIdentifier identifier ) {
-				String	name	= identifier.getName();
-				int		line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
-				VariableInfo info = new VariableInfo(
+				String			name	= identifier.getName();
+				int				line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+				VariableInfo	info	= new VariableInfo(
 				    name,
 				    VariableScope.LOCAL,
 				    null,

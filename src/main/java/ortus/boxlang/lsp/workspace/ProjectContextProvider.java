@@ -125,21 +125,21 @@ public class ProjectContextProvider {
 		}
 	}
 
-	static ProjectContextProvider					instance;
-	private List<WorkspaceFolder>					workspaceFolders			= new ArrayList<WorkspaceFolder>();
-	private LanguageClient							client;
-	private Map<URI, FileParseResult>				parsedFiles					= new ConcurrentHashMap<URI, FileParseResult>();
-	private Map<URI, FileParseResult>				openDocuments				= new ConcurrentHashMap<URI, FileParseResult>();
-	private Map<URI, DocumentModel>					documentModels				= new ConcurrentHashMap<URI, DocumentModel>();
-	private List<FunctionDefinition>				functionDefinitions			= new ArrayList<FunctionDefinition>();
-	private UserSettings							userSettings				= new UserSettings();
-	private long									WorkspaceDiagnosticReportId	= 1;
-	private List<DiagnosticReport>					cachedDiagnosticReports		= new CopyOnWriteArrayList<DiagnosticReport>();
+	static ProjectContextProvider				instance;
+	private List<WorkspaceFolder>				workspaceFolders			= new ArrayList<WorkspaceFolder>();
+	private LanguageClient						client;
+	private Map<URI, FileParseResult>			parsedFiles					= new ConcurrentHashMap<URI, FileParseResult>();
+	private Map<URI, FileParseResult>			openDocuments				= new ConcurrentHashMap<URI, FileParseResult>();
+	private Map<URI, DocumentModel>				documentModels				= new ConcurrentHashMap<URI, DocumentModel>();
+	private List<FunctionDefinition>			functionDefinitions			= new ArrayList<FunctionDefinition>();
+	private UserSettings						userSettings				= new UserSettings();
+	private long								WorkspaceDiagnosticReportId	= 1;
+	private List<DiagnosticReport>				cachedDiagnosticReports		= new CopyOnWriteArrayList<DiagnosticReport>();
 
-	private boolean									shouldPublishDiagnostics	= false;
-	private final AtomicBoolean						workspaceParseRunning		= new AtomicBoolean( false );
-	private ProjectIndex							projectIndex;
-	private final DebouncedDocumentProcessor		documentProcessor			= new DebouncedDocumentProcessor( 300 );
+	private boolean								shouldPublishDiagnostics	= false;
+	private final AtomicBoolean					workspaceParseRunning		= new AtomicBoolean( false );
+	private ProjectIndex						projectIndex;
+	private final DebouncedDocumentProcessor	documentProcessor			= new DebouncedDocumentProcessor( 300 );
 
 	public static ortus.boxlang.compiler.ast.Position toBLPosition( Position lspPosition ) {
 		Point								start	= new Point( lspPosition.getLine(), lspPosition.getCharacter() );
@@ -496,6 +496,7 @@ public class ProjectContextProvider {
 	 * Public accessor for getLatestFileParseResult, used for testing.
 	 *
 	 * @param docUri The document URI
+	 * 
 	 * @return Optional containing the FileParseResult if found
 	 */
 	public Optional<FileParseResult> getLatestFileParseResultPublic( URI docUri ) {
@@ -506,6 +507,7 @@ public class ProjectContextProvider {
 	 * Gets the current version of a document.
 	 *
 	 * @param docUri The document URI
+	 * 
 	 * @return The document version, or -1 if the document is not tracked
 	 */
 	public int getDocumentVersion( URI docUri ) {
@@ -517,6 +519,7 @@ public class ProjectContextProvider {
 	 * Gets the document model for a URI.
 	 *
 	 * @param docUri The document URI
+	 * 
 	 * @return The DocumentModel, or null if not found
 	 */
 	public DocumentModel getDocumentModel( URI docUri ) {
@@ -562,8 +565,8 @@ public class ProjectContextProvider {
 	 * Find all references to the symbol at the given position.
 	 * Searches across all open documents and parsed files.
 	 *
-	 * @param docURI            The document URI
-	 * @param pos               The cursor position
+	 * @param docURI             The document URI
+	 * @param pos                The cursor position
 	 * @param includeDeclaration Whether to include the declaration itself as a reference
 	 *
 	 * @return List of locations where the symbol is referenced
@@ -625,25 +628,25 @@ public class ProjectContextProvider {
 	 */
 	private List<Location> findFunctionReferences( String functionName, URI currentDocURI, boolean includeDeclaration,
 	    BoxFunctionDeclaration declarationNode ) {
-		List<Location> references = new ArrayList<>();
+		List<Location>				references	= new ArrayList<>();
 
 		// Search across all open documents and parsed files
-		Map<URI, FileParseResult> allFiles = new HashMap<>();
+		Map<URI, FileParseResult>	allFiles	= new HashMap<>();
 		allFiles.putAll( openDocuments );
 		allFiles.putAll( parsedFiles );
 
 		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
-			URI				fileUri	= entry.getKey();
+			URI					fileUri	= entry.getKey();
 			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
 
 			if ( rootOpt.isEmpty() ) {
 				continue;
 			}
 
-			BoxNode root = rootOpt.get();
+			BoxNode						root		= rootOpt.get();
 
 			// Find all function invocations with matching name
-			List<BoxFunctionInvocation> invocations = root.getDescendantsOfType(
+			List<BoxFunctionInvocation>	invocations	= root.getDescendantsOfType(
 			    BoxFunctionInvocation.class,
 			    n -> n.getName().equalsIgnoreCase( functionName ) );
 
@@ -693,17 +696,17 @@ public class ProjectContextProvider {
 		allFiles.putAll( parsedFiles );
 
 		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
-			URI			fileUri	= entry.getKey();
+			URI					fileUri	= entry.getKey();
 			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
 
 			if ( rootOpt.isEmpty() ) {
 				continue;
 			}
 
-			BoxNode root = rootOpt.get();
+			BoxNode			root			= rootOpt.get();
 
 			// Find new ClassName() expressions
-			List<BoxNew> newExpressions = root.getDescendantsOfType(
+			List<BoxNew>	newExpressions	= root.getDescendantsOfType(
 			    BoxNew.class,
 			    n -> {
 				    String newClassName = extractClassNameFromNew( n );
@@ -791,17 +794,17 @@ public class ProjectContextProvider {
 		allFiles.putAll( parsedFiles );
 
 		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
-			URI			fileUri	= entry.getKey();
+			URI					fileUri	= entry.getKey();
 			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
 
 			if ( rootOpt.isEmpty() ) {
 				continue;
 			}
 
-			BoxNode root = rootOpt.get();
+			BoxNode				root					= rootOpt.get();
 
 			// Find implements="InterfaceName" annotations
-			List<BoxAnnotation> implementsAnnotations = root.getDescendantsOfType(
+			List<BoxAnnotation>	implementsAnnotations	= root.getDescendantsOfType(
 			    BoxAnnotation.class,
 			    n -> {
 				    String key = n.getKey().getValue().toLowerCase();
@@ -891,15 +894,15 @@ public class ProjectContextProvider {
 			return references;
 		}
 
-		BoxNode root = rootOpt.get();
+		BoxNode				root		= rootOpt.get();
 
 		// Find variables.propertyName and this.propertyName access
-		List<BoxDotAccess> dotAccesses = root.getDescendantsOfType( BoxDotAccess.class );
+		List<BoxDotAccess>	dotAccesses	= root.getDescendantsOfType( BoxDotAccess.class );
 
 		for ( BoxDotAccess dotAccess : dotAccesses ) {
-			BoxNode context = dotAccess.getContext();
+			BoxNode	context		= dotAccess.getContext();
 			// 'this' and 'variables' can be represented as BoxScope or BoxIdentifier
-			String scopeName = null;
+			String	scopeName	= null;
 			if ( context instanceof BoxScope scope ) {
 				scopeName = scope.getName().toLowerCase();
 			} else if ( context instanceof BoxIdentifier scopeId ) {
@@ -932,21 +935,21 @@ public class ProjectContextProvider {
 	 * @return List of reference locations
 	 */
 	private List<Location> findVariableReferences( BoxIdentifier identifier, URI currentDocURI, boolean includeDeclaration ) {
-		List<Location> references = new ArrayList<>();
-		String varName = identifier.getName();
+		List<Location>		references	= new ArrayList<>();
+		String				varName		= identifier.getName();
 
 		// Get the current file's AST
-		Optional<BoxNode> rootOpt = getLatestFileParseResult( currentDocURI )
+		Optional<BoxNode>	rootOpt		= getLatestFileParseResult( currentDocURI )
 		    .flatMap( fpr -> fpr.findAstRoot() );
 
 		if ( rootOpt.isEmpty() ) {
 			return references;
 		}
 
-		BoxNode root = rootOpt.get();
+		BoxNode	root				= rootOpt.get();
 
 		// Find the containing function to scope the search
-		BoxNode containingFunction = findContainingFunction( identifier );
+		BoxNode	containingFunction	= findContainingFunction( identifier );
 
 		if ( containingFunction != null ) {
 			// Search only within the containing function
@@ -981,11 +984,11 @@ public class ProjectContextProvider {
 	 * @return List of reference locations
 	 */
 	private List<Location> findParameterReferences( BoxArgumentDeclaration argDecl, URI currentDocURI, boolean includeDeclaration ) {
-		List<Location> references = new ArrayList<>();
-		String paramName = argDecl.getName();
+		List<Location>	references			= new ArrayList<>();
+		String			paramName			= argDecl.getName();
 
 		// Find the containing function
-		BoxNode containingFunction = findContainingFunction( argDecl );
+		BoxNode			containingFunction	= findContainingFunction( argDecl );
 
 		if ( containingFunction == null ) {
 			return references;
@@ -1019,26 +1022,26 @@ public class ProjectContextProvider {
 	 */
 	private List<Location> findMethodInvocationReferences( BoxMethodInvocation methodInvocation, URI currentDocURI,
 	    boolean includeDeclaration ) {
-		List<Location> references = new ArrayList<>();
-		String methodName = methodInvocation.getName().getSourceText();
+		List<Location>				references	= new ArrayList<>();
+		String						methodName	= methodInvocation.getName().getSourceText();
 
 		// Search across all files for method invocations with this name
-		Map<URI, FileParseResult> allFiles = new HashMap<>();
+		Map<URI, FileParseResult>	allFiles	= new HashMap<>();
 		allFiles.putAll( openDocuments );
 		allFiles.putAll( parsedFiles );
 
 		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
-			URI			fileUri	= entry.getKey();
+			URI					fileUri	= entry.getKey();
 			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
 
 			if ( rootOpt.isEmpty() ) {
 				continue;
 			}
 
-			BoxNode root = rootOpt.get();
+			BoxNode						root		= rootOpt.get();
 
 			// Find all method invocations with matching name
-			List<BoxMethodInvocation> invocations = root.getDescendantsOfType(
+			List<BoxMethodInvocation>	invocations	= root.getDescendantsOfType(
 			    BoxMethodInvocation.class,
 			    n -> n.getName().getSourceText().equalsIgnoreCase( methodName ) );
 
@@ -1072,9 +1075,9 @@ public class ProjectContextProvider {
 		if ( path == null ) {
 			return null;
 		}
-		int lastSlash = path.lastIndexOf( '/' );
-		String fileName = lastSlash >= 0 ? path.substring( lastSlash + 1 ) : path;
-		int dotIndex = fileName.lastIndexOf( '.' );
+		int		lastSlash	= path.lastIndexOf( '/' );
+		String	fileName	= lastSlash >= 0 ? path.substring( lastSlash + 1 ) : path;
+		int		dotIndex	= fileName.lastIndexOf( '.' );
 		return dotIndex > 0 ? fileName.substring( 0, dotIndex ) : fileName;
 	}
 
@@ -1102,8 +1105,8 @@ public class ProjectContextProvider {
 
 		ortus.boxlang.compiler.ast.Position pos = node.getPosition();
 		if ( pos != null ) {
-			int startLine = pos.getStart().getLine() - 1; // Convert to 0-indexed
-			int startCol = pos.getStart().getColumn();
+			int	startLine	= pos.getStart().getLine() - 1; // Convert to 0-indexed
+			int	startCol	= pos.getStart().getColumn();
 			location.setRange( new Range(
 			    new Position( startLine, startCol ),
 			    new Position( startLine, startCol + nameLength ) ) );
@@ -1123,9 +1126,9 @@ public class ProjectContextProvider {
 		if ( expression instanceof BoxFQN fqn ) {
 			ortus.boxlang.compiler.ast.Position pos = fqn.getPosition();
 			if ( pos != null ) {
-				int startLine = pos.getStart().getLine() - 1;
-				int startCol = pos.getStart().getColumn();
-				String className = fqn.getValue();
+				int		startLine	= pos.getStart().getLine() - 1;
+				int		startCol	= pos.getStart().getColumn();
+				String	className	= fqn.getValue();
 				// Get simple name if FQN
 				if ( className.contains( "." ) ) {
 					className = className.substring( className.lastIndexOf( "." ) + 1 );
@@ -1150,8 +1153,8 @@ public class ProjectContextProvider {
 		if ( nameNode != null ) {
 			ortus.boxlang.compiler.ast.Position pos = nameNode.getPosition();
 			if ( pos != null ) {
-				int startLine = pos.getStart().getLine() - 1;
-				int startCol = pos.getStart().getColumn();
+				int	startLine	= pos.getStart().getLine() - 1;
+				int	startCol	= pos.getStart().getColumn();
 				location.setRange( new Range(
 				    new Position( startLine, startCol ),
 				    new Position( startLine, startCol + nameNode.getSourceText().length() ) ) );
@@ -1172,8 +1175,8 @@ public class ProjectContextProvider {
 		if ( value != null ) {
 			ortus.boxlang.compiler.ast.Position pos = value.getPosition();
 			if ( pos != null ) {
-				int startLine = pos.getStart().getLine() - 1;
-				int startCol = pos.getStart().getColumn();
+				int	startLine	= pos.getStart().getLine() - 1;
+				int	startCol	= pos.getStart().getColumn();
 				location.setRange( new Range(
 				    new Position( startLine, startCol ),
 				    new Position( pos.getEnd().getLine() - 1, pos.getEnd().getColumn() ) ) );
@@ -1192,8 +1195,8 @@ public class ProjectContextProvider {
 
 		ortus.boxlang.compiler.ast.Position pos = returnType.getPosition();
 		if ( pos != null ) {
-			int startLine = pos.getStart().getLine() - 1;
-			int startCol = pos.getStart().getColumn();
+			int	startLine	= pos.getStart().getLine() - 1;
+			int	startCol	= pos.getStart().getColumn();
 			location.setRange( new Range(
 			    new Position( startLine, startCol ),
 			    new Position( startLine, startCol + nameLength ) ) );
@@ -1211,8 +1214,8 @@ public class ProjectContextProvider {
 
 		ortus.boxlang.compiler.ast.Position pos = arg.getPosition();
 		if ( pos != null ) {
-			int startLine = pos.getStart().getLine() - 1;
-			int startCol = pos.getStart().getColumn();
+			int	startLine	= pos.getStart().getLine() - 1;
+			int	startCol	= pos.getStart().getColumn();
 			location.setRange( new Range(
 			    new Position( startLine, startCol ),
 			    new Position( startLine, startCol + typeLength ) ) );
@@ -1230,8 +1233,8 @@ public class ProjectContextProvider {
 
 		ortus.boxlang.compiler.ast.Position pos = property.getPosition();
 		if ( pos != null ) {
-			int startLine = pos.getStart().getLine() - 1;
-			int startCol = pos.getStart().getColumn();
+			int	startLine	= pos.getStart().getLine() - 1;
+			int	startCol	= pos.getStart().getColumn();
 			location.setRange( new Range(
 			    new Position( startLine, startCol ),
 			    new Position( pos.getEnd().getLine() - 1, pos.getEnd().getColumn() ) ) );
@@ -1245,14 +1248,14 @@ public class ProjectContextProvider {
 	 * Used when we want to return the node's own location (for "Find References" on declarations).
 	 */
 	private List<Location> createLocationList( BoxNode node, URI fileUri ) {
-		List<Location> locations = new ArrayList<>();
-		Location location = new Location();
+		List<Location>	locations	= new ArrayList<>();
+		Location		location	= new Location();
 		location.setUri( fileUri.toString() );
 
 		ortus.boxlang.compiler.ast.Position pos = node.getPosition();
 		if ( pos != null ) {
-			int startLine = pos.getStart().getLine() - 1;
-			int startCol = pos.getStart().getColumn();
+			int	startLine	= pos.getStart().getLine() - 1;
+			int	startCol	= pos.getStart().getColumn();
 			location.setRange( new Range(
 			    new Position( startLine, startCol ),
 			    new Position( pos.getEnd().getLine() - 1, pos.getEnd().getColumn() ) ) );
@@ -1407,10 +1410,10 @@ public class ProjectContextProvider {
 		}
 
 		// Find the containing function for context
-		BoxFunctionDeclaration containingFunc = identifier.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+		BoxFunctionDeclaration	containingFunc	= identifier.getFirstAncestorOfType( BoxFunctionDeclaration.class );
 
 		// Look up variable info
-		VariableInfo varInfo = scopeCollector.getVariableInfo( varName, containingFunc );
+		VariableInfo			varInfo			= scopeCollector.getVariableInfo( varName, containingFunc );
 
 		if ( varInfo == null ) {
 			// No variable info found - try the type collector as fallback
@@ -1533,28 +1536,28 @@ public class ProjectContextProvider {
 	 * @return List of locations pointing to implementing methods
 	 */
 	private List<Location> findImplementationsOfMethod( BoxFunctionDeclaration fnDecl, BoxNode rootNode, URI docURI ) {
-		List<Location> locations = new ArrayList<>();
+		List<Location>	locations	= new ArrayList<>();
 
-		String methodName = fnDecl.getName();
-		String className = getClassNameFromUri( docURI );
+		String			methodName	= fnDecl.getName();
+		String			className	= getClassNameFromUri( docURI );
 
 		if ( methodName == null || className == null ) {
 			return locations;
 		}
 
-		ProjectIndex index = getIndex();
+		ProjectIndex	index		= getIndex();
 
 		// Find the class in the index to determine if it's an interface or abstract class
-		var classOpt = index.findClassByName( className );
+		var				classOpt	= index.findClassByName( className );
 		if ( classOpt.isEmpty() ) {
 			return locations;
 		}
 
-		IndexedClass indexedClass = classOpt.get();
-		String classFQN = indexedClass.fullyQualifiedName();
+		IndexedClass		indexedClass		= classOpt.get();
+		String				classFQN			= indexedClass.fullyQualifiedName();
 
 		// Get implementing/extending classes
-		List<IndexedClass> implementingClasses = new ArrayList<>();
+		List<IndexedClass>	implementingClasses	= new ArrayList<>();
 
 		if ( indexedClass.isInterface() ) {
 			// Find all classes implementing this interface
@@ -1568,8 +1571,8 @@ public class ProjectContextProvider {
 		for ( IndexedClass implClass : implementingClasses ) {
 			var methodOpt = index.findMethod( implClass.name(), methodName );
 			if ( methodOpt.isPresent() ) {
-				IndexedMethod method = methodOpt.get();
-				Location location = createLocationFromIndexedMethod( method );
+				IndexedMethod	method		= methodOpt.get();
+				Location		location	= createLocationFromIndexedMethod( method );
 				if ( location != null ) {
 					locations.add( location );
 				}
@@ -1589,26 +1592,26 @@ public class ProjectContextProvider {
 	 * @return List of locations pointing to implementing/extending classes
 	 */
 	private List<Location> findImplementationsOfClassOrInterface( BoxNode rootNode, URI docURI ) {
-		List<Location> locations = new ArrayList<>();
+		List<Location>	locations	= new ArrayList<>();
 
-		String className = getClassNameFromUri( docURI );
+		String			className	= getClassNameFromUri( docURI );
 		if ( className == null ) {
 			return locations;
 		}
 
-		ProjectIndex index = getIndex();
+		ProjectIndex	index		= getIndex();
 
 		// Find the class in the index
-		var classOpt = index.findClassByName( className );
+		var				classOpt	= index.findClassByName( className );
 		if ( classOpt.isEmpty() ) {
 			return locations;
 		}
 
-		IndexedClass indexedClass = classOpt.get();
-		String classFQN = indexedClass.fullyQualifiedName();
+		IndexedClass		indexedClass		= classOpt.get();
+		String				classFQN			= indexedClass.fullyQualifiedName();
 
 		// Get implementing/extending classes
-		List<IndexedClass> implementingClasses = new ArrayList<>();
+		List<IndexedClass>	implementingClasses	= new ArrayList<>();
 
 		if ( indexedClass.isInterface() ) {
 			// Find all classes implementing this interface
@@ -1642,10 +1645,10 @@ public class ProjectContextProvider {
 	 * @return List containing the definition location, or empty list if not found
 	 */
 	private List<Location> findVariableDefinition( BoxNode rootNode, BoxIdentifier identifier, URI docURI ) {
-		List<Location> locations = new ArrayList<>();
+		List<Location>				locations	= new ArrayList<>();
 
 		// Use the VariableDefinitionResolver to find the declaration
-		VariableDefinitionResolver resolver = new VariableDefinitionResolver( identifier );
+		VariableDefinitionResolver	resolver	= new VariableDefinitionResolver( identifier );
 		resolver.resolve( rootNode );
 
 		var declaration = resolver.getResolvedDeclaration();
@@ -1674,10 +1677,10 @@ public class ProjectContextProvider {
 	 * @return List containing the property definition location, or empty list if not found
 	 */
 	private List<Location> findPropertyDefinition( BoxNode rootNode, BoxDotAccess dotAccess, URI docURI ) {
-		List<Location> locations = new ArrayList<>();
+		List<Location>	locations		= new ArrayList<>();
 
 		// Extract the property name from the access part
-		String propertyName = null;
+		String			propertyName	= null;
 		if ( dotAccess.getAccess() instanceof BoxIdentifier propId ) {
 			propertyName = propId.getName();
 		}
@@ -1707,11 +1710,11 @@ public class ProjectContextProvider {
 	 * @return List containing the property definition location, or empty list if not found
 	 */
 	private List<Location> findPropertyDefinitionAtPosition( BoxNode rootNode, Position pos, URI docURI ) {
-		int line = pos.getLine() + 1; // Convert to 1-indexed
-		int column = pos.getCharacter();
+		int					line		= pos.getLine() + 1; // Convert to 1-indexed
+		int					column		= pos.getCharacter();
 
 		// Find all BoxDotAccess nodes in the AST
-		List<BoxDotAccess> dotAccesses = rootNode.getDescendantsOfType( BoxDotAccess.class );
+		List<BoxDotAccess>	dotAccesses	= rootNode.getDescendantsOfType( BoxDotAccess.class );
 
 		for ( BoxDotAccess dotAccess : dotAccesses ) {
 			// Check if cursor is within this BoxDotAccess
@@ -1720,8 +1723,8 @@ public class ProjectContextProvider {
 			}
 
 			// Check if this is a scoped property access (variables.x, this.x)
-			BoxNode context = dotAccess.getContext();
-			String scopeName = null;
+			BoxNode	context		= dotAccess.getContext();
+			String	scopeName	= null;
 
 			if ( context instanceof BoxScope scope ) {
 				scopeName = scope.getName();
@@ -1755,16 +1758,16 @@ public class ProjectContextProvider {
 	 * @return List containing the property definition location, or empty list if not found
 	 */
 	private List<Location> findPropertyDefinitionFromIdentifier( BoxNode rootNode, BoxIdentifier identifier, URI docURI ) {
-		String propertyName = identifier.getName();
+		String	propertyName	= identifier.getName();
 
 		// Check if this identifier is the access part of a BoxDotAccess (e.g., 'foo' in 'a.foo')
 		// In that case, we should only resolve if the receiver is 'variables' or 'this'
 		// (which is handled by findPropertyDefinitionAtPosition)
-		BoxNode parent = identifier.getParent();
+		BoxNode	parent			= identifier.getParent();
 		if ( parent instanceof BoxDotAccess dotAccess && dotAccess.getAccess() == identifier ) {
 			// Check if the receiver is 'variables' or 'this'
-			BoxNode context = dotAccess.getContext();
-			String scopeName = null;
+			BoxNode	context		= dotAccess.getContext();
+			String	scopeName	= null;
 			if ( context instanceof BoxScope scope ) {
 				scopeName = scope.getName();
 			} else if ( context instanceof BoxIdentifier scopeId ) {
@@ -1802,10 +1805,10 @@ public class ProjectContextProvider {
 	 * @return List containing the property definition location, or empty list if not found
 	 */
 	private List<Location> findPropertyInSameFile( BoxNode rootNode, String propertyName, URI docURI ) {
-		List<Location> locations = new ArrayList<>();
+		List<Location>		locations	= new ArrayList<>();
 
 		// Find all property declarations in the file
-		List<BoxProperty> properties = rootNode.getDescendantsOfType( BoxProperty.class );
+		List<BoxProperty>	properties	= rootNode.getDescendantsOfType( BoxProperty.class );
 
 		for ( BoxProperty property : properties ) {
 			// Extract property name from annotations
@@ -1836,10 +1839,10 @@ public class ProjectContextProvider {
 	 * @return List containing the property definition location, or empty list if not found
 	 */
 	private List<Location> findPropertyInInheritanceChain( BoxNode rootNode, String propertyName, URI docURI ) {
-		List<Location> locations = new ArrayList<>();
+		List<Location>	locations	= new ArrayList<>();
 
 		// Get the class name from the current document
-		String className = getClassNameFromUri( docURI );
+		String			className	= getClassNameFromUri( docURI );
 		if ( className == null ) {
 			return locations;
 		}
@@ -1925,9 +1928,9 @@ public class ProjectContextProvider {
 		} else if ( annotation.getValue() instanceof BoxFQN fqn ) {
 			className = extractClassNameFromFQN( fqn );
 		} else if ( annotation.getValue() != null ) {
-			className = annotation.getValue().getSourceText();
+			className	= annotation.getValue().getSourceText();
 			// Clean up quotes if present
-			className = className.replace( "\"", "" ).replace( "'", "" );
+			className	= className.replace( "\"", "" ).replace( "'", "" );
 		}
 
 		if ( className == null || className.isEmpty() ) {
@@ -2018,10 +2021,10 @@ public class ProjectContextProvider {
 			return new ArrayList<>();
 		}
 
-		ProjectIndex index = getIndex();
+		ProjectIndex	index		= getIndex();
 
 		// Try exact FQN match first
-		var classOpt = index.findClassByFQN( fqn );
+		var				classOpt	= index.findClassByFQN( fqn );
 
 		// If not found, try case-insensitive search through all classes
 		if ( classOpt.isEmpty() ) {
@@ -2063,8 +2066,8 @@ public class ProjectContextProvider {
 		}
 
 		// Extract just the class name (last part of FQN)
-		String className = fqn;
-		int lastDot = fqn.lastIndexOf( '.' );
+		String	className	= fqn;
+		int		lastDot		= fqn.lastIndexOf( '.' );
 		if ( lastDot >= 0 && lastDot < fqn.length() - 1 ) {
 			className = fqn.substring( lastDot + 1 );
 		}
@@ -2087,8 +2090,8 @@ public class ProjectContextProvider {
 		}
 
 		// Extract just the class name (last part if it's a FQN)
-		String className = type;
-		int lastDot = type.lastIndexOf( '.' );
+		String	className	= type;
+		int		lastDot		= type.lastIndexOf( '.' );
 		if ( lastDot >= 0 && lastDot < type.length() - 1 ) {
 			className = type.substring( lastDot + 1 );
 		}
@@ -2135,8 +2138,8 @@ public class ProjectContextProvider {
 			return new ArrayList<>();
 		}
 
-		ProjectIndex index = getIndex();
-		var classOpt = index.findClassByName( className );
+		ProjectIndex	index		= getIndex();
+		var				classOpt	= index.findClassByName( className );
 
 		if ( classOpt.isEmpty() ) {
 			return new ArrayList<>();
@@ -2175,10 +2178,10 @@ public class ProjectContextProvider {
 
 		// If not found, check if we're in a class that extends another class
 		// and look for the function in parent classes
-		ProjectIndex index = getIndex();
+		ProjectIndex	index		= getIndex();
 
 		// Get the class name from the current file
-		String className = getClassNameFromUri( docURI );
+		String			className	= getClassNameFromUri( docURI );
 		if ( className == null ) {
 			return new ArrayList<>();
 		}
@@ -2197,17 +2200,17 @@ public class ProjectContextProvider {
 		}
 
 		// Walk up the inheritance chain looking for the function as a method
-		String classFQN = indexedClass.fullyQualifiedName();
-		List<String> ancestors = index.getInheritanceGraph().getAncestors( classFQN );
+		String			classFQN	= indexedClass.fullyQualifiedName();
+		List<String>	ancestors	= index.getInheritanceGraph().getAncestors( classFQN );
 
 		for ( String ancestorFQN : ancestors ) {
-			String ancestorSimpleName = extractSimpleNameFromFQN( ancestorFQN );
+			String	ancestorSimpleName	= extractSimpleNameFromFQN( ancestorFQN );
 
 			// Try to find the method in this ancestor
-			var methodOpt = index.findMethod( ancestorSimpleName, functionName );
+			var		methodOpt			= index.findMethod( ancestorSimpleName, functionName );
 			if ( methodOpt.isPresent() ) {
-				IndexedMethod method = methodOpt.get();
-				Location location = createLocationFromIndexedMethod( method );
+				IndexedMethod	method		= methodOpt.get();
+				Location		location	= createLocationFromIndexedMethod( method );
 				if ( location != null ) {
 					return List.of( location );
 				}
@@ -2230,15 +2233,15 @@ public class ProjectContextProvider {
 	 * @return List containing the definition location, or empty list if not found
 	 */
 	private List<Location> findMethodDefinition( BoxNode rootNode, BoxMethodInvocation methodInvocation, URI docURI ) {
-		List<Location>	locations	= new ArrayList<>();
-		String			methodName	= methodInvocation.getName().getSourceText();
+		List<Location>	locations		= new ArrayList<>();
+		String			methodName		= methodInvocation.getName().getSourceText();
 
 		// Get the receiver object
-		BoxNode obj = methodInvocation.getObj();
+		BoxNode			obj				= methodInvocation.getObj();
 
 		// Handle `this.methodName()` - look in the same file first
 		// The `this` keyword can be represented as BoxScope or BoxIdentifier
-		boolean isThisReceiver = false;
+		boolean			isThisReceiver	= false;
 		if ( obj instanceof BoxScope scope && "this".equalsIgnoreCase( scope.getName() ) ) {
 			isThisReceiver = true;
 		} else if ( obj instanceof BoxIdentifier identifier && "this".equalsIgnoreCase( identifier.getName() ) ) {
@@ -2297,10 +2300,10 @@ public class ProjectContextProvider {
 	 * @return The Location of the method definition, or null if not found
 	 */
 	private Location findMethodInClassHierarchy( String className, String methodName ) {
-		ProjectIndex index = getIndex();
+		ProjectIndex	index		= getIndex();
 
 		// First, try to find the method in the immediate class
-		var methodOpt = index.findMethod( className, methodName );
+		var				methodOpt	= index.findMethod( className, methodName );
 		if ( methodOpt.isPresent() ) {
 			IndexedMethod method = methodOpt.get();
 			return createLocationFromIndexedMethod( method );
@@ -2312,10 +2315,10 @@ public class ProjectContextProvider {
 			return null;
 		}
 
-		String classFQN = classOpt.get().fullyQualifiedName();
+		String			classFQN	= classOpt.get().fullyQualifiedName();
 
 		// Walk up the inheritance chain
-		List<String> ancestors = index.getInheritanceGraph().getAncestors( classFQN );
+		List<String>	ancestors	= index.getInheritanceGraph().getAncestors( classFQN );
 		for ( String ancestorFQN : ancestors ) {
 			// Extract simple class name from FQN
 			String ancestorSimpleName = extractSimpleNameFromFQN( ancestorFQN );
@@ -2403,7 +2406,7 @@ public class ProjectContextProvider {
 	/**
 	 * Get hover information for the symbol at the given position.
 	 *
-	 * @param docURI The document URI
+	 * @param docURI   The document URI
 	 * @param position The cursor position
 	 *
 	 * @return Hover information or null if no hover is available
@@ -2443,12 +2446,12 @@ public class ProjectContextProvider {
 				    String methodName = methodInvocation.getName().getSourceText();
 
 				    // First, try to resolve the object's type using variable tracking
-				    BoxNode obj = methodInvocation.getObj();
+				    BoxNode obj		= methodInvocation.getObj();
 				    if ( obj instanceof BoxIdentifier objIdentifier ) {
-					    String varName = objIdentifier.getName();
+					    String						varName			= objIdentifier.getName();
 
 					    // Collect variable types from the AST
-					    VariableTypeCollectorVisitor typeCollector = new VariableTypeCollectorVisitor();
+					    VariableTypeCollectorVisitor typeCollector	= new VariableTypeCollectorVisitor();
 					    rootNode.accept( typeCollector );
 					    String className = typeCollector.getVariableType( varName );
 
@@ -2505,9 +2508,9 @@ public class ProjectContextProvider {
 
 			    // Handle scope keywords (variables, local, this, arguments, etc.)
 			    if ( target instanceof BoxScope scopeNode ) {
-				    String scopeName = scopeNode.getName();
+				    String						scopeName		= scopeNode.getName();
 				    VariableScopeCollectorVisitor scopeCollector = new VariableScopeCollectorVisitor();
-				    VariableInfo scopeInfo = scopeCollector.getScopeKeywordInfo( scopeName );
+				    VariableInfo				scopeInfo		= scopeCollector.getScopeKeywordInfo( scopeName );
 				    if ( scopeInfo != null ) {
 					    return buildHoverForScopeKeyword( scopeInfo );
 				    }
@@ -2533,7 +2536,7 @@ public class ProjectContextProvider {
 				    BoxFunctionDeclaration containingFunc = identifier.getFirstAncestorOfType( BoxFunctionDeclaration.class );
 
 				    // Look up variable info
-				    VariableInfo varInfo = scopeCollector.getVariableInfo( varName, containingFunc );
+				    VariableInfo		varInfo			= scopeCollector.getVariableInfo( varName, containingFunc );
 				    if ( varInfo != null ) {
 					    return buildHoverForVariable( varInfo );
 				    }
@@ -2562,10 +2565,10 @@ public class ProjectContextProvider {
 		    .map( rootNode -> {
 			    // Find the function/method invocation at or containing the cursor
 			    // The visitor searches the AST on construction
-			    FindSignatureHelpTargetVisitor visitor = new FindSignatureHelpTargetVisitor( position, rootNode );
+			    FindSignatureHelpTargetVisitor visitor	= new FindSignatureHelpTargetVisitor( position, rootNode );
 
-			    BoxNode				target			= visitor.getTarget();
-			    int					activeParam		= visitor.getActiveParameter();
+			    BoxNode						target		= visitor.getTarget();
+			    int							activeParam	= visitor.getActiveParameter();
 
 			    if ( target == null ) {
 				    return null;
@@ -2573,10 +2576,10 @@ public class ProjectContextProvider {
 
 			    // Handle function invocations (UDFs and BIFs)
 			    if ( target instanceof BoxFunctionInvocation fnInvocation ) {
-				    String functionName = fnInvocation.getName();
+				    String functionName	= fnInvocation.getName();
 
 				    // First try to find a user-defined function in the same file
-				    var udfOpt = rootNode
+				    var	udfOpt			= rootNode
 				        .getDescendantsOfType( BoxFunctionDeclaration.class,
 				            n -> n.getName().equalsIgnoreCase( functionName ) )
 				        .stream()
@@ -2597,15 +2600,15 @@ public class ProjectContextProvider {
 
 			    // Handle method invocations
 			    if ( target instanceof BoxMethodInvocation methodInvocation ) {
-				    String	methodName	= methodInvocation.getName().getSourceText();
+				    String methodName = methodInvocation.getName().getSourceText();
 
 				    // Try to resolve the object's type using variable tracking
-				    BoxNode	obj			= methodInvocation.getObj();
+				    BoxNode obj		= methodInvocation.getObj();
 				    if ( obj instanceof BoxIdentifier objIdentifier ) {
-					    String varName = objIdentifier.getName();
+					    String						varName			= objIdentifier.getName();
 
 					    // Collect variable types from the AST
-					    VariableTypeCollectorVisitor typeCollector = new VariableTypeCollectorVisitor();
+					    VariableTypeCollectorVisitor typeCollector	= new VariableTypeCollectorVisitor();
 					    rootNode.accept( typeCollector );
 					    String className = typeCollector.getVariableType( varName );
 
@@ -2657,23 +2660,23 @@ public class ProjectContextProvider {
 	 * Build SignatureHelp for a function declaration.
 	 */
 	private SignatureHelp buildSignatureHelpForFunction( BoxFunctionDeclaration fnDecl, String className, int activeParam ) {
-		SignatureHelp			help		= new SignatureHelp();
-		List<SignatureInformation>	signatures	= new ArrayList<>();
+		SignatureHelp				help			= new SignatureHelp();
+		List<SignatureInformation>	signatures		= new ArrayList<>();
 
-		SignatureInformation	sigInfo		= new SignatureInformation();
+		SignatureInformation		sigInfo			= new SignatureInformation();
 
 		// Build the signature label
-		String signatureLabel = buildFunctionSignature( fnDecl, null );
+		String						signatureLabel	= buildFunctionSignature( fnDecl, null );
 		sigInfo.setLabel( signatureLabel );
 
 		// Build parameter information
 		List<ParameterInformation> params = new ArrayList<>();
 		for ( BoxNode child : fnDecl.getChildren() ) {
 			if ( child instanceof BoxArgumentDeclaration arg ) {
-				ParameterInformation paramInfo = new ParameterInformation();
+				ParameterInformation	paramInfo	= new ParameterInformation();
 
 				// Build the parameter label
-				StringBuilder paramLabel = new StringBuilder();
+				StringBuilder			paramLabel	= new StringBuilder();
 				if ( arg.getRequired() ) {
 					paramLabel.append( "required " );
 				}
@@ -2695,9 +2698,9 @@ public class ProjectContextProvider {
 		if ( fnDecl instanceof IBoxDocumentableNode documentableNode ) {
 			BoxDocComment docComment = documentableNode.getDocComment();
 			if ( docComment != null ) {
-				StringBuilder docContent = new StringBuilder();
+				StringBuilder	docContent	= new StringBuilder();
 
-				String commentText = docComment.getCommentText();
+				String			commentText	= docComment.getCommentText();
 				if ( commentText != null && !commentText.isBlank() ) {
 					String cleanedDescription = cleanDocCommentDescription( commentText );
 					if ( !cleanedDescription.isBlank() ) {
@@ -2734,21 +2737,21 @@ public class ProjectContextProvider {
 	 * Build SignatureHelp for an indexed method (from project index).
 	 */
 	private SignatureHelp buildSignatureHelpForIndexedMethod( IndexedMethod method, int activeParam ) {
-		SignatureHelp			help		= new SignatureHelp();
-		List<SignatureInformation>	signatures	= new ArrayList<>();
+		SignatureHelp				help			= new SignatureHelp();
+		List<SignatureInformation>	signatures		= new ArrayList<>();
 
-		SignatureInformation	sigInfo		= new SignatureInformation();
+		SignatureInformation		sigInfo			= new SignatureInformation();
 
 		// Build the signature label
-		String signatureLabel = buildSignatureFromIndexedMethod( method );
+		String						signatureLabel	= buildSignatureFromIndexedMethod( method );
 		sigInfo.setLabel( signatureLabel );
 
 		// Build parameter information
 		List<ParameterInformation> params = new ArrayList<>();
 		for ( IndexedParameter param : method.parameters() ) {
-			ParameterInformation paramInfo = new ParameterInformation();
+			ParameterInformation	paramInfo	= new ParameterInformation();
 
-			StringBuilder paramLabel = new StringBuilder();
+			StringBuilder			paramLabel	= new StringBuilder();
 			if ( param.required() ) {
 				paramLabel.append( "required " );
 			}
@@ -2791,19 +2794,19 @@ public class ProjectContextProvider {
 				return null;
 			}
 
-			SignatureHelp			help		= new SignatureHelp();
-			List<SignatureInformation>	signatures	= new ArrayList<>();
+			SignatureHelp				help			= new SignatureHelp();
+			List<SignatureInformation>	signatures		= new ArrayList<>();
 
-			SignatureInformation	sigInfo		= new SignatureInformation();
+			SignatureInformation		sigInfo			= new SignatureInformation();
 
 			// Build parameters
-			var					declaredArgs	= bifDesc.getBIF().getDeclaredArguments();
-			List<String>		paramStrings	= new ArrayList<>();
-			List<ParameterInformation>	params	= new ArrayList<>();
+			var							declaredArgs	= bifDesc.getBIF().getDeclaredArguments();
+			List<String>				paramStrings	= new ArrayList<>();
+			List<ParameterInformation>	params			= new ArrayList<>();
 
 			for ( var arg : declaredArgs ) {
-				ParameterInformation paramInfo = new ParameterInformation();
-				String				paramSig	= arg.signatureAsString();
+				ParameterInformation	paramInfo	= new ParameterInformation();
+				String					paramSig	= arg.signatureAsString();
 
 				// Add brackets for optional params in signature
 				if ( !arg.required() ) {
@@ -3037,12 +3040,12 @@ public class ProjectContextProvider {
 	 * Build hover content for a property declaration.
 	 */
 	private Hover buildHoverForProperty( BoxProperty property ) {
-		StringBuilder content = new StringBuilder();
+		StringBuilder	content		= new StringBuilder();
 
 		// Extract property info from annotations
-		String	name		= null;
-		String	type		= null;
-		String	defaultVal	= null;
+		String			name		= null;
+		String			type		= null;
+		String			defaultVal	= null;
 
 		for ( var annotation : property.getAnnotations() ) {
 			String key = annotation.getKey().getValue().toLowerCase();
@@ -3094,9 +3097,9 @@ public class ProjectContextProvider {
 	 * Build hover content for a scope keyword (variables, local, this, arguments, etc.).
 	 */
 	private Hover buildHoverForScopeKeyword( VariableInfo scopeInfo ) {
-		StringBuilder content = new StringBuilder();
+		StringBuilder	content		= new StringBuilder();
 
-		String scopeName = scopeInfo.name();
+		String			scopeName	= scopeInfo.name();
 
 		content.append( "```boxlang\n" );
 		content.append( scopeName ).append( " (scope)" );
@@ -3216,17 +3219,17 @@ public class ProjectContextProvider {
 			return "";
 		}
 
-		StringBuilder	sb		= new StringBuilder();
-		String[]		lines	= documentation.split( "\n" );
+		StringBuilder	sb				= new StringBuilder();
+		String[]		lines			= documentation.split( "\n" );
 
 		// Separate description from tags
-		StringBuilder	description			= new StringBuilder();
-		List<String>	paramTags			= new ArrayList<>();
-		String			returnTag			= null;
-		List<String>	throwsTags			= new ArrayList<>();
-		String			deprecatedTag		= null;
-		String			sinceTag			= null;
-		String			authorTag			= null;
+		StringBuilder	description		= new StringBuilder();
+		List<String>	paramTags		= new ArrayList<>();
+		String			returnTag		= null;
+		List<String>	throwsTags		= new ArrayList<>();
+		String			deprecatedTag	= null;
+		String			sinceTag		= null;
+		String			authorTag		= null;
 
 		for ( String line : lines ) {
 			String trimmed = line.trim();
@@ -3332,10 +3335,10 @@ public class ProjectContextProvider {
 		List<String> paramStrings = new ArrayList<>();
 		for ( BoxNode child : fnDecl.getChildren() ) {
 			if ( child instanceof BoxArgumentDeclaration arg ) {
-				StringBuilder paramStr = new StringBuilder();
+				StringBuilder	paramStr	= new StringBuilder();
 
 				// Check for required annotation
-				boolean isRequired = arg.getAnnotations().stream()
+				boolean			isRequired	= arg.getAnnotations().stream()
 				    .anyMatch( a -> a.getKey().getValue().equalsIgnoreCase( "required" ) );
 
 				if ( isRequired ) {
@@ -3373,8 +3376,8 @@ public class ProjectContextProvider {
 		}
 
 		// Split into lines and clean each line
-		String[] lines = commentText.split( "\n" );
-		StringBuilder cleaned = new StringBuilder();
+		String[]		lines	= commentText.split( "\n" );
+		StringBuilder	cleaned	= new StringBuilder();
 
 		for ( String line : lines ) {
 			// Remove leading whitespace, asterisks, and trailing whitespace
@@ -3406,7 +3409,7 @@ public class ProjectContextProvider {
 	 * Format documentation annotations (@param, @return, etc.) as markdown.
 	 */
 	private String formatDocumentationAnnotations( List<BoxDocumentationAnnotation> annotations ) {
-		StringBuilder sb = new StringBuilder();
+		StringBuilder						sb						= new StringBuilder();
 
 		// Group annotations by type
 		List<BoxDocumentationAnnotation>	paramAnnotations		= new ArrayList<>();
@@ -3529,9 +3532,9 @@ public class ProjectContextProvider {
 			String sourceText = expression.getSourceText();
 			if ( sourceText != null ) {
 				sourceText = sourceText.trim();
-				int lastDot = sourceText.lastIndexOf( '.' );
-				int lastColon = sourceText.lastIndexOf( ':' );
-				int lastSeparator = Math.max( lastDot, lastColon );
+				int	lastDot			= sourceText.lastIndexOf( '.' );
+				int	lastColon		= sourceText.lastIndexOf( ':' );
+				int	lastSeparator	= Math.max( lastDot, lastColon );
 
 				if ( lastSeparator >= 0 && lastSeparator < sourceText.length() - 1 ) {
 					return sourceText.substring( lastSeparator + 1 );
@@ -3553,9 +3556,9 @@ public class ProjectContextProvider {
 		}
 
 		// Get just the class name (last part after any dots or colons)
-		int lastDot = fullPath.lastIndexOf( '.' );
-		int lastColon = fullPath.lastIndexOf( ':' );
-		int lastSeparator = Math.max( lastDot, lastColon );
+		int	lastDot			= fullPath.lastIndexOf( '.' );
+		int	lastColon		= fullPath.lastIndexOf( ':' );
+		int	lastSeparator	= Math.max( lastDot, lastColon );
 
 		if ( lastSeparator >= 0 && lastSeparator < fullPath.length() - 1 ) {
 			return fullPath.substring( lastSeparator + 1 );
@@ -3616,8 +3619,8 @@ public class ProjectContextProvider {
 			return "";
 		}
 
-		StringBuilder	sb		= new StringBuilder();
-		String[]		lines	= documentation.split( "\n" );
+		StringBuilder	sb				= new StringBuilder();
+		String[]		lines			= documentation.split( "\n" );
 
 		// Separate description from tags
 		StringBuilder	description		= new StringBuilder();

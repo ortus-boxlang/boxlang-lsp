@@ -21,6 +21,7 @@ public class SnippetCompletionRule implements IRule<CompletionFacts, List<Comple
 	 * Represents a snippet with its triggers, body, and context
 	 */
 	private static class Snippet {
+
 		String		label;
 		String[]	triggers;
 		String		body;
@@ -280,12 +281,12 @@ public class SnippetCompletionRule implements IRule<CompletionFacts, List<Comple
 
 	@Override
 	public void then( CompletionFacts facts, List<CompletionItem> result ) {
-		CompletionContext	context				= facts.getContext();
-		String				containingClassName	= context.getContainingClassName();
-		String				containingMethodName = context.getContainingMethodName();
+		CompletionContext	context					= facts.getContext();
+		String				containingClassName		= context.getContainingClassName();
+		String				containingMethodName	= context.getContainingMethodName();
 
 		// Determine current context
-		Context currentContext;
+		Context				currentContext;
 		if ( containingMethodName != null ) {
 			currentContext = Context.FUNCTION_BODY;
 		} else if ( containingClassName != null ) {

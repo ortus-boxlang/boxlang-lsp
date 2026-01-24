@@ -107,7 +107,7 @@ public class NewCompletionTest extends BaseTest {
 		completionParams.setPosition( new Position( 2, 20 ) );
 		completionParams.setTextDocument( td );
 
-		List<CompletionItem>		completionItems	= pcp.getAvailableCompletions( f.toURI(), completionParams );
+		List<CompletionItem> completionItems = pcp.getAvailableCompletions( f.toURI(), completionParams );
 
 		// For now, just verify we get some completions - folder navigation is not yet implemented
 		assertThat( completionItems ).isNotEmpty();

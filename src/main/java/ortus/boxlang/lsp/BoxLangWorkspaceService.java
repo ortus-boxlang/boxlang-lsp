@@ -72,9 +72,9 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 				return Either.forLeft( new ArrayList<>() );
 			}
 
-			String						query	= params.getQuery() != null ? params.getQuery() : "";
-			String						lowerQuery	= query.toLowerCase();
-			List<ScoredSymbol>			scoredSymbols	= new ArrayList<>();
+			String				query			= params.getQuery() != null ? params.getQuery() : "";
+			String				lowerQuery		= query.toLowerCase();
+			List<ScoredSymbol>	scoredSymbols	= new ArrayList<>();
 
 			// Search classes
 			for ( IndexedClass indexedClass : index.getAllClasses() ) {
