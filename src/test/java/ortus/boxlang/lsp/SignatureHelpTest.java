@@ -23,8 +23,8 @@ public class SignatureHelpTest extends BaseTest {
 		ProjectIndex index = ProjectContextProvider.getInstance().getIndex();
 		index.clear();
 		// Initialize with src/test/resources/files as the workspace root
-		Path testFilesRoot = Paths.get("src/test/resources/files");
-		index.initialize(testFilesRoot);
+		Path testFilesRoot = Paths.get( "src/test/resources/files" );
+		index.initialize( testFilesRoot );
 	}
 
 	// Line numbers (1-indexed from file):

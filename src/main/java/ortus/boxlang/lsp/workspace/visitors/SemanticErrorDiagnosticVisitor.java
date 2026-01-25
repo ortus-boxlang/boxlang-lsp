@@ -295,8 +295,8 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 		ortus.boxlang.compiler.ast.Point	startPoint	= nodePos.getStart();
 
 		// Count lines and columns up to the brace
-		int	line		= startPoint.getLine();
-		int	column		= startPoint.getColumn();
+		int									line		= startPoint.getLine();
+		int									column		= startPoint.getColumn();
 
 		for ( int i = 0; i < braceIndex; i++ ) {
 			char c = sourceText.charAt( i );

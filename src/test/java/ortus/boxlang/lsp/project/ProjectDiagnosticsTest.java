@@ -368,11 +368,10 @@ public class ProjectDiagnosticsTest extends BaseTest {
 		params.setTextDocument( new TextDocumentIdentifier( testUri.toString() ) );
 		params.setPosition( new Position( 6, 13 ) ); // After "this."
 
-		List<CompletionItem> items = provider.getAvailableCompletions( testUri, params );
-
+		List<CompletionItem>	items				= provider.getAvailableCompletions( testUri, params );
 
 		// Should have baseTypeFunction inherited from BaseType
-		boolean hasBaseTypeFunction = items.stream()
+		boolean					hasBaseTypeFunction	= items.stream()
 		    .anyMatch( item -> item.getLabel().equals( "baseTypeFunction" ) );
 		assertThat( hasBaseTypeFunction ).isTrue();
 
