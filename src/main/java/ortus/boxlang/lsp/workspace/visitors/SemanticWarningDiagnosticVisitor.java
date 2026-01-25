@@ -200,6 +200,41 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 			return;
 		}
 
+		// Special handling for try-finally: If the parent is a BoxTry and the terminal statement
+		// is in the try body, we should not flag finally body statements as unreachable
+		// because finally blocks always execute, even after return/throw
+		if ( parent instanceof BoxTry ) {
+			BoxTry			tryNode			= ( BoxTry ) parent;
+			List<BoxNode>	tryBody			= new ArrayList<>( tryNode.getTryBody() );
+			boolean			isInTryBody		= tryBody.contains( node );
+			int				nodeIndexInTry	= tryBody.indexOf( node );
+
+			if ( isInTryBody && nodeIndexInTry >= 0 && nodeIndexInTry < tryBody.size() - 1 ) {
+				// Check only for siblings within the try body (not finally body)
+				BoxNode nextNode = tryBody.get( nodeIndexInTry + 1 );
+
+				// Don't warn about catch blocks, annotations, comments, or documentation that follow
+				if ( nextNode instanceof BoxTryCatch
+				    || nextNode instanceof BoxAnnotation
+				    || nextNode instanceof BoxComment
+				    || nextNode instanceof BoxDocumentationAnnotation ) {
+					return;
+				}
+
+				Diagnostic diagnostic = new Diagnostic(
+				    ProjectContextProvider.positionToRange( nextNode.getPosition() ),
+				    "Unreachable code after " + statementType + " statement.",
+				    DiagnosticSeverity.Warning,
+				    "boxlang",
+				    UnreachableCodeRule.ID
+				);
+				diagnostic.setTags( List.of( DiagnosticTag.Unnecessary ) );
+				diagnostics.add( diagnostic );
+			}
+			// Don't flag finally body as unreachable - it always executes
+			return;
+		}
+
 		List<BoxNode>	siblings	= parent.getChildren();
 		int				nodeIndex	= -1;
 

@@ -298,6 +298,63 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertThat( unreachable ).isNull();
 	}
 
+	@Test
+	void testNoUnreachableCodeWarningForFinallyBlockAfterReturn() throws Exception {
+		String	code		= """
+		                      class {
+		                          function doSomething() {
+		                              try {
+		                                  return udf();
+		                              } finally {
+		                                  instance.callStack.deleteAt( 1 );
+		                              }
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "FinallyAfterReturn.bx", code );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic unreachable = diagnostics.stream()
+		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( unreachable ).isNull();
+	}
+
+	@Test
+	void testUnreachableCodeInTryBlockAfterReturnBeforeFinally() throws Exception {
+		String	code		= """
+		                      class {
+		                          function doSomething() {
+		                              try {
+		                                  return udf();
+		                                  var unreachable = true;
+		                              } finally {
+		                                  instance.callStack.deleteAt( 1 );
+		                              }
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "UnreachableInTryBeforeFinally.bx", code );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic unreachable = diagnostics.stream()
+		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( unreachable ).isNotNull();
+	}
+
 	// ============ Shadowed Variable Tests ============
 
 	@Test
