@@ -93,6 +93,37 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 	}
 
 	@Test
+	void testInvalidExtendsRangeOnlyCoversClassDeclaration() throws Exception {
+		String	classCode	= """
+		                      class extends="NonExistentClass" {
+		                          function init() { return this; }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "RangeTest.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic invalidExtends = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "NonExistentClass" ) && d.getMessage().toLowerCase().contains( "not found" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( invalidExtends ).isNotNull();
+
+		// Verify range only covers from "class" to the opening brace "{"
+		// The range should be on line 0 (first line) and should not extend to line 2 (closing brace)
+		assertThat( invalidExtends.getRange().getStart().getLine() ).isEqualTo( 0 );
+		assertThat( invalidExtends.getRange().getEnd().getLine() ).isEqualTo( 0 );
+
+		// The end character should be at or before the opening brace position
+		// "class extends="NonExistentClass" {" - brace is at position 35
+		assertThat( invalidExtends.getRange().getEnd().getCharacter() ).isAtMost( 36 );
+	}
+
+	@Test
 	void testValidExtendsNoError() throws Exception {
 		// First create the parent class
 		String	parentCode	= """

@@ -25,6 +25,8 @@ import java.util.Set;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
+import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.Range;
 
 import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxInterface;
@@ -265,6 +267,54 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 		}
 	}
 
+	/**
+	 * Create a range that covers from the "class" or "interface" keyword to the opening brace "{".
+	 * This provides a more precise diagnostic location for class declaration issues.
+	 *
+	 * @param node The BoxClass or BoxInterface node
+	 *
+	 * @return Range from class/interface keyword to opening brace
+	 */
+	private Range getClassDeclarationRange( BoxNode node ) {
+		// Get the full source text of the class/interface
+		String sourceText = node.getSourceText();
+		if ( sourceText == null || sourceText.isEmpty() ) {
+			// Fallback to full node range if no source text
+			return ProjectContextProvider.positionToRange( node.getPosition() );
+		}
+
+		// Find the opening brace position in the source text
+		int braceIndex = sourceText.indexOf( '{' );
+		if ( braceIndex < 0 ) {
+			// No brace found, use full range
+			return ProjectContextProvider.positionToRange( node.getPosition() );
+		}
+
+		// Calculate the end position (at the opening brace)
+		ortus.boxlang.compiler.ast.Position	nodePos		= node.getPosition();
+		ortus.boxlang.compiler.ast.Point	startPoint	= nodePos.getStart();
+
+		// Count lines and columns up to the brace
+		int	line		= startPoint.getLine();
+		int	column		= startPoint.getColumn();
+
+		for ( int i = 0; i < braceIndex; i++ ) {
+			char c = sourceText.charAt( i );
+			if ( c == '\n' ) {
+				line++;
+				column = 0;
+			} else {
+				column++;
+			}
+		}
+
+		// Create range from start to opening brace
+		return new Range(
+		    new Position( startPoint.getLine() - 1, startPoint.getColumn() ),
+		    new Position( line - 1, column )
+		);
+	}
+
 	private void validateExtendsReference( String className, BoxNode node ) {
 		ProjectIndex index = ProjectContextProvider.getInstance().getIndex();
 		if ( index == null ) {
@@ -290,7 +340,7 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 
 		if ( foundClass.isEmpty() ) {
 			Diagnostic diagnostic = new Diagnostic(
-			    ProjectContextProvider.positionToRange( node.getPosition() ),
+			    getClassDeclarationRange( node ),
 			    "Class or interface '" + className + "' not found (extends reference).",
 			    DiagnosticSeverity.Error,
 			    "boxlang",
@@ -325,7 +375,7 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 
 		if ( foundClass.isEmpty() ) {
 			Diagnostic diagnostic = new Diagnostic(
-			    ProjectContextProvider.positionToRange( node.getPosition() ),
+			    getClassDeclarationRange( node ),
 			    "Interface '" + interfaceName + "' not found (implements reference).",
 			    DiagnosticSeverity.Error,
 			    "boxlang",
