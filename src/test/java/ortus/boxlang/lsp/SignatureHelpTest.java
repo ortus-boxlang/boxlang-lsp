@@ -3,16 +3,29 @@ package ortus.boxlang.lsp;
 import static com.google.common.truth.Truth.assertThat;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.SignatureHelp;
 import org.eclipse.lsp4j.SignatureHelpParams;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 
 public class SignatureHelpTest extends BaseTest {
+
+	@BeforeEach
+	void setUp() {
+		// Clear and initialize the index to avoid contamination from other tests
+		ProjectIndex index = ProjectContextProvider.getInstance().getIndex();
+		index.clear();
+		// Initialize with src/test/resources/files as the workspace root
+		Path testFilesRoot = Paths.get("src/test/resources/files");
+		index.initialize(testFilesRoot);
+	}
 
 	// Line numbers (1-indexed from file):
 	// Line 32: var result = getUser(1); -> col 21-31

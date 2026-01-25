@@ -52,7 +52,7 @@ public class MemberAccessCompletionRule implements IRule<CompletionFacts, List<C
 		}
 
 		// Collect members for the inferred type
-		MemberCompletionCollector	collector	= new MemberCompletionCollector( index, containingClassName );
+		MemberCompletionCollector	collector	= new MemberCompletionCollector( index, containingClassName, fileParseResult.getURI() );
 		List<CompletionItem>		members		= collector.collectMembers( inferredType.className(), filterPrefix );
 
 		result.addAll( members );

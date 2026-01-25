@@ -28,8 +28,16 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+import org.eclipse.lsp4j.CompletionItem;
+import org.eclipse.lsp4j.CompletionParams;
+import org.eclipse.lsp4j.DefinitionParams;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
+import org.eclipse.lsp4j.DidOpenTextDocumentParams;
+import org.eclipse.lsp4j.HoverParams;
+import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
+import org.eclipse.lsp4j.TextDocumentItem;
 import org.eclipse.lsp4j.WorkspaceFolder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -37,6 +45,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import ortus.boxlang.lsp.BaseTest;
+import ortus.boxlang.lsp.BoxLangTextDocumentService;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
@@ -267,6 +276,110 @@ public class ProjectDiagnosticsTest extends BaseTest {
 
 		// Should have at least BaseType and InterfaceDef
 		assertThat( filesInDir.size() ).isAtLeast( 2 );
+	}
+
+	// ============ Go-to-Definition Tests ============
+
+	@Test
+	void testGoToDefinitionOnRelativeClassReference() throws Exception {
+		Path						baseTypeFile		= testProjectRoot.resolve( "subpackage/BaseType.bx" );
+		String						baseTypeUri			= baseTypeFile.toUri().toString();
+		Path						evenBaserTypeFile	= testProjectRoot.resolve( "subpackage/subsubpackage/EvenBaserType.bx" );
+		String						evenBaserTypeUri	= evenBaserTypeFile.toUri().toString();
+
+		BoxLangTextDocumentService	svc					= new BoxLangTextDocumentService();
+
+		// Open the BaseType file
+		svc.didOpen( new DidOpenTextDocumentParams(
+		    new TextDocumentItem( baseTypeUri, "boxlang", 1, Files.readString( baseTypeFile ) ) ) );
+
+		// Position at 'subsubpackage.EvenBaserType' in extends clause
+		// Line: class extends="subsubpackage.EvenBaserType"{
+		// This is on line 4 (0-indexed: 3)
+		// "class extends=\"" = 15 chars, so class name starts at position 15
+		DefinitionParams params = new DefinitionParams();
+		params.setTextDocument( new TextDocumentIdentifier( baseTypeUri ) );
+		params.setPosition( new Position( 3, 25 ) ); // Position within "subsubpackage.EvenBaserType"
+
+		var result = svc.definition( params ).get();
+
+		// Verify go-to-definition works
+		assertThat( result ).isNotNull();
+		assertThat( result.getLeft() ).isNotNull();
+		assertThat( result.getLeft().size() ).isGreaterThan( 0 );
+
+		var def = result.getLeft().get( 0 );
+		// Should navigate to EvenBaserType.bx
+		assertThat( def.getUri() ).isEqualTo( evenBaserTypeUri );
+	}
+
+	// ============ Hover Tests ============
+
+	@Test
+	void testHoverOnRelativeClassReference() throws Exception {
+		Path						baseTypeFile	= testProjectRoot.resolve( "subpackage/BaseType.bx" );
+		String						baseTypeUri		= baseTypeFile.toUri().toString();
+
+		BoxLangTextDocumentService	svc				= new BoxLangTextDocumentService();
+
+		// Open the BaseType file
+		svc.didOpen( new DidOpenTextDocumentParams(
+		    new TextDocumentItem( baseTypeUri, "boxlang", 1, Files.readString( baseTypeFile ) ) ) );
+
+		// Position at 'subsubpackage.EvenBaserType' in extends clause
+		// Line: class extends="subsubpackage.EvenBaserType"{
+		// This is on line 4 (0-indexed: 3)
+		HoverParams hoverParams = new HoverParams();
+		hoverParams.setTextDocument( new TextDocumentIdentifier( baseTypeUri ) );
+		hoverParams.setPosition( new Position( 3, 30 ) ); // Position within the class name
+
+		var hover = svc.hover( hoverParams ).get();
+
+		// Verify hover works
+		assertThat( hover ).isNotNull();
+		String hoverContent = hover.getContents().getRight().getValue();
+
+		// Should show information about EvenBaserType
+		assertThat( hoverContent ).isNotNull();
+		assertThat( hoverContent ).containsMatch( "(?i)EvenBaserType" );
+
+		// Should indicate it's a class
+		assertThat( hoverContent ).containsMatch( "(?i)class" );
+	}
+
+	// ============ Autocomplete Tests ============
+
+	@Test
+	void testAutocompleteOnInheritedMembersFromRelativeClassPath() throws Exception {
+		Path	testFile	= testProjectRoot.resolve( "TestCompletion.bx" );
+		URI		testUri		= testFile.toUri();
+
+		assertTrue( Files.exists( testFile ), "TestCompletion.bx should exist" );
+
+		// Index and track the test file
+		index.indexFile( testUri );
+		String content = Files.readString( testFile );
+		provider.trackDocumentOpen( testUri, content );
+
+		// Position after "this." on line 7 (0-indexed: 6)
+		// TestCompletion extends "subpackage.BaseType" (relative path)
+		// Inside testInheritedMembers() function: this.|
+		CompletionParams params = new CompletionParams();
+		params.setTextDocument( new TextDocumentIdentifier( testUri.toString() ) );
+		params.setPosition( new Position( 6, 13 ) ); // After "this."
+
+		List<CompletionItem> items = provider.getAvailableCompletions( testUri, params );
+
+
+		// Should have baseTypeFunction inherited from BaseType
+		boolean hasBaseTypeFunction = items.stream()
+		    .anyMatch( item -> item.getLabel().equals( "baseTypeFunction" ) );
+		assertThat( hasBaseTypeFunction ).isTrue();
+
+		// Should have propA property inherited from BaseType
+		boolean hasPropA = items.stream()
+		    .anyMatch( item -> item.getLabel().equals( "propA" ) );
+		assertThat( hasPropA ).isTrue();
 	}
 
 	// ============ Helper Methods ============

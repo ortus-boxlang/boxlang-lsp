@@ -10,6 +10,8 @@ import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxNew;
 import ortus.boxlang.compiler.ast.expression.BoxScope;
+import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
+import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
@@ -165,6 +167,51 @@ public class FindHoverTargetVisitor extends VoidBoxVisitor {
 		if ( this.hoverTarget == null ) {
 			this.hoverTarget = node;
 		}
+	}
+
+	@Override
+	public void visit( BoxAnnotation node ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
+			return;
+		}
+
+		String key = node.getKey().getValue().toLowerCase();
+
+		// Handle extends and implements annotations
+		if ( key.equals( "extends" ) || key.equals( "implements" ) ) {
+			// Check if cursor is on the value (the class/interface name)
+			if ( node.getValue() != null && BLASTTools.containsPosition( node.getValue(), line, column ) ) {
+				// Set the annotation as target so we can extract the class name from it
+				this.hoverTarget = node;
+				return;
+			}
+		}
+
+		// Visit children for other annotations
+		visitChildren( node );
+	}
+
+	@Override
+	public void visit( BoxStringLiteral node ) {
+		if ( !BLASTTools.containsPosition( node, line, column ) ) {
+			visitChildren( node );
+			return;
+		}
+
+		// Check if this string literal is the value of an extends or implements annotation
+		BoxNode parent = node.getParent();
+		if ( parent instanceof BoxAnnotation annotation ) {
+			String key = annotation.getKey().getValue().toLowerCase();
+			if ( key.equals( "extends" ) || key.equals( "implements" ) ) {
+				// Set the parent annotation as target
+				this.hoverTarget = annotation;
+				return;
+			}
+		}
+
+		// For other string literals, don't set as target
+		visitChildren( node );
 	}
 
 	@Override

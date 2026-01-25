@@ -82,7 +82,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		);
 
 		indexedClasses.add( indexedClass );
-		currentClassName = className;
+		currentClassName = fullyQualifiedName;	// Use FQN so methods/properties are associated correctly
 
 		visitChildren( node );
 
@@ -112,7 +112,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		);
 
 		indexedClasses.add( indexedInterface );
-		currentClassName = className;
+		currentClassName = fullyQualifiedName;	// Use FQN so methods/properties are associated correctly
 
 		visitChildren( node );
 

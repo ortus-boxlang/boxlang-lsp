@@ -1305,7 +1305,7 @@ public class ProjectContextProvider {
 					        return findClassDefinition( newExpr );
 				        } else if ( node instanceof BoxAnnotation annotation ) {
 					        // Handle extends/implements annotations - navigate to class/interface definition
-					        return findClassDefinitionFromAnnotation( annotation );
+					        return findClassDefinitionFromAnnotation( annotation, docURI );
 				        } else if ( node instanceof BoxReturnType returnType ) {
 					        // Handle return type hints - navigate to class definition
 					        return findClassDefinitionFromReturnType( returnType );
@@ -1914,7 +1914,7 @@ public class ProjectContextProvider {
 	 *
 	 * @return List containing the class/interface definition location, or empty list if not found
 	 */
-	private List<Location> findClassDefinitionFromAnnotation( BoxAnnotation annotation ) {
+	private List<Location> findClassDefinitionFromAnnotation( BoxAnnotation annotation, URI docURI ) {
 		String key = annotation.getKey().getValue().toLowerCase();
 
 		if ( !key.equals( "extends" ) && !key.equals( "implements" ) ) {
@@ -1945,7 +1945,7 @@ public class ProjectContextProvider {
 			className = classes[ 0 ].trim();
 		}
 
-		return findClassByNameAndGetLocation( className );
+		return findClassByNameAndGetLocation( className, docURI );
 	}
 
 	/**
@@ -2134,12 +2134,40 @@ public class ProjectContextProvider {
 	 * @return List containing the definition location, or empty list if not found
 	 */
 	private List<Location> findClassByNameAndGetLocation( String className ) {
+		return findClassByNameAndGetLocation( className, null );
+	}
+
+	/**
+	 * Look up a class/interface by name in the project index and return its location.
+	 * Supports relative class path resolution when docURI is provided.
+	 *
+	 * @param className The class or interface name to look up
+	 * @param docURI    The current document URI (for relative path resolution), or null
+	 *
+	 * @return List containing the definition location, or empty list if not found
+	 */
+	private List<Location> findClassByNameAndGetLocation( String className, URI docURI ) {
 		if ( className == null || className.isEmpty() ) {
 			return new ArrayList<>();
 		}
 
 		ProjectIndex	index		= getIndex();
 		var				classOpt	= index.findClassByName( className );
+
+		// Try by FQN if simple name lookup failed
+		if ( classOpt.isEmpty() ) {
+			classOpt = index.findClassByFQN( className );
+		}
+
+		// If still not found and className contains a dot (potential relative path),
+		// try resolving relative to the current file's package
+		if ( classOpt.isEmpty() && className.contains( "." ) && docURI != null ) {
+			String currentPackage = getCurrentPackageFromURI( docURI );
+			if ( currentPackage != null && !currentPackage.isEmpty() ) {
+				String qualifiedName = currentPackage + "." + className;
+				classOpt = index.findClassByFQN( qualifiedName );
+			}
+		}
 
 		if ( classOpt.isEmpty() ) {
 			return new ArrayList<>();
@@ -2156,6 +2184,48 @@ public class ProjectContextProvider {
 		location.setRange( indexedClass.location() );
 
 		return List.of( location );
+	}
+
+	/**
+	 * Get the package (directory path) of a file relative to workspace root.
+	 * For example, if file is at "subpackage/BaseType.bx", returns "subpackage".
+	 * Returns null if package cannot be determined.
+	 */
+	private String getCurrentPackageFromURI( URI fileUri ) {
+		if ( fileUri == null ) {
+			return null;
+		}
+
+		try {
+			// Get workspace root
+			var folders = getWorkspaceFolders();
+			if ( folders == null || folders.isEmpty() ) {
+				return null;
+			}
+
+			java.net.URI		workspaceUri	= new java.net.URI( folders.get( 0 ).getUri() );
+			java.nio.file.Path	workspaceRoot	= java.nio.file.Paths.get( workspaceUri );
+			java.nio.file.Path	filePath		= java.nio.file.Paths.get( fileUri );
+
+			// Get relative path from workspace root
+			java.nio.file.Path	relativePath	= workspaceRoot.relativize( filePath );
+			String				pathStr			= relativePath.toString();
+
+			// Get the directory part (without filename)
+			int					lastSlash		= Math.max( pathStr.lastIndexOf( '/' ), pathStr.lastIndexOf( '\\' ) );
+			if ( lastSlash < 0 ) {
+				// File is in root directory
+				return null;
+			}
+
+			String packagePath = pathStr.substring( 0, lastSlash );
+
+			// Convert path separators to dots
+			return packagePath.replace( '/', '.' ).replace( '\\', '.' );
+		} catch ( Exception e ) {
+			// If we can't determine package, return null
+			return null;
+		}
 	}
 
 	/**
@@ -2500,6 +2570,17 @@ public class ProjectContextProvider {
 				    String className = extractClassNameFromFQN( fqn );
 				    if ( className != null ) {
 					    var indexedClassOpt = getIndex().findClassByName( className );
+					    if ( indexedClassOpt.isPresent() ) {
+						    return buildHoverForClass( indexedClassOpt.get() );
+					    }
+				    }
+			    }
+
+			    // Handle extends/implements annotations - provide hover for class/interface names
+			    if ( target instanceof BoxAnnotation annotation ) {
+				    String className = extractClassNameFromAnnotation( annotation );
+				    if ( className != null ) {
+					    var indexedClassOpt = findClassByNameWithRelativeResolution( className, docURI );
 					    if ( indexedClassOpt.isPresent() ) {
 						    return buildHoverForClass( indexedClassOpt.get() );
 					    }
@@ -3564,6 +3645,71 @@ public class ProjectContextProvider {
 			return fullPath.substring( lastSeparator + 1 );
 		}
 		return fullPath;
+	}
+
+	/**
+	 * Extract class name from an extends/implements annotation.
+	 */
+	private String extractClassNameFromAnnotation( BoxAnnotation annotation ) {
+		String key = annotation.getKey().getValue().toLowerCase();
+
+		if ( !key.equals( "extends" ) && !key.equals( "implements" ) ) {
+			return null;
+		}
+
+		// Extract class/interface name from annotation value
+		String className = null;
+		if ( annotation.getValue() instanceof BoxStringLiteral strLiteral ) {
+			className = strLiteral.getValue();
+		} else if ( annotation.getValue() instanceof BoxFQN fqn ) {
+			className = extractClassNameFromFQN( fqn );
+		} else if ( annotation.getValue() != null ) {
+			className	= annotation.getValue().getSourceText();
+			// Clean up quotes if present
+			className	= className.replace( "\"", "" ).replace( "'", "" );
+		}
+
+		if ( className == null || className.isEmpty() ) {
+			return null;
+		}
+
+		// Handle comma-separated list for implements (return first one for now)
+		if ( className.contains( "," ) ) {
+			String[] classes = className.split( "," );
+			className = classes[ 0 ].trim();
+		}
+
+		return className;
+	}
+
+	/**
+	 * Find a class by name with relative path resolution support.
+	 * Tries simple name, FQN, and relative package resolution.
+	 */
+	private java.util.Optional<IndexedClass> findClassByNameWithRelativeResolution( String className, URI docURI ) {
+		if ( className == null || className.isEmpty() ) {
+			return java.util.Optional.empty();
+		}
+
+		ProjectIndex	index		= getIndex();
+		var				classOpt	= index.findClassByName( className );
+
+		// Try by FQN if simple name lookup failed
+		if ( classOpt.isEmpty() ) {
+			classOpt = index.findClassByFQN( className );
+		}
+
+		// If still not found and className contains a dot (potential relative path),
+		// try resolving relative to the current file's package
+		if ( classOpt.isEmpty() && className.contains( "." ) && docURI != null ) {
+			String currentPackage = getCurrentPackageFromURI( docURI );
+			if ( currentPackage != null && !currentPackage.isEmpty() ) {
+				String qualifiedName = currentPackage + "." + className;
+				classOpt = index.findClassByFQN( qualifiedName );
+			}
+		}
+
+		return classOpt;
 	}
 
 	/**

@@ -255,20 +255,16 @@ public class MemberAccessTypeInferrer {
 	}
 
 	/**
-	 * Resolve a class by name (simple name or FQN).
+	 * Resolve a class by name (simple name, FQN, or relative path).
+	 * Supports relative class paths like "subpackage.User" from within a package.
 	 */
 	private Optional<IndexedClass> resolveClass( String className ) {
 		if ( index == null || className == null ) {
 			return Optional.empty();
 		}
 
-		// Try simple name first
-		Optional<IndexedClass> result = index.findClassByName( className );
-		if ( result.isEmpty() && className.contains( "." ) ) {
-			// Try as FQN
-			result = index.findClassByFQN( className );
-		}
-		return result;
+		// Use the comprehensive lookup that includes relative path resolution
+		return index.findClassWithContext( className, fileParseResult.getURI() );
 	}
 
 	/**

@@ -295,6 +295,87 @@ public class ProjectIndex {
 	}
 
 	/**
+	 * Find a class by name with support for relative path resolution.
+	 * Tries multiple strategies in order:
+	 * 1. Simple name lookup (e.g., "User")
+	 * 2. Full FQN lookup (e.g., "models.User")
+	 * 3. Relative path resolution (if contextFileUri provided and className contains ".")
+	 *
+	 * @param className      The class name to find (simple name, FQN, or relative path)
+	 * @param contextFileUri The URI of the file making the reference (for relative path resolution), or null
+	 *
+	 * @return Optional containing the class if found
+	 */
+	public Optional<IndexedClass> findClassWithContext( String className, URI contextFileUri ) {
+		if ( className == null || className.isEmpty() ) {
+			return Optional.empty();
+		}
+
+		// Try simple name first
+		Optional<IndexedClass> result = findClassByName( className );
+		if ( result.isPresent() ) {
+			return result;
+		}
+
+		// Try by FQN
+		result = findClassByFQN( className );
+		if ( result.isPresent() ) {
+			return result;
+		}
+
+		// If still not found and className contains a dot (potential relative path),
+		// try resolving relative to the context file's package
+		if ( className.contains( "." ) && contextFileUri != null && workspaceRoot != null ) {
+			String currentPackage = getPackageFromURI( contextFileUri );
+			if ( currentPackage != null && !currentPackage.isEmpty() ) {
+				String qualifiedName = currentPackage + "." + className;
+				result = findClassByFQN( qualifiedName );
+				if ( result.isPresent() ) {
+					return result;
+				}
+			}
+		}
+
+		return Optional.empty();
+	}
+
+	/**
+	 * Get the package (directory path) of a file relative to workspace root.
+	 * For example, if file is at "subpackage/BaseType.bx", returns "subpackage".
+	 * Returns null if package cannot be determined.
+	 *
+	 * @param fileUri The file URI
+	 *
+	 * @return The package path (dot-separated), or null
+	 */
+	private String getPackageFromURI( URI fileUri ) {
+		if ( fileUri == null || workspaceRoot == null ) {
+			return null;
+		}
+
+		try {
+			Path	filePath		= Paths.get( fileUri );
+			Path	relativePath	= workspaceRoot.relativize( filePath );
+			String	pathStr			= relativePath.toString();
+
+			// Get the directory part (without filename)
+			int		lastSlash		= Math.max( pathStr.lastIndexOf( '/' ), pathStr.lastIndexOf( '\\' ) );
+			if ( lastSlash < 0 ) {
+				// File is in root directory
+				return null;
+			}
+
+			String packagePath = pathStr.substring( 0, lastSlash );
+
+			// Convert path separators to dots
+			return packagePath.replace( '/', '.' ).replace( '\\', '.' );
+		} catch ( Exception e ) {
+			// If we can't determine package, return null
+			return null;
+		}
+	}
+
+	/**
 	 * Find all classes that extend a given class.
 	 * Tries both FQN and simple name lookup since extends may store
 	 * simple names from annotations.

@@ -1,5 +1,6 @@
 package ortus.boxlang.lsp.workspace.completion;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -26,10 +27,16 @@ public class MemberCompletionCollector {
 
 	private final ProjectIndex	index;
 	private final String		currentClassName;	// The class where completion is triggered (for visibility)
+	private final URI			contextFileUri;		// The file URI for relative path resolution
 
 	public MemberCompletionCollector( ProjectIndex index, String currentClassName ) {
+		this( index, currentClassName, null );
+	}
+
+	public MemberCompletionCollector( ProjectIndex index, String currentClassName, URI contextFileUri ) {
 		this.index				= index;
 		this.currentClassName	= currentClassName;
+		this.contextFileUri		= contextFileUri;
 	}
 
 	/**
@@ -287,17 +294,14 @@ public class MemberCompletionCollector {
 	}
 
 	/**
-	 * Resolve a class by name (simple name or FQN).
+	 * Resolve a class by name (simple name, FQN, or relative path).
+	 * Uses context-aware lookup to support relative class paths.
 	 */
 	private Optional<IndexedClass> resolveClass( String className ) {
 		if ( index == null || className == null ) {
 			return Optional.empty();
 		}
-		Optional<IndexedClass> result = index.findClassByName( className );
-		if ( result.isEmpty() && className.contains( "." ) ) {
-			result = index.findClassByFQN( className );
-		}
-		return result;
+		return index.findClassWithContext( className, contextFileUri );
 	}
 
 	/**
