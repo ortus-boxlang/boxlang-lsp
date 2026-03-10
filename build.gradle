@@ -64,7 +64,7 @@ dependencies {
 	testImplementation "com.google.truth:truth:1.+"
 
 	// Explicitly declare the JUnit platform launcher (to avoid deprecation)
-    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.13.4"
 
 	// This dependency is used by the application.
     implementation "com.google.guava:guava:33.5.0-jre"

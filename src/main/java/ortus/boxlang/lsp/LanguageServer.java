@@ -13,10 +13,12 @@ import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.ServerCapabilities;
+import org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions;
 import org.eclipse.lsp4j.SetTraceParams;
 import org.eclipse.lsp4j.SignatureHelpOptions;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageClientAware;
 import org.eclipse.lsp4j.services.TextDocumentService;
@@ -24,6 +26,7 @@ import org.eclipse.lsp4j.services.WorkspaceService;
 
 import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.SemanticTokensContract;
 
 public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer, LanguageClientAware {
 
@@ -62,6 +65,10 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			    CodeActionKind.RefactorRewrite
 			) ) );
 			capabilities.setWorkspaceSymbolProvider( true );
+			SemanticTokensWithRegistrationOptions semanticTokensOptions = new SemanticTokensWithRegistrationOptions();
+			semanticTokensOptions.setLegend( SemanticTokensContract.LEGEND );
+			semanticTokensOptions.setFull( Either.forLeft( true ) );
+			capabilities.setSemanticTokensProvider( semanticTokensOptions );
 
 			// TODO add an initialize method to ProjectContextProvider to pass in workspace folders
 			// and other client capabilities as needed
