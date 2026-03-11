@@ -3,9 +3,11 @@ package ortus.boxlang.lsp.workspace;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.lsp4j.SemanticTokens;
 
@@ -20,6 +22,7 @@ import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxScope;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
+import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.lsp.App;
 import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor;
 import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor.VariableInfo;
@@ -28,7 +31,7 @@ import ortus.boxlang.runtime.scopes.Key;
 import ortus.boxlang.runtime.types.BoxLangType;
 
 /**
- * Builds semantic tokens for function/member invocations and declarations.
+ * Builds semantic tokens for function/member invocations, declarations, and property references.
  */
 public class SemanticTokensBuilder {
 
@@ -45,6 +48,7 @@ public class SemanticTokensBuilder {
 			collectFunctionInvocationTokens( root, tokens, builtinCache );
 			collectMethodInvocationTokens( root, tokens, memberResolutionCtx );
 			collectFunctionDeclarationTokens( root, tokens );
+			collectPropertyAccessTokens( root, tokens, memberResolutionCtx.scopeCollector() );
 
 			if ( tokens.isEmpty() ) {
 				return SemanticTokensContract.emptyTokens();
@@ -157,6 +161,161 @@ public class SemanticTokensBuilder {
 			    SemanticTokensContract.MODIFIER_DECLARATION
 			) );
 		}
+	}
+
+	private void collectPropertyAccessTokens( BoxNode root, List<AbsoluteSemanticToken> tokens, VariableScopeCollectorVisitor scopeCollector ) {
+		List<BoxDotAccess>			accesses			= root.getDescendantsOfType( BoxDotAccess.class );
+		Map<BoxClass, Set<String>>	declaredProperties	= new HashMap<>();
+
+		for ( BoxDotAccess dotAccess : accesses ) {
+			if ( !isPropertyScopeAccess( dotAccess.getContext() ) ) {
+				continue;
+			}
+
+			if ( ! ( dotAccess.getAccess() instanceof BoxIdentifier accessIdentifier ) ) {
+				continue;
+			}
+
+			BoxClass containingClass = dotAccess.getFirstAncestorOfType( BoxClass.class );
+			if ( containingClass == null ) {
+				continue;
+			}
+
+			String propertyName = accessIdentifier.getName();
+			if ( propertyName == null || propertyName.isBlank() ) {
+				continue;
+			}
+
+			Set<String> classProperties = declaredProperties.computeIfAbsent( containingClass, this::collectDeclaredPropertyNames );
+			if ( !classProperties.contains( propertyName.toLowerCase( Locale.ROOT ) ) ) {
+				continue;
+			}
+
+			Point start = getStartPoint( accessIdentifier );
+			if ( start == null ) {
+				continue;
+			}
+
+			tokens.add( new AbsoluteSemanticToken(
+			    Math.max( 0, start.getLine() - 1 ),
+			    Math.max( 0, start.getColumn() ),
+			    propertyName.length(),
+			    SemanticTokensContract.TOKEN_TYPE_PROPERTY,
+			    0
+			) );
+		}
+
+		collectUnscopedPropertyTokens( root, tokens, declaredProperties, scopeCollector );
+	}
+
+	private void collectUnscopedPropertyTokens(
+	    BoxNode root,
+	    List<AbsoluteSemanticToken> tokens,
+	    Map<BoxClass, Set<String>> declaredProperties,
+	    VariableScopeCollectorVisitor scopeCollector ) {
+
+		List<BoxIdentifier> identifiers = root.getDescendantsOfType( BoxIdentifier.class );
+		for ( BoxIdentifier identifier : identifiers ) {
+			BoxClass containingClass = identifier.getFirstAncestorOfType( BoxClass.class );
+			if ( containingClass == null ) {
+				continue;
+			}
+
+			if ( identifier.getFirstAncestorOfType( BoxProperty.class ) != null ) {
+				continue;
+			}
+
+			BoxNode parent = identifier.getParent();
+			if ( parent instanceof BoxDotAccess dotAccess ) {
+				if ( dotAccess.getAccess() == identifier || dotAccess.getContext() == identifier ) {
+					continue;
+				}
+			}
+
+			String propertyName = identifier.getName();
+			if ( propertyName == null || propertyName.isBlank() ) {
+				continue;
+			}
+
+			Set<String> classProperties = declaredProperties.computeIfAbsent( containingClass, this::collectDeclaredPropertyNames );
+			if ( !classProperties.contains( propertyName.toLowerCase( Locale.ROOT ) ) ) {
+				continue;
+			}
+
+			if ( isShadowedByLocalOrArgument( identifier, scopeCollector ) ) {
+				continue;
+			}
+
+			Point start = getStartPoint( identifier );
+			if ( start == null ) {
+				continue;
+			}
+
+			tokens.add( new AbsoluteSemanticToken(
+			    Math.max( 0, start.getLine() - 1 ),
+			    Math.max( 0, start.getColumn() ),
+			    propertyName.length(),
+			    SemanticTokensContract.TOKEN_TYPE_PROPERTY,
+			    0
+			) );
+		}
+	}
+
+	private boolean isShadowedByLocalOrArgument( BoxIdentifier identifier, VariableScopeCollectorVisitor scopeCollector ) {
+		if ( identifier == null || scopeCollector == null ) {
+			return false;
+		}
+
+		String identifierName = identifier.getName();
+		if ( identifierName == null || identifierName.isBlank() ) {
+			return false;
+		}
+
+		BoxFunctionDeclaration	containingFunction	= identifier.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+		VariableInfo			variableInfo		= scopeCollector.getVariableInfo( identifierName, containingFunction );
+		if ( variableInfo == null || variableInfo.scope() == null ) {
+			return false;
+		}
+
+		return variableInfo.scope() == VariableScopeCollectorVisitor.VariableScope.LOCAL
+		    || variableInfo.scope() == VariableScopeCollectorVisitor.VariableScope.ARGUMENTS;
+	}
+
+	private Set<String> collectDeclaredPropertyNames( BoxClass boxClass ) {
+		Set<String> declaredProperties = new HashSet<>();
+		if ( boxClass == null || boxClass.getProperties() == null ) {
+			return declaredProperties;
+		}
+
+		for ( BoxProperty property : boxClass.getProperties() ) {
+			String propertyName = BLASTTools.getPropertyName( property );
+			if ( propertyName != null && !propertyName.isBlank() ) {
+				declaredProperties.add( propertyName.toLowerCase( Locale.ROOT ) );
+			}
+		}
+
+		return declaredProperties;
+	}
+
+	private boolean isPropertyScopeAccess( BoxExpression contextExpression ) {
+		if ( contextExpression instanceof BoxScope scope ) {
+			return isPropertyScopeName( scope.getName() );
+		}
+
+		if ( contextExpression instanceof BoxIdentifier scopeIdentifier ) {
+			return isPropertyScopeName( scopeIdentifier.getName() );
+		}
+
+		return false;
+	}
+
+	private boolean isPropertyScopeName( String scopeName ) {
+		if ( scopeName == null ) {
+			return false;
+		}
+
+		String normalized = scopeName.toLowerCase( Locale.ROOT );
+		return normalized.equals( "variables" ) || normalized.equals( "this" );
 	}
 
 	private boolean isMethodDeclaration( BoxFunctionDeclaration declaration ) {

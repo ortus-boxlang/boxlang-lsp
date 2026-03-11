@@ -1,5 +1,7 @@
 class SemanticTokensFixture {
 
+	property name="convertEmptyStringsToNull";
+
 	function doThing() {
 		return true;
 	}
@@ -16,6 +18,18 @@ class SemanticTokensFixture {
 
 		var obj = new SemanticTokensFixture();
 		obj.doThing();
+
+		checkForNonQueryParamStructKeys( {} );
+	}
+
+	private boolean function checkForNonQueryParamStructKeys( required struct param ) {
+		variables.runtimeFlag = true;
+		var enabled = variables.convertEmptyStringsToNull;
+
+		return param
+			.keyArray()
+			.filter( ( key ) => !convertEmptyStringsToNull && enabled )
+			.isEmpty();
 	}
 
 }

@@ -69,6 +69,10 @@ public class SemanticTokensTest extends BaseTest {
 
 		assertHasToken( decoded, "doThing", "method", Set.of() );
 		assertHasToken( decoded, "doThing", "method", Set.of( "declaration" ) );
+
+		assertHasToken( decoded, "convertEmptyStringsToNull", "property", Set.of() );
+		assertThat( hasToken( decoded, "runtimeFlag", "property", Set.of() ) ).isFalse();
+		assertThat( hasToken( decoded, "param", "property", Set.of() ) ).isFalse();
 	}
 
 	@Test
