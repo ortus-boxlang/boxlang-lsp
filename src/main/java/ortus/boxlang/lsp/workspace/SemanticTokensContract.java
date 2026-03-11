@@ -13,7 +13,8 @@ public final class SemanticTokensContract {
 
 	public static final List<String>			TOKEN_TYPES				= List.of(
 	    "function",
-	    "method"
+	    "method",
+	    "property"
 	);
 	public static final List<String>			TOKEN_MODIFIERS			= List.of(
 	    "declaration",
@@ -22,6 +23,7 @@ public final class SemanticTokensContract {
 
 	public static final int						TOKEN_TYPE_FUNCTION		= 0;
 	public static final int						TOKEN_TYPE_METHOD		= 1;
+	public static final int						TOKEN_TYPE_PROPERTY		= 2;
 
 	public static final int						MODIFIER_DECLARATION	= 1 << 0;
 	public static final int						MODIFIER_DEFAULT_LIB	= 1 << 1;
