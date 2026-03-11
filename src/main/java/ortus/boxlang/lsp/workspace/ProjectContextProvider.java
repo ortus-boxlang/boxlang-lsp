@@ -42,6 +42,7 @@ import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.Registration;
 import org.eclipse.lsp4j.RegistrationParams;
+import org.eclipse.lsp4j.SemanticTokens;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
 import org.eclipse.lsp4j.TextEdit;
@@ -135,6 +136,7 @@ public class ProjectContextProvider {
 	private UserSettings						userSettings				= new UserSettings();
 	private long								WorkspaceDiagnosticReportId	= 1;
 	private List<DiagnosticReport>				cachedDiagnosticReports		= new CopyOnWriteArrayList<DiagnosticReport>();
+	private final SemanticTokensBuilder			semanticTokensBuilder		= new SemanticTokensBuilder();
 
 	private boolean								shouldPublishDiagnostics	= false;
 	private final AtomicBoolean					workspaceParseRunning		= new AtomicBoolean( false );
@@ -529,6 +531,21 @@ public class ProjectContextProvider {
 	public Optional<List<Either<SymbolInformation, DocumentSymbol>>> getDocumentSymbols( URI docURI ) {
 		return getLatestFileParseResult( docURI )
 		    .map( ( res ) -> res.getOutline() );
+	}
+
+	public SemanticTokens getSemanticTokens( URI docURI ) {
+		DocumentModel model = documentModels.get( docURI );
+		if ( model != null ) {
+			return FileParseResult.fromSourceString( docURI, model.getContent() )
+			    .findAstRoot()
+			    .map( semanticTokensBuilder::build )
+			    .orElseGet( SemanticTokensContract::emptyTokens );
+		}
+
+		return getLatestFileParseResult( docURI )
+		    .flatMap( FileParseResult::findAstRoot )
+		    .map( semanticTokensBuilder::build )
+		    .orElseGet( SemanticTokensContract::emptyTokens );
 	}
 
 	public List<Location> findFunctionUsages( URI docURI, Position pos ) {

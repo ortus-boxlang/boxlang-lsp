@@ -34,6 +34,8 @@ import org.eclipse.lsp4j.TypeDefinitionParams;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.RelatedFullDocumentDiagnosticReport;
+import org.eclipse.lsp4j.SemanticTokens;
+import org.eclipse.lsp4j.SemanticTokensParams;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentRegistrationOptions;
 import org.eclipse.lsp4j.TextEdit;
@@ -48,6 +50,7 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.SemanticTokensContract;
 
 public class BoxLangTextDocumentService implements TextDocumentService {
 
@@ -116,6 +119,17 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 
 			return ddr;
 
+		} );
+	}
+
+	@JsonRequest
+	public CompletableFuture<SemanticTokens> semanticTokensFull( SemanticTokensParams params ) {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
+			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
+			if ( docURI == null ) {
+				return SemanticTokensContract.emptyTokens();
+			}
+			return ProjectContextProvider.getInstance().getSemanticTokens( docURI );
 		} );
 	}
 
