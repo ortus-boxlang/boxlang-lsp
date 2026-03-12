@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -61,6 +62,7 @@ import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.IBoxDocumentableNode;
 import ortus.boxlang.compiler.ast.Point;
 import ortus.boxlang.compiler.ast.comment.BoxDocComment;
+import ortus.boxlang.compiler.ast.expression.BoxArgument;
 import ortus.boxlang.compiler.ast.expression.BoxDotAccess;
 import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
@@ -137,6 +139,8 @@ public class ProjectContextProvider {
 	private long								WorkspaceDiagnosticReportId	= 1;
 	private List<DiagnosticReport>				cachedDiagnosticReports		= new CopyOnWriteArrayList<DiagnosticReport>();
 	private final SemanticTokensBuilder			semanticTokensBuilder		= new SemanticTokensBuilder();
+	private volatile ProjectAppContext			appContext					= ProjectAppContext.empty();
+	private final ClassReferenceResolver		classReferenceResolver		= new ClassReferenceResolver( this );
 
 	private boolean								shouldPublishDiagnostics	= false;
 	private final AtomicBoolean					workspaceParseRunning		= new AtomicBoolean( false );
@@ -173,14 +177,9 @@ public class ProjectContextProvider {
 	public ProjectIndex getIndex() {
 		if ( projectIndex == null ) {
 			projectIndex = new ProjectIndex();
-			// Initialize with workspace root if available
-			if ( workspaceFolders != null && !workspaceFolders.isEmpty() ) {
-				try {
-					Path workspaceRoot = Path.of( new URI( workspaceFolders.getFirst().getUri() ) );
-					projectIndex.initialize( workspaceRoot );
-				} catch ( Exception e ) {
-					App.logger.warn( "Failed to initialize project index with workspace root", e );
-				}
+			Path workspaceRoot = resolveWorkspaceRoot();
+			if ( workspaceRoot != null ) {
+				projectIndex.initialize( workspaceRoot );
 			}
 		}
 		return projectIndex;
@@ -316,7 +315,36 @@ public class ProjectContextProvider {
 	}
 
 	public Map<String, Path> getMappings() {
-		return new HashMap<>();
+		return new HashMap<>( appContext.mappings() );
+	}
+
+	public ProjectAppContext getAppContext() {
+		return appContext;
+	}
+
+	public void setAppContext( ProjectAppContext appContext ) {
+		this.appContext = appContext == null ? ProjectAppContext.empty() : appContext;
+	}
+
+	public void setAppContextFromInitializationOptions( Object initializationOptions ) {
+		Path				workspaceRoot	= resolveWorkspaceRoot();
+		ProjectAppContext	parsedContext	= ProjectAppContext.fromInitializationOptions( initializationOptions, workspaceRoot );
+		setAppContext( parsedContext );
+		App.logger.info(
+		    "Initialized app context: optionsType="
+		        + ( initializationOptions != null ? initializationOptions.getClass().getName() : "null" )
+		        + ", rootPath=" + parsedContext.rootPath()
+		        + ", mappings=" + parsedContext.mappings().size()
+		        + ", moduleDirs=" + parsedContext.moduleDirs().size()
+		);
+	}
+
+	public ClassReferenceResolver getClassReferenceResolver() {
+		return classReferenceResolver;
+	}
+
+	public Optional<IndexedClass> resolveClassReference( String classReference, URI docURI ) {
+		return classReferenceResolver.resolveClass( classReference, docURI );
 	}
 
 	public List<Diagnostic> getFileDiagnostics( URI docURI ) {
@@ -340,6 +368,21 @@ public class ProjectContextProvider {
 
 	public void setWorkspaceFolders( List<WorkspaceFolder> folders ) {
 		this.workspaceFolders = folders;
+	}
+
+	private Path resolveWorkspaceRoot() {
+		if ( appContext != null && appContext.rootPath() != null ) {
+			return appContext.rootPath();
+		}
+		if ( workspaceFolders == null || workspaceFolders.isEmpty() ) {
+			return null;
+		}
+		try {
+			return Path.of( new URI( workspaceFolders.getFirst().getUri() ) );
+		} catch ( Exception e ) {
+			App.logger.warn( "Failed to resolve workspace root from folders", e );
+			return null;
+		}
 	}
 
 	public void setShouldPublishDiagnostics( boolean shouldPublishDiagnostics ) {
@@ -1319,16 +1362,22 @@ public class ProjectContextProvider {
 					        return findMethodDefinition( rootNode, methodInvocation, docURI );
 				        } else if ( node instanceof BoxNew newExpr ) {
 					        // Handle class instantiation - navigate to class definition
-					        return findClassDefinition( newExpr );
+					        return findClassDefinition( newExpr, docURI );
 				        } else if ( node instanceof BoxAnnotation annotation ) {
 					        // Handle extends/implements annotations - navigate to class/interface definition
 					        return findClassDefinitionFromAnnotation( annotation, docURI );
+				        } else if ( node instanceof BoxStringLiteral stringLiteral ) {
+					        // Handle createObject("component", "path.to.Class") class arguments
+					        List<Location> createObjectLocations = findClassDefinitionFromCreateObjectLiteral( stringLiteral, docURI );
+					        if ( !createObjectLocations.isEmpty() ) {
+						        return createObjectLocations;
+					        }
 				        } else if ( node instanceof BoxReturnType returnType ) {
 					        // Handle return type hints - navigate to class definition
 					        return findClassDefinitionFromReturnType( returnType );
 				        } else if ( node instanceof BoxArgumentDeclaration argDecl ) {
 					        // Try to navigate to the type class definition first
-					        List<Location> typeLocations = findClassDefinitionFromArgumentType( argDecl );
+					        List<Location> typeLocations = findClassDefinitionFromArgumentType( argDecl, docURI );
 					        if ( !typeLocations.isEmpty() ) {
 						        return typeLocations;
 					        }
@@ -1337,7 +1386,7 @@ public class ProjectContextProvider {
 					        return createLocationList( argDecl, docURI );
 				        } else if ( node instanceof BoxFQN fqn ) {
 					        // Handle type hints (return type, parameter type, variable type)
-					        return findClassDefinitionFromFQN( fqn );
+					        return findClassDefinitionFromFQN( fqn, docURI );
 				        } else if ( node instanceof BoxImport importNode ) {
 					        // Handle import statements - navigate to imported class/interface definition
 					        return findClassDefinitionFromImport( importNode );
@@ -1390,12 +1439,12 @@ public class ProjectContextProvider {
 			        .map( ( node ) -> {
 				        // Handle identifiers (variables)
 				        if ( node instanceof BoxIdentifier identifier ) {
-					        return findTypeDefinitionFromIdentifier( rootNode, identifier );
+					        return findTypeDefinitionFromIdentifier( rootNode, identifier, docURI );
 				        }
 
 				        // Handle argument declarations with type hints
 				        if ( node instanceof BoxArgumentDeclaration argDecl ) {
-					        return findTypeDefinitionFromArgument( argDecl );
+					        return findTypeDefinitionFromArgument( argDecl, docURI );
 				        }
 
 				        return new ArrayList<Location>();
@@ -1414,7 +1463,7 @@ public class ProjectContextProvider {
 	 *
 	 * @return List containing the type definition location, or empty list if not found or primitive type
 	 */
-	private List<Location> findTypeDefinitionFromIdentifier( BoxNode rootNode, BoxIdentifier identifier ) {
+	private List<Location> findTypeDefinitionFromIdentifier( BoxNode rootNode, BoxIdentifier identifier, URI docURI ) {
 		// First collect variable scope/type information
 		VariableScopeCollectorVisitor scopeCollector = new VariableScopeCollectorVisitor();
 		rootNode.accept( scopeCollector );
@@ -1439,7 +1488,7 @@ public class ProjectContextProvider {
 			String inferredType = typeCollector.getVariableType( varName );
 
 			if ( inferredType != null && !isPrimitiveType( inferredType ) ) {
-				return findClassByNameAndGetLocation( inferredType );
+				return findClassByNameAndGetLocation( inferredType, docURI );
 			}
 
 			return new ArrayList<>();
@@ -1456,7 +1505,7 @@ public class ProjectContextProvider {
 		}
 
 		// Look up the class in the index
-		return findClassByNameAndGetLocation( typeName );
+		return findClassByNameAndGetLocation( typeName, docURI );
 	}
 
 	/**
@@ -1466,14 +1515,14 @@ public class ProjectContextProvider {
 	 *
 	 * @return List containing the type definition location, or empty list if not found or primitive type
 	 */
-	private List<Location> findTypeDefinitionFromArgument( BoxArgumentDeclaration argDecl ) {
+	private List<Location> findTypeDefinitionFromArgument( BoxArgumentDeclaration argDecl, URI docURI ) {
 		String typeName = argDecl.getType() != null ? argDecl.getType().toString() : null;
 
 		if ( typeName == null || typeName.isEmpty() || isPrimitiveType( typeName ) ) {
 			return new ArrayList<>();
 		}
 
-		return findClassByNameAndGetLocation( typeName );
+		return findClassByNameAndGetLocation( typeName, docURI );
 	}
 
 	/**
@@ -1914,13 +1963,22 @@ public class ProjectContextProvider {
 	 *
 	 * @return List containing the class definition location, or empty list if not found
 	 */
-	private List<Location> findClassDefinition( BoxNew newExpr ) {
-		String className = extractClassNameFromNew( newExpr );
-		if ( className == null ) {
+	private List<Location> findClassDefinition( BoxNew newExpr, URI docURI ) {
+		String classReference = extractClassReferenceFromNew( newExpr );
+		if ( classReference == null ) {
 			return new ArrayList<>();
 		}
 
-		return findClassByNameAndGetLocation( className );
+		List<Location> locations = findClassByNameAndGetLocation( classReference, docURI );
+		if ( !locations.isEmpty() ) {
+			return locations;
+		}
+
+		String className = extractClassNameFromNew( newExpr );
+		if ( className == null || className.equalsIgnoreCase( classReference ) ) {
+			return locations;
+		}
+		return findClassByNameAndGetLocation( className, docURI );
 	}
 
 	/**
@@ -1943,7 +2001,7 @@ public class ProjectContextProvider {
 		if ( annotation.getValue() instanceof BoxStringLiteral strLiteral ) {
 			className = strLiteral.getValue();
 		} else if ( annotation.getValue() instanceof BoxFQN fqn ) {
-			className = extractClassNameFromFQN( fqn );
+			className = extractClassReferenceFromFQN( fqn );
 		} else if ( annotation.getValue() != null ) {
 			className	= annotation.getValue().getSourceText();
 			// Clean up quotes if present
@@ -1965,6 +2023,69 @@ public class ProjectContextProvider {
 		return findClassByNameAndGetLocation( className, docURI );
 	}
 
+	private List<Location> findClassDefinitionFromCreateObjectLiteral( BoxStringLiteral literal, URI docURI ) {
+		if ( literal == null ) {
+			return new ArrayList<>();
+		}
+		BoxFunctionInvocation invocation = literal.getFirstAncestorOfType( BoxFunctionInvocation.class );
+		if ( invocation == null || invocation.getName() == null || !invocation.getName().equalsIgnoreCase( "createObject" ) ) {
+			return new ArrayList<>();
+		}
+
+		List<BoxArgument> args = invocation.getArguments();
+		if ( args == null || args.isEmpty() ) {
+			return new ArrayList<>();
+		}
+
+		String		positionalType	= null;
+		BoxArgument	classArgument	= null;
+
+		for ( int i = 0; i < args.size(); i++ ) {
+			BoxArgument argument = args.get( i );
+			if ( argument == null ) {
+				continue;
+			}
+			String argumentName = normalizeCreateObjectArgumentName( extractArgumentName( argument ) );
+			if ( i == 0 && argumentName == null ) {
+				positionalType = extractStringLikeValue( argument.getValue() );
+			}
+			if ( argument.getValue() != literal ) {
+				continue;
+			}
+			if ( argumentName != null ) {
+				if ( argumentName.equals( "class" ) || argumentName.equals( "classname" ) || argumentName.equals( "path" )
+				    || argumentName.equals( "component" ) ) {
+					classArgument = argument;
+					break;
+				}
+				return new ArrayList<>();
+			}
+			if ( i == 1 ) {
+				classArgument = argument;
+				break;
+			}
+			return new ArrayList<>();
+		}
+
+		if ( classArgument == null ) {
+			return new ArrayList<>();
+		}
+
+		String classReference = extractStringLikeValue( classArgument.getValue() );
+		if ( classReference == null || classReference.isBlank() ) {
+			return new ArrayList<>();
+		}
+
+		String objectType = resolveCreateObjectType( args, positionalType );
+		if ( objectType != null ) {
+			String normalizedType = objectType.trim().toLowerCase( Locale.ROOT );
+			if ( normalizedType.equals( "java" ) || normalizedType.startsWith( "java:" ) ) {
+				return new ArrayList<>();
+			}
+		}
+		return findClassByNameAndGetLocation( classReference, docURI );
+	}
+
 	/**
 	 * Find the definition location for a class from a BoxFQN node.
 	 * Handles type hints in return types, parameter types, and variable types.
@@ -1973,13 +2094,82 @@ public class ProjectContextProvider {
 	 *
 	 * @return List containing the class definition location, or empty list if not found
 	 */
-	private List<Location> findClassDefinitionFromFQN( BoxFQN fqn ) {
-		String className = extractClassNameFromFQN( fqn );
-		if ( className == null ) {
+	private List<Location> findClassDefinitionFromFQN( BoxFQN fqn, URI docURI ) {
+		String classReference = extractClassReferenceFromFQN( fqn );
+		if ( classReference == null ) {
 			return new ArrayList<>();
 		}
 
-		return findClassByNameAndGetLocation( className );
+		List<Location> locations = findClassByNameAndGetLocation( classReference, docURI );
+		if ( !locations.isEmpty() ) {
+			return locations;
+		}
+
+		String className = extractClassNameFromFQN( fqn );
+		if ( className == null || className.equalsIgnoreCase( classReference ) ) {
+			return locations;
+		}
+		return findClassByNameAndGetLocation( className, docURI );
+	}
+
+	private String resolveCreateObjectType( List<BoxArgument> args, String positionalType ) {
+		for ( BoxArgument argument : args ) {
+			if ( argument == null ) {
+				continue;
+			}
+			String argumentName = normalizeCreateObjectArgumentName( extractArgumentName( argument ) );
+			if ( argumentName != null && argumentName.equals( "type" ) ) {
+				return extractStringLikeValue( argument.getValue() );
+			}
+		}
+		return positionalType;
+	}
+
+	private String normalizeCreateObjectArgumentName( String argumentName ) {
+		if ( argumentName == null ) {
+			return null;
+		}
+		String normalized = argumentName.trim();
+		return normalized.isEmpty() ? null : normalized.toLowerCase( Locale.ROOT );
+	}
+
+	private String extractArgumentName( BoxArgument argument ) {
+		if ( argument == null || argument.getName() == null ) {
+			return null;
+		}
+		BoxNode nameNode = argument.getName();
+		if ( nameNode instanceof BoxIdentifier identifier ) {
+			return identifier.getName();
+		}
+		if ( nameNode instanceof BoxStringLiteral literal ) {
+			return literal.getValue();
+		}
+		return cleanQuotedText( nameNode.getSourceText() );
+	}
+
+	private String extractStringLikeValue( BoxNode valueNode ) {
+		if ( valueNode == null ) {
+			return null;
+		}
+		if ( valueNode instanceof BoxStringLiteral stringLiteral ) {
+			return stringLiteral.getValue();
+		}
+		if ( valueNode instanceof BoxFQN fqn ) {
+			return extractClassReferenceFromFQN( fqn );
+		}
+		return cleanQuotedText( valueNode.getSourceText() );
+	}
+
+	private String cleanQuotedText( String sourceText ) {
+		if ( sourceText == null ) {
+			return null;
+		}
+		String cleaned = sourceText.trim();
+		if ( cleaned.length() >= 2 && ( ( cleaned.startsWith( "\"" ) && cleaned.endsWith( "\"" ) )
+		    || ( cleaned.startsWith( "'" ) && cleaned.endsWith( "'" ) ) ) ) {
+			cleaned = cleaned.substring( 1, cleaned.length() - 1 );
+		}
+		return cleaned.trim();
 	}
 
 	/**
@@ -2100,7 +2290,7 @@ public class ProjectContextProvider {
 	 *
 	 * @return List containing the class definition location, or empty list if not found
 	 */
-	private List<Location> findClassDefinitionFromArgumentType( BoxArgumentDeclaration argDecl ) {
+	private List<Location> findClassDefinitionFromArgumentType( BoxArgumentDeclaration argDecl, URI docURI ) {
 		String type = argDecl.getType();
 		if ( type == null || type.isEmpty() ) {
 			return new ArrayList<>();
@@ -2113,7 +2303,7 @@ public class ProjectContextProvider {
 			className = type.substring( lastDot + 1 );
 		}
 
-		return findClassByNameAndGetLocation( className );
+		return findClassByNameAndGetLocation( className, docURI );
 	}
 
 	/**
@@ -2167,40 +2357,7 @@ public class ProjectContextProvider {
 		if ( className == null || className.isEmpty() ) {
 			return new ArrayList<>();
 		}
-
-		ProjectIndex	index		= getIndex();
-		var				classOpt	= index.findClassByName( className );
-
-		// Try by FQN if simple name lookup failed
-		if ( classOpt.isEmpty() ) {
-			classOpt = index.findClassByFQN( className );
-		}
-
-		// If still not found and className contains a dot (potential relative path),
-		// try resolving relative to the current file's package
-		if ( classOpt.isEmpty() && className.contains( "." ) && docURI != null ) {
-			String currentPackage = getCurrentPackageFromURI( docURI );
-			if ( currentPackage != null && !currentPackage.isEmpty() ) {
-				String qualifiedName = currentPackage + "." + className;
-				classOpt = index.findClassByFQN( qualifiedName );
-			}
-		}
-
-		if ( classOpt.isEmpty() ) {
-			return new ArrayList<>();
-		}
-
-		IndexedClass indexedClass = classOpt.get();
-
-		if ( indexedClass.fileUri() == null || indexedClass.location() == null ) {
-			return new ArrayList<>();
-		}
-
-		Location location = new Location();
-		location.setUri( indexedClass.fileUri() );
-		location.setRange( indexedClass.location() );
-
-		return List.of( location );
+		return classReferenceResolver.resolveLocation( className, docURI );
 	}
 
 	/**
@@ -2573,9 +2730,9 @@ public class ProjectContextProvider {
 
 			    // Handle new expressions (class instantiation) - e.g., new UserService()
 			    if ( target instanceof BoxNew newExpr ) {
-				    String className = extractClassNameFromNew( newExpr );
-				    if ( className != null ) {
-					    var indexedClassOpt = getIndex().findClassByName( className );
+				    String classReference = extractClassReferenceFromNew( newExpr );
+				    if ( classReference != null ) {
+					    var indexedClassOpt = resolveClassReference( classReference, docURI );
 					    if ( indexedClassOpt.isPresent() ) {
 						    return buildHoverForClass( indexedClassOpt.get() );
 					    }
@@ -2584,9 +2741,9 @@ public class ProjectContextProvider {
 
 			    // Handle fully qualified names (class references in type hints, extends, implements, etc.)
 			    if ( target instanceof BoxFQN fqn ) {
-				    String className = extractClassNameFromFQN( fqn );
-				    if ( className != null ) {
-					    var indexedClassOpt = getIndex().findClassByName( className );
+				    String classReference = extractClassReferenceFromFQN( fqn );
+				    if ( classReference != null ) {
+					    var indexedClassOpt = resolveClassReference( classReference, docURI );
 					    if ( indexedClassOpt.isPresent() ) {
 						    return buildHoverForClass( indexedClassOpt.get() );
 					    }
@@ -3619,37 +3776,46 @@ public class ProjectContextProvider {
 	 * Extract the class name from a BoxNew expression.
 	 */
 	private String extractClassNameFromNew( BoxNew newExpr ) {
+		String classReference = extractClassReferenceFromNew( newExpr );
+		if ( classReference == null ) {
+			return null;
+		}
+		int	lastDot			= classReference.lastIndexOf( '.' );
+		int	lastColon		= classReference.lastIndexOf( ':' );
+		int	lastSeparator	= Math.max( lastDot, lastColon );
+		if ( lastSeparator >= 0 && lastSeparator < classReference.length() - 1 ) {
+			return classReference.substring( lastSeparator + 1 );
+		}
+		return classReference;
+	}
+
+	/**
+	 * Extract the full class reference from a BoxNew expression.
+	 */
+	private String extractClassReferenceFromNew( BoxNew newExpr ) {
 		BoxNode expression = newExpr.getExpression();
 
 		if ( expression instanceof BoxFQN fqn ) {
-			return extractClassNameFromFQN( fqn );
+			return extractClassReferenceFromFQN( fqn );
 		}
 
-		// Try to get the source text as a fallback
-		if ( expression != null ) {
-			String sourceText = expression.getSourceText();
-			if ( sourceText != null ) {
-				sourceText = sourceText.trim();
-				int	lastDot			= sourceText.lastIndexOf( '.' );
-				int	lastColon		= sourceText.lastIndexOf( ':' );
-				int	lastSeparator	= Math.max( lastDot, lastColon );
-
-				if ( lastSeparator >= 0 && lastSeparator < sourceText.length() - 1 ) {
-					return sourceText.substring( lastSeparator + 1 );
-				}
-				return sourceText;
-			}
+		if ( expression == null ) {
+			return null;
 		}
-
-		return null;
+		String sourceText = expression.getSourceText();
+		if ( sourceText == null ) {
+			return null;
+		}
+		sourceText = sourceText.trim();
+		return sourceText.isEmpty() ? null : sourceText;
 	}
 
 	/**
 	 * Extract the class name from a BoxFQN node.
 	 */
 	private String extractClassNameFromFQN( BoxFQN fqn ) {
-		String fullPath = fqn.getValue();
-		if ( fullPath == null || fullPath.isEmpty() ) {
+		String fullPath = extractClassReferenceFromFQN( fqn );
+		if ( fullPath == null ) {
 			return null;
 		}
 
@@ -3662,6 +3828,17 @@ public class ProjectContextProvider {
 			return fullPath.substring( lastSeparator + 1 );
 		}
 		return fullPath;
+	}
+
+	/**
+	 * Extract the full class reference path from a BoxFQN node.
+	 */
+	private String extractClassReferenceFromFQN( BoxFQN fqn ) {
+		if ( fqn == null || fqn.getValue() == null ) {
+			return null;
+		}
+		String fullPath = fqn.getValue().trim();
+		return fullPath.isEmpty() ? null : fullPath;
 	}
 
 	/**
@@ -3679,7 +3856,7 @@ public class ProjectContextProvider {
 		if ( annotation.getValue() instanceof BoxStringLiteral strLiteral ) {
 			className = strLiteral.getValue();
 		} else if ( annotation.getValue() instanceof BoxFQN fqn ) {
-			className = extractClassNameFromFQN( fqn );
+			className = extractClassReferenceFromFQN( fqn );
 		} else if ( annotation.getValue() != null ) {
 			className	= annotation.getValue().getSourceText();
 			// Clean up quotes if present
@@ -3704,29 +3881,7 @@ public class ProjectContextProvider {
 	 * Tries simple name, FQN, and relative package resolution.
 	 */
 	private java.util.Optional<IndexedClass> findClassByNameWithRelativeResolution( String className, URI docURI ) {
-		if ( className == null || className.isEmpty() ) {
-			return java.util.Optional.empty();
-		}
-
-		ProjectIndex	index		= getIndex();
-		var				classOpt	= index.findClassByName( className );
-
-		// Try by FQN if simple name lookup failed
-		if ( classOpt.isEmpty() ) {
-			classOpt = index.findClassByFQN( className );
-		}
-
-		// If still not found and className contains a dot (potential relative path),
-		// try resolving relative to the current file's package
-		if ( classOpt.isEmpty() && className.contains( "." ) && docURI != null ) {
-			String currentPackage = getCurrentPackageFromURI( docURI );
-			if ( currentPackage != null && !currentPackage.isEmpty() ) {
-				String qualifiedName = currentPackage + "." + className;
-				classOpt = index.findClassByFQN( qualifiedName );
-			}
-		}
-
-		return classOpt;
+		return resolveClassReference( className, docURI );
 	}
 
 	/**
