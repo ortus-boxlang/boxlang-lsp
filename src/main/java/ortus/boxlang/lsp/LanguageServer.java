@@ -73,7 +73,9 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			// TODO add an initialize method to ProjectContextProvider to pass in workspace folders
 			// and other client capabilities as needed
 			// as well as enforce the proper order of operations
-			ProjectContextProvider.getInstance().setWorkspaceFolders( params.getWorkspaceFolders() );
+			ProjectContextProvider provider = ProjectContextProvider.getInstance();
+			provider.setWorkspaceFolders( params.getWorkspaceFolders() );
+			provider.setAppContextFromInitializationOptions( params.getInitializationOptions() );
 
 			// this needs to come before parseWorkspace so that we can watch for changes to the lsp config file
 			if ( params.getCapabilities() != null

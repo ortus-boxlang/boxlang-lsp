@@ -7,6 +7,7 @@ import ortus.boxlang.compiler.ast.BoxInterface;
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.BoxScript;
 import ortus.boxlang.compiler.ast.BoxTemplate;
+import ortus.boxlang.compiler.ast.expression.BoxArgument;
 import ortus.boxlang.compiler.ast.expression.BoxDotAccess;
 import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
@@ -303,12 +304,10 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 
 		// Handle extends and implements annotations
 		if ( key.equals( "extends" ) || key.equals( "implements" ) ) {
-			// Check if cursor is on the value (the class/interface name)
-			if ( node.getValue() != null && BLASTTools.containsPosition( node.getValue(), line, column ) ) {
-				// Set the annotation as target so we can extract the class name from it
-				this.definitionTarget = node;
-				return;
-			}
+			// Resolve from anywhere within the annotation (key, equals, value, quotes)
+			// so Cmd/Ctrl+Click on `extends`/`implements` consistently navigates.
+			this.definitionTarget = node;
+			return;
 		}
 
 		// Visit children for other annotations
@@ -337,8 +336,51 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 			}
 		}
 
+		// Handle class argument in createObject("component", "path.to.Class")
+		if ( isCreateObjectClassArgument( node ) ) {
+			this.definitionTarget = node;
+			return;
+		}
+
 		// For other string literals, don't set as target
 		visitChildren( node );
+	}
+
+	private boolean isCreateObjectClassArgument( BoxStringLiteral literal ) {
+		BoxFunctionInvocation invocation = literal.getFirstAncestorOfType( BoxFunctionInvocation.class );
+		if ( invocation == null || invocation.getName() == null || !invocation.getName().equalsIgnoreCase( "createObject" ) ) {
+			return false;
+		}
+		int index = 0;
+		for ( BoxArgument argument : invocation.getArguments() ) {
+			if ( argument == null || argument.getValue() != literal ) {
+				index++;
+				continue;
+			}
+			String argumentName = extractArgumentName( argument );
+			if ( argumentName != null ) {
+				return argumentName.equalsIgnoreCase( "class" )
+				    || argumentName.equalsIgnoreCase( "classname" )
+				    || argumentName.equalsIgnoreCase( "path" )
+				    || argumentName.equalsIgnoreCase( "component" );
+			}
+			return index == 1;
+		}
+		return false;
+	}
+
+	private String extractArgumentName( BoxArgument argument ) {
+		if ( argument == null || argument.getName() == null ) {
+			return null;
+		}
+		BoxNode nameNode = argument.getName();
+		if ( nameNode instanceof BoxIdentifier identifier ) {
+			return identifier.getName();
+		}
+		if ( nameNode instanceof BoxStringLiteral literal ) {
+			return literal.getValue();
+		}
+		return nameNode.getSourceText();
 	}
 
 	/**

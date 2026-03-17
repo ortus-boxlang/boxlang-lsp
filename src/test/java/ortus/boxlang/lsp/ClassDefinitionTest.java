@@ -272,4 +272,49 @@ public class ClassDefinitionTest extends BaseTest {
 			Files.deleteIfExists( tempFile );
 		}
 	}
+
+	@Test
+	void testGoToDefinitionOnCreateObjectComponentClassArgument() throws Exception {
+		Path	tempFile	= testDir.resolve( "TempCreateObjectClassRef.bx" );
+		String	content		= """
+		                      class {
+		                          function build() {
+		                              return createObject( "component", "User" );
+		                          }
+		                      }
+		                      """;
+		Files.writeString( tempFile, content );
+
+		try {
+			svc.didOpen( new DidOpenTextDocumentParams(
+			    new TextDocumentItem( tempFile.toUri().toString(), "boxlang", 1, content ) ) );
+
+			int userOffset = content.indexOf( "\"User\"" );
+			assertThat( userOffset ).isAtLeast( 0 );
+
+			int	line	= 0;
+			int	column	= 0;
+			for ( int i = 0; i < userOffset + 2; i++ ) {
+				if ( content.charAt( i ) == '\n' ) {
+					line++;
+					column = 0;
+				} else {
+					column++;
+				}
+			}
+
+			DefinitionParams params = new DefinitionParams();
+			params.setTextDocument( new TextDocumentIdentifier( tempFile.toUri().toString() ) );
+			params.setPosition( new Position( line, column ) );
+
+			var result = svc.definition( params ).get();
+
+			assertThat( result ).isNotNull();
+			assertThat( result.getLeft() ).isNotNull();
+			assertThat( result.getLeft().size() ).isGreaterThan( 0 );
+			assertThat( result.getLeft().getFirst().getUri() ).isEqualTo( testDir.resolve( "User.bx" ).toUri().toString() );
+		} finally {
+			Files.deleteIfExists( tempFile );
+		}
+	}
 }

@@ -17,6 +17,7 @@
  */
 package ortus.boxlang.lsp.workspace.visitors;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -45,9 +46,9 @@ import ortus.boxlang.lsp.lint.rules.DuplicatePropertyRule;
 import ortus.boxlang.lsp.lint.rules.InvalidExtendsRule;
 import ortus.boxlang.lsp.lint.rules.InvalidImplementsRule;
 import ortus.boxlang.lsp.workspace.BLASTTools;
+import ortus.boxlang.lsp.workspace.ClassReferenceResolver;
 import ortus.boxlang.lsp.workspace.FileParseResult;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
-import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 
 /**
  * Visitor for detecting semantic errors in BoxLang code.
@@ -62,10 +63,11 @@ import ortus.boxlang.lsp.workspace.index.ProjectIndex;
  */
 public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 
-	private List<Diagnostic>	diagnostics			= new ArrayList<>();
-	private Set<String>			seenMethods			= new HashSet<>();
-	private Set<String>			seenProperties		= new HashSet<>();
-	private String				currentClassName	= null;
+	private List<Diagnostic>				diagnostics				= new ArrayList<>();
+	private Set<String>						seenMethods				= new HashSet<>();
+	private Set<String>						seenProperties			= new HashSet<>();
+	private String							currentClassName		= null;
+	private final ClassReferenceResolver	classReferenceResolver	= ProjectContextProvider.getInstance().getClassReferenceResolver();
 
 	@Override
 	public List<Diagnostic> getDiagnostics() {
@@ -219,55 +221,6 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	/**
-	 * Get the package (directory path) of the current file relative to workspace root.
-	 * For example, if file is at "subpackage/BaseType.bx", returns "subpackage".
-	 * Returns null if package cannot be determined.
-	 */
-	private String getCurrentPackage() {
-		if ( this.filePath == null ) {
-			return null;
-		}
-
-		try {
-			// Get workspace root
-			var folders = ProjectContextProvider.getInstance().getWorkspaceFolders();
-			if ( folders == null || folders.isEmpty() ) {
-				return null;
-			}
-
-			java.net.URI		workspaceUri	= new java.net.URI( folders.get( 0 ).getUri() );
-			java.nio.file.Path	workspaceRoot	= java.nio.file.Paths.get( workspaceUri );
-
-			// Convert filePath to Path (handle both URI and file path formats)
-			java.nio.file.Path	filePath;
-			if ( this.filePath.startsWith( "file:" ) ) {
-				filePath = java.nio.file.Paths.get( new java.net.URI( this.filePath ) );
-			} else {
-				filePath = java.nio.file.Paths.get( this.filePath );
-			}
-
-			// Get relative path from workspace root
-			java.nio.file.Path	relativePath	= workspaceRoot.relativize( filePath );
-			String				pathStr			= relativePath.toString();
-
-			// Get the directory part (without filename)
-			int					lastSlash		= Math.max( pathStr.lastIndexOf( '/' ), pathStr.lastIndexOf( '\\' ) );
-			if ( lastSlash < 0 ) {
-				// File is in root directory
-				return null;
-			}
-
-			String packagePath = pathStr.substring( 0, lastSlash );
-
-			// Convert path separators to dots
-			return packagePath.replace( '/', '.' ).replace( '\\', '.' );
-		} catch ( Exception e ) {
-			// If we can't determine package, return null
-			return null;
-		}
-	}
-
-	/**
 	 * Create a range that covers from the "class" or "interface" keyword to the opening brace "{".
 	 * This provides a more precise diagnostic location for class declaration issues.
 	 *
@@ -316,29 +269,8 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	private void validateExtendsReference( String className, BoxNode node ) {
-		ProjectIndex index = ProjectContextProvider.getInstance().getIndex();
-		if ( index == null ) {
-			return;
-		}
-
-		// Try to find by simple name first
-		var foundClass = index.findClassByName( className );
-		if ( foundClass.isEmpty() ) {
-			// Try by FQN
-			foundClass = index.findClassByFQN( className );
-		}
-
-		// If still not found and className contains a dot (potential relative path),
-		// try resolving relative to the current file's package
-		if ( foundClass.isEmpty() && className.contains( "." ) ) {
-			String currentPackage = getCurrentPackage();
-			if ( currentPackage != null && !currentPackage.isEmpty() ) {
-				String qualifiedName = currentPackage + "." + className;
-				foundClass = index.findClassByFQN( qualifiedName );
-			}
-		}
-
-		if ( foundClass.isEmpty() ) {
+		URI currentDocUri = getCurrentDocumentUri();
+		if ( classReferenceResolver.resolveClass( className, currentDocUri ).isEmpty() ) {
 			Diagnostic diagnostic = new Diagnostic(
 			    getClassDeclarationRange( node ),
 			    "Class or interface '" + className + "' not found (extends reference).",
@@ -351,29 +283,8 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	private void validateImplementsReference( String interfaceName, BoxNode node ) {
-		ProjectIndex index = ProjectContextProvider.getInstance().getIndex();
-		if ( index == null ) {
-			return;
-		}
-
-		// Try to find by simple name first
-		var foundClass = index.findClassByName( interfaceName );
-		if ( foundClass.isEmpty() ) {
-			// Try by FQN
-			foundClass = index.findClassByFQN( interfaceName );
-		}
-
-		// If still not found and interfaceName contains a dot (potential relative path),
-		// try resolving relative to the current file's package
-		if ( foundClass.isEmpty() && interfaceName.contains( "." ) ) {
-			String currentPackage = getCurrentPackage();
-			if ( currentPackage != null && !currentPackage.isEmpty() ) {
-				String qualifiedName = currentPackage + "." + interfaceName;
-				foundClass = index.findClassByFQN( qualifiedName );
-			}
-		}
-
-		if ( foundClass.isEmpty() ) {
+		URI currentDocUri = getCurrentDocumentUri();
+		if ( classReferenceResolver.resolveClass( interfaceName, currentDocUri ).isEmpty() ) {
 			Diagnostic diagnostic = new Diagnostic(
 			    getClassDeclarationRange( node ),
 			    "Interface '" + interfaceName + "' not found (implements reference).",
@@ -382,6 +293,20 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 			    InvalidImplementsRule.ID
 			);
 			diagnostics.add( diagnostic );
+		}
+	}
+
+	private URI getCurrentDocumentUri() {
+		if ( filePath == null || filePath.isBlank() ) {
+			return null;
+		}
+		try {
+			if ( filePath.startsWith( "file:" ) ) {
+				return new URI( filePath );
+			}
+			return java.nio.file.Paths.get( filePath ).toUri();
+		} catch ( Exception e ) {
+			return null;
 		}
 	}
 
