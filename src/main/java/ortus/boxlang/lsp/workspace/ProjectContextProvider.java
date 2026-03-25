@@ -36,13 +36,13 @@ import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.MarkupKind;
 import org.eclipse.lsp4j.ParameterInformation;
 import org.eclipse.lsp4j.Position;
-import org.eclipse.lsp4j.SignatureHelp;
-import org.eclipse.lsp4j.SignatureInformation;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.Registration;
 import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.SemanticTokens;
+import org.eclipse.lsp4j.SignatureHelp;
+import org.eclipse.lsp4j.SignatureInformation;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
 import org.eclipse.lsp4j.TextEdit;
@@ -71,11 +71,11 @@ import ortus.boxlang.compiler.ast.expression.BoxScope;
 import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
-import ortus.boxlang.compiler.ast.statement.BoxImport;
-import ortus.boxlang.compiler.ast.statement.BoxReturnType;
 import ortus.boxlang.compiler.ast.statement.BoxDocumentationAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
+import ortus.boxlang.compiler.ast.statement.BoxImport;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
+import ortus.boxlang.compiler.ast.statement.BoxReturnType;
 import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
 import ortus.boxlang.lsp.App;
 import ortus.boxlang.lsp.LSPTools;
@@ -95,10 +95,10 @@ import ortus.boxlang.lsp.workspace.visitors.FindDefinitionTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FindHoverTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FindReferenceTargetVisitor;
 import ortus.boxlang.lsp.workspace.visitors.FindSignatureHelpTargetVisitor;
+import ortus.boxlang.lsp.workspace.visitors.VariableDefinitionResolver;
 import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor;
 import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor.VariableInfo;
 import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor.VariableScope;
-import ortus.boxlang.lsp.workspace.visitors.VariableDefinitionResolver;
 import ortus.boxlang.lsp.workspace.visitors.VariableTypeCollectorVisitor;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.async.executors.BoxExecutor;
@@ -142,6 +142,7 @@ public class ProjectContextProvider {
 	private final AtomicBoolean					workspaceParseRunning		= new AtomicBoolean( false );
 	private ProjectIndex						projectIndex;
 	private final DebouncedDocumentProcessor	documentProcessor			= new DebouncedDocumentProcessor( 300 );
+	private final DebouncedDocumentProcessor	publishDebouncer			= new DebouncedDocumentProcessor( 50 );
 
 	public static ortus.boxlang.compiler.ast.Position toBLPosition( Position lspPosition ) {
 		Point								start	= new Point( lspPosition.getLine(), lspPosition.getCharacter() );
@@ -435,6 +436,9 @@ public class ProjectContextProvider {
 	}
 
 	public void trackDocumentSave( URI docUri, String text ) {
+		// Cancel any pending debounced change processing — the save content supersedes it
+		documentProcessor.cancelPendingProcessing( docUri );
+
 		String fileContent = text;
 
 		if ( fileContent == null ) {
@@ -449,6 +453,7 @@ public class ProjectContextProvider {
 		FileParseResult fpr = FileParseResult.fromSourceString( docUri, fileContent );
 		this.openDocuments.put( docUri, fpr );
 		cacheLatestDiagnostics( fpr );
+		publishDiagnostics( docUri );
 
 		// Reindex the file for symbol lookups
 		getIndex().reindexFile( docUri );
@@ -467,6 +472,7 @@ public class ProjectContextProvider {
 		FileParseResult fpr = FileParseResult.fromSourceString( docUri, text );
 		this.openDocuments.put( docUri, fpr );
 		cacheLatestDiagnostics( fpr );
+		publishDiagnostics( docUri );
 	}
 
 	public void trackDocumentClose( URI docUri ) {
@@ -3890,20 +3896,19 @@ public class ProjectContextProvider {
 			return;
 		}
 
-		PublishDiagnosticsParams diagnosticParams = new PublishDiagnosticsParams();
-		diagnosticParams.setUri( docURI.toString() );
-		List<Diagnostic> diagnostics = getLatestFileParseResult( docURI )
-		    .map( res -> res.getDiagnostics() )
-		    .orElseGet( () -> new ArrayList<Diagnostic>() );
+		publishDebouncer.scheduleProcessing( docURI, () -> {
+			if ( this.client == null ) {
+				return;
+			}
 
-		diagnosticParams.setDiagnostics( diagnostics );
-
-		if ( !this.shouldPublishDiagnostics ) {
+			PublishDiagnosticsParams diagnosticParams = new PublishDiagnosticsParams();
+			diagnosticParams.setUri( docURI.toString() );
+			List<Diagnostic> diagnostics = getLatestFileParseResult( docURI )
+			    .map( res -> res.getDiagnostics() )
+			    .orElseGet( () -> new ArrayList<Diagnostic>() );
+			diagnosticParams.setDiagnostics( diagnostics );
 			this.client.publishDiagnostics( diagnosticParams );
-			return;
-		}
-
-		this.client.publishDiagnostics( diagnosticParams );
+		} );
 	}
 
 	public List<Either<Command, CodeAction>> getAvailableCodeActions( URI convertDocumentURI, CodeActionParams params ) {

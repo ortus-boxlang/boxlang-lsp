@@ -7,13 +7,12 @@ import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.CodeActionOptions;
 import org.eclipse.lsp4j.CodeLensOptions;
 import org.eclipse.lsp4j.CompletionOptions;
-import org.eclipse.lsp4j.DiagnosticRegistrationOptions;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
-import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions;
+import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.SetTraceParams;
 import org.eclipse.lsp4j.SignatureHelpOptions;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
@@ -57,7 +56,10 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			SignatureHelpOptions signatureHelpOptions = new SignatureHelpOptions();
 			signatureHelpOptions.setTriggerCharacters( List.of( "(", "," ) );
 			capabilities.setSignatureHelpProvider( signatureHelpOptions );
-			capabilities.setDiagnosticProvider( new DiagnosticRegistrationOptions( false, true ) );
+			// NOTE: Do NOT register setDiagnosticProvider here. Advertising the pull model
+			// causes VS Code to issue textDocument/diagnostic requests AND continue receiving
+			// publishDiagnostics push notifications, rendering both sets and producing
+			// duplicate squiggles. We use push-only diagnostics via client.publishDiagnostics().
 			capabilities.setCodeLensProvider( new CodeLensOptions( true ) );
 			capabilities.setCodeActionProvider( new CodeActionOptions( List.of(
 			    CodeActionKind.QuickFix,

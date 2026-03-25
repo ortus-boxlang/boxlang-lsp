@@ -101,12 +101,7 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 
 	@Override
 	public List<Diagnostic> getDiagnostics() {
-		// Generate diagnostics for unused imports
-		generateUnusedImportDiagnostics();
-
-		// Generate diagnostics for unused private methods
-		generateUnusedPrivateMethodDiagnostics();
-
+		// All diagnostics are generated during the visit phase — this method is read-only.
 		// Filter and adjust severity based on individual rule settings
 		return this.diagnostics.stream()
 		    .filter( d -> {
@@ -469,10 +464,11 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 		inClass = true;
 		visitChildren( node );
 
-		// Generate unused private method diagnostics before leaving class context
+		// Generate diagnostics that require full-file context before leaving class scope
 		generateUnusedPrivateMethodDiagnostics();
+		generateUnusedImportDiagnostics();
 
-		// Clear private method tracking
+		// Clear per-class tracking state
 		privateMethods.clear();
 		calledMethods.clear();
 
@@ -482,6 +478,9 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 	@Override
 	public void visit( BoxScript node ) {
 		visitChildren( node );
+
+		// Generate diagnostics that require full-file context
+		generateUnusedImportDiagnostics();
 	}
 
 	// ============ Diagnostic Generation ============

@@ -30,7 +30,9 @@ interface {
      *
      * @return String (getter) or IAiMemory (setter)
      */
-    any function name( string name );
+    any function name( string name ){
+        
+    }
 
     /**
      * Get or set the unique key for this memory instance

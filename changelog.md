@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- BLIDE-272 Prevent duplicate diagnostics in editor
 - BLIDE-271 Improve interface method diagnostics
 - Improve project indexing
 - Add API for querying the project index
