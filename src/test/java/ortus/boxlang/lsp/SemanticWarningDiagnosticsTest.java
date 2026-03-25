@@ -601,6 +601,60 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertThat( unusedImport ).isNull();
 	}
 
+	// ============ Interface Method Tests ============
+
+	@Test
+	void testNoMissingReturnWarningForAbstractInterfaceMethod() throws Exception {
+		String	code		= """
+		                      interface {
+		                          string function getName();
+		                          numeric function getCount( required numeric limit );
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "InterfaceMissingReturn.bx", code );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic missingReturn = diagnostics.stream()
+		    .filter( d -> d.getMessage().toLowerCase().contains( "may not return a value" ) ||
+		        d.getMessage().toLowerCase().contains( "missing return" ) ||
+		        d.getMessage().toLowerCase().contains( "return statement" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( missingReturn ).isNull();
+	}
+
+	@Test
+	void testMissingReturnWarningForDefaultInterfaceMethodWithNoReturn() throws Exception {
+		String	code		= """
+		                      interface {
+		                          default string function getLabel() {
+		                              var x = "unused";
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "InterfaceDefaultMissingReturn.bx", code );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic missingReturn = diagnostics.stream()
+		    .filter( d -> d.getMessage().toLowerCase().contains( "may not return a value" ) ||
+		        d.getMessage().toLowerCase().contains( "missing return" ) ||
+		        d.getMessage().toLowerCase().contains( "return statement" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( missingReturn ).isNotNull();
+		assertThat( missingReturn.getSeverity() ).isEqualTo( DiagnosticSeverity.Warning );
+	}
+
 	// ============ Helper Methods ============
 
 	private Path createTestFile( String fileName, String content ) throws Exception {

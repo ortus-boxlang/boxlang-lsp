@@ -1,0 +1,19 @@
+/**
+ * Interface with typed methods whose arguments should NOT trigger unused-argument warnings
+ */
+interface {
+
+	string function getName( required string prefix );
+
+	numeric function getCount( required numeric limit, string filter = "" );
+
+	void function doSomething( required any value );
+
+    public string function publicMethod( required string arg ){
+        return ucase( arg );
+    }
+
+    public string function publicMethodWithIssues( required string arg ){
+    }
+
+}

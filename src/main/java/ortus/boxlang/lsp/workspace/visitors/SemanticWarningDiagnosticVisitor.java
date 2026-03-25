@@ -39,11 +39,11 @@ import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxNew;
+import ortus.boxlang.compiler.ast.statement.BoxAccessModifier;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxBreak;
 import ortus.boxlang.compiler.ast.statement.BoxContinue;
-import ortus.boxlang.compiler.ast.statement.BoxAccessModifier;
 import ortus.boxlang.compiler.ast.statement.BoxDocumentationAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxImport;
@@ -347,6 +347,12 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 	// ============ Missing Return Statement Detection ============
 
 	private void checkMissingReturn( BoxFunctionDeclaration node ) {
+		// Abstract interface methods have a null body; the return type is a contract, not an implementation.
+		// Default interface methods have a body and should still be checked.
+		if ( node.getBody() == null ) {
+			return;
+		}
+
 		// Check if function has a non-void return type hint
 		if ( node.getType() == null ) {
 			return;
