@@ -1,0 +1,7 @@
+{
+	"mappings": {
+		"/models": "./models"
+	},
+	"classPaths": [],
+	"modulesDirectory": []
+}

@@ -25,6 +25,7 @@ import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
 import ortus.boxlang.lsp.workspace.BLASTTools;
+import ortus.boxlang.lsp.workspace.MappingConfig;
 
 /**
  * Visitor that extracts indexable symbols from BoxLang AST nodes.
@@ -41,9 +42,21 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 	private String						currentClassName	= null;
 
 	public ProjectIndexVisitor( URI fileUri, Path workspaceRoot ) {
+		this( fileUri, workspaceRoot, null );
+	}
+
+	public ProjectIndexVisitor( URI fileUri, Path workspaceRoot, MappingConfig mappingConfig ) {
 		this.fileUri			= fileUri;
 		this.lastModified		= getFileLastModified( fileUri );
-		this.fullyQualifiedName	= computeFQN( fileUri, workspaceRoot );
+		this.fullyQualifiedName	= computeFQN( fileUri, workspaceRoot, mappingConfig );
+	}
+
+	/**
+	 * Returns the fully-qualified name computed for this file.
+	 * Exposed for testing.
+	 */
+	public String getComputedFQN() {
+		return fullyQualifiedName;
 	}
 
 	public List<IndexedClass> getIndexedClasses() {
@@ -191,13 +204,43 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		}
 	}
 
-	private String computeFQN( URI fileUri, Path workspaceRoot ) {
+	private String computeFQN( URI fileUri, Path workspaceRoot, MappingConfig mappingConfig ) {
 		if ( fileUri == null || workspaceRoot == null ) {
 			return getClassName();
 		}
 
 		try {
-			Path	filePath		= Paths.get( fileUri );
+			Path filePath = Paths.get( fileUri ).toAbsolutePath().normalize();
+
+			// ── Mapping-aware virtual FQN ───────────────────────────────────────────
+			// When a MappingConfig is available, check each mapped real path.
+			// The longest (most-specific) match wins.
+			if ( mappingConfig != null && !mappingConfig.getMappings().isEmpty() ) {
+				java.util.Optional<java.util.Map.Entry<String, Path>> bestMatch = mappingConfig.getMappings().entrySet().stream()
+				    .filter( e -> filePath.startsWith( e.getValue().toAbsolutePath().normalize() ) )
+				    .max( java.util.Comparator.comparingInt( e -> e.getValue().toString().length() ) );
+
+				if ( bestMatch.isPresent() ) {
+					String	virtualKey	= bestMatch.get().getKey();
+					Path	mappedDir	= bestMatch.get().getValue().toAbsolutePath().normalize();
+
+					// Strip leading "/" from the virtual key and convert "/" to "."
+					String	prefix		= virtualKey.replaceAll( "^/+", "" ).replace( '/', '.' );
+
+					// Relativize the file against the mapped dir and strip extension
+					Path	rel			= mappedDir.relativize( filePath );
+					String	relStr		= rel.toString();
+					int		dot			= relStr.lastIndexOf( '.' );
+					if ( dot > 0 ) {
+						relStr = relStr.substring( 0, dot );
+					}
+					String relDots = relStr.replace( '/', '.' ).replace( '\\', '.' );
+
+					return prefix.isEmpty() ? relDots : prefix + "." + relDots;
+				}
+			}
+
+			// ── Fallback: workspace-root-relative FQN (existing behaviour) ──────────
 			Path	relativePath	= workspaceRoot.relativize( filePath );
 			String	pathStr			= relativePath.toString();
 

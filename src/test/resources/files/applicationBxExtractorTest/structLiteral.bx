@@ -1,0 +1,7 @@
+class {
+	this.name = "TestApp";
+	this.mappings = {
+		"/models": "/var/www/models",
+		"/helpers": "/var/www/helpers"
+	};
+}

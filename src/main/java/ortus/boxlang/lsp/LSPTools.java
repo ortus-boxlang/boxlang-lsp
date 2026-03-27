@@ -13,6 +13,9 @@ import org.apache.commons.lang3.StringUtils;
 
 public class LSPTools {
 
+	/** All file extensions recognised as BoxLang / CFML source files. */
+	public static final String[] BOXLANG_EXTENSIONS = { ".bx", ".bxs", ".bxm", ".cfc", ".cfs", ".cfm" };
+
 	public static boolean canWalkFile( Path path ) {
 		try {
 			return Files.isRegularFile( path )

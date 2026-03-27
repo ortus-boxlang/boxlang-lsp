@@ -1,11 +1,16 @@
 package ortus.boxlang.lsp;
 
 import java.lang.reflect.Constructor;
+import java.net.URI;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.lsp.workspace.MappingConfig;
+import ortus.boxlang.lsp.workspace.MappingResolver;
+import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.visitors.SemanticErrorDiagnosticVisitor;
 import ortus.boxlang.lsp.workspace.visitors.SemanticWarningDiagnosticVisitor;
 import ortus.boxlang.lsp.workspace.visitors.UnscopedVariableDiagnosticVisitor;
@@ -46,6 +51,10 @@ public class SourceCodeVisitorService {
 	}
 
 	public List<SourceCodeVisitor> visitAll( String path, BoxNode root ) {
+		// Resolve per-file MappingConfig so visitors (e.g. SemanticErrorDiagnosticVisitor)
+		// have access to Application.bx-derived mappings for the file being analysed.
+		MappingConfig perFileConfig = resolvePerFileConfig( path );
+
 		// Always create fresh visitor instances — no caching to avoid concurrent-parse races
 		return this.visitors.stream()
 		    .map( vc -> {
@@ -55,6 +64,7 @@ public class SourceCodeVisitorService {
 				    SourceCodeVisitor visitor = ( SourceCodeVisitor ) c.newInstance();
 
 				    visitor.setFilePath( path );
+				    visitor.setMappingConfig( perFileConfig );
 
 				    root.accept( visitor );
 
@@ -66,5 +76,19 @@ public class SourceCodeVisitorService {
 		    } )
 		    .filter( visitor -> visitor != null )
 		    .collect( Collectors.toList() );
+	}
+
+	private MappingConfig resolvePerFileConfig( String path ) {
+		try {
+			var folders = ProjectContextProvider.getInstance().getWorkspaceFolders();
+			if ( folders == null || folders.isEmpty() ) {
+				return null;
+			}
+			var	workspaceRoot	= Paths.get( new URI( folders.get( 0 ).getUri() ) );
+			var	filePath		= Paths.get( new URI( path ) );
+			return MappingResolver.resolveForFile( filePath, workspaceRoot );
+		} catch ( Exception e ) {
+			return null;
+		}
 	}
 }

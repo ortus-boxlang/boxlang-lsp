@@ -1,0 +1,9 @@
+{
+	// This is a comment at the top
+	"mappings": {
+		// Maps the /api virtual path
+		"/api": "/tmp/testApi" // inline comment on value line
+	},
+	"classPaths": [],
+	"modulesDirectory": []
+}

@@ -1,0 +1,11 @@
+{
+    "mappings": {
+        "/ext": "./mock-external"
+    },
+    "classPaths": [
+        "./class-paths"
+    ],
+    "modulesDirectory": [
+        "./boxlang_modules"
+    ]
+}

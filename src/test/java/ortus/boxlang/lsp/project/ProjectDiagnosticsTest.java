@@ -19,6 +19,7 @@
 package ortus.boxlang.lsp.project;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -149,7 +150,15 @@ public class ProjectDiagnosticsTest extends BaseTest {
 		List<Diagnostic> diagnostics = provider.getFileDiagnostics( bxObjUri );
 		assertNotNull( diagnostics, "Diagnostics should not be null for non-excluded files" );
 
-		// Verify file content can be read and parsed (basic sanity check)
+		// bxObj.bx extends subpackage.BaseType and implements subpackage.InterfaceDef;
+		// after full workspace indexing both types are present so zero error diagnostics
+		// should be reported (validates end-to-end FQN resolution).
+		long errorCount = diagnostics.stream()
+		    .filter( d -> d.getSeverity() == DiagnosticSeverity.Error )
+		    .count();
+		assertThat( errorCount ).isEqualTo( 0 );
+
+		// File content sanity check
 		String content = Files.readString( bxObjFile );
 		assertThat( content ).contains( "class" );
 		assertThat( content ).contains( "subpackage.BaseType" );
@@ -397,5 +406,35 @@ public class ProjectDiagnosticsTest extends BaseTest {
 				    throw new RuntimeException( "Failed to index file: " + path, e );
 			    }
 		    } );
+	}
+
+	// ======== Cold-open sibling resolution ========
+
+	@Test
+	void openingSiblingExtendsClassWithoutPreIndexingShouldNotReportError() throws Exception {
+		// Simulate the real-world scenario: user opens CarChild.bx as the first file,
+		// BEFORE the background workspace indexer has run.
+		// Car.bx lives right next to CarChild.bx — the LSP should NOT report "Car not found".
+
+		// Create a completely fresh, empty index (no pre-indexing)
+		ProjectIndex freshIndex = new ProjectIndex();
+		provider.setIndex( freshIndex );
+
+		Path carChildFile = testProjectRoot.resolve( "CarChild.bx" );
+		assertTrue( Files.exists( carChildFile ), "CarChild.bx must exist" );
+		String content = Files.readString( carChildFile );
+
+		// trackDocumentOpen is called by the LSP on file open — it must work
+		// even when index is cold
+		provider.trackDocumentOpen( carChildFile.toUri(), content );
+
+		List<Diagnostic>	diagnostics			= provider.getFileDiagnostics( carChildFile.toUri() );
+
+		boolean				hasCarNotFoundError	= diagnostics.stream()
+		    .anyMatch( d -> d.getMessage().contains( "Car" ) && d.getMessage().contains( "not found" ) );
+
+		assertFalse( hasCarNotFoundError,
+		    "Car.bx is a sibling of CarChild.bx — LSP should find it without pre-indexing.\n"
+		        + "Actual diagnostics: " + diagnostics.stream().map( d -> d.getMessage() ).toList() );
 	}
 }

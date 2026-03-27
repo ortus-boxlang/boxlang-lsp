@@ -55,8 +55,20 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 
 	@Override
 	public void didChangeWatchedFiles( DidChangeWatchedFilesParams params ) {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException( "Unimplemented method 'didChangeWatchedFiles'" );
+		ProjectContextProvider provider = ProjectContextProvider.getInstance();
+		if ( params.getChanges() == null ) {
+			return;
+		}
+		for ( org.eclipse.lsp4j.FileEvent event : params.getChanges() ) {
+			try {
+				java.net.URI fileUri = LSPTools.convertDocumentURI( event.getUri() );
+				if ( fileUri != null ) {
+					provider.handleConfigFileChange( fileUri );
+				}
+			} catch ( Exception e ) {
+				App.logger.warn( "Error processing file-change event for: " + event.getUri(), e );
+			}
+		}
 	}
 
 	/**

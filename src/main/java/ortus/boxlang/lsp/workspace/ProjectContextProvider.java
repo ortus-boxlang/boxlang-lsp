@@ -177,8 +177,9 @@ public class ProjectContextProvider {
 			// Initialize with workspace root if available
 			if ( workspaceFolders != null && !workspaceFolders.isEmpty() ) {
 				try {
-					Path workspaceRoot = Path.of( new URI( workspaceFolders.getFirst().getUri() ) );
-					projectIndex.initialize( workspaceRoot );
+					Path			workspaceRoot	= Path.of( new URI( workspaceFolders.getFirst().getUri() ) );
+					MappingConfig	config			= MappingResolver.resolve( workspaceRoot );
+					projectIndex.initialize( workspaceRoot, config );
 				} catch ( Exception e ) {
 					App.logger.warn( "Failed to initialize project index with workspace root", e );
 				}
@@ -253,46 +254,55 @@ public class ProjectContextProvider {
 				BoxExecutor executor = AsyncService.chooseParallelExecutor( "LSP_diagnostic", 0, true );
 				executor.submitAndGet( () -> {
 					try {
-						Stream<Path> stream = Files
-						    .walk( Path.of( new URI( provider.getWorkspaceFolders().getFirst().getUri() ) ) );
-
-						if ( this.userSettings.isProcessDiagnosticsInParallel() ) {
-							stream.parallel();
-						}
+						Path	workspaceRoot	= Path.of( new URI( provider.getWorkspaceFolders().getFirst().getUri() ) );
 
 						// Get the project index for incremental indexing
-						var index = getIndex();
+						var		index			= getIndex();
 
-						stream
-						    .filter( LSPTools::canWalkFile )
-						    .filter( p -> shouldAnalyzePath( p.toUri() ) )
-						    .forEach( ( clazzPath ) -> {
-							    try {
-								    List<Diagnostic> diagnostics			= provider.getFileDiagnostics( clazzPath.toUri() );
-
-								    DiagnosticReport cachedFileDiagnostics	= this.cachedDiagnosticReports.stream()
-								        .filter( dr -> dr.getFileURI().toString().equals( clazzPath.toUri().toString() ) )
-								        .findFirst()
-								        .orElseGet( () -> {
-																				        DiagnosticReport newReport = new DiagnosticReport( clazzPath.toUri() );
-																				        this.cachedDiagnosticReports.add( newReport );
-																				        return newReport;
-																			        } );
-
-								    cachedFileDiagnostics.setDiagnostics( diagnostics );
-
-								    // Index the file for symbol lookups - only if it needs re-indexing
-								    // This implements incremental re-indexing: skip files that haven't changed
-								    if ( index.needsReindexing( clazzPath.toUri() ) ) {
-									    index.indexFile( clazzPath.toUri() );
+						// ── Pass 1: index all files that need it ─────────────────────────────────
+						// This ensures every class is known before diagnostics are computed,
+						// avoiding ordering-dependent false "class not found" errors.
+						try ( Stream<Path> indexStream = Files.walk( workspaceRoot ) ) {
+							( this.userSettings.isProcessDiagnosticsInParallel() ? indexStream.parallel() : indexStream )
+							    .filter( LSPTools::canWalkFile )
+							    .filter( p -> shouldAnalyzePath( p.toUri() ) )
+							    .forEach( p -> {
+								    try {
+									    if ( index.needsReindexing( p.toUri() ) ) {
+										    index.indexFile( p.toUri() );
+									    }
+								    } catch ( Exception e ) {
+									    e.printStackTrace();
 								    }
-							    } catch ( Exception e ) {
-								    // TODO Auto-generated catch block
-								    e.printStackTrace();
-							    }
-						    } );
+							    } );
+						}
 
-						stream.close();
+						// ── Pass 2: compute and cache diagnostics ─────────────────────────────────
+						// All classes are now indexed, so extends/implements lookups will succeed.
+						try ( Stream<Path> diagStream = Files.walk( workspaceRoot ) ) {
+							( this.userSettings.isProcessDiagnosticsInParallel() ? diagStream.parallel() : diagStream )
+							    .filter( LSPTools::canWalkFile )
+							    .filter( p -> shouldAnalyzePath( p.toUri() ) )
+							    .forEach( ( clazzPath ) -> {
+								    try {
+									    List<Diagnostic> diagnostics			= provider.getFileDiagnostics( clazzPath.toUri() );
+
+									    DiagnosticReport cachedFileDiagnostics	= this.cachedDiagnosticReports.stream()
+									        .filter( dr -> dr.getFileURI().toString().equals( clazzPath.toUri().toString() ) )
+									        .findFirst()
+									        .orElseGet( () -> {
+																					        DiagnosticReport newReport = new DiagnosticReport(
+																					            clazzPath.toUri() );
+																					        this.cachedDiagnosticReports.add( newReport );
+																					        return newReport;
+																				        } );
+
+									    cachedFileDiagnostics.setDiagnostics( diagnostics );
+								    } catch ( Exception e ) {
+									    e.printStackTrace();
+								    }
+							    } );
+						}
 
 					} catch ( IOException | URISyntaxException e ) {
 						e.printStackTrace();
@@ -317,7 +327,99 @@ public class ProjectContextProvider {
 	}
 
 	public Map<String, Path> getMappings() {
-		return new HashMap<>();
+		List<WorkspaceFolder> folders = getWorkspaceFolders();
+		if ( folders == null || folders.isEmpty() ) {
+			return new HashMap<>();
+		}
+		try {
+			Path workspaceRoot = Path.of( new java.net.URI( folders.getFirst().getUri() ) );
+			return MappingResolver.resolve( workspaceRoot ).getMappings();
+		} catch ( Exception e ) {
+			return new HashMap<>();
+		}
+	}
+
+	/**
+	 * Handle a file-system change to a mapping-related configuration file
+	 * ({@code boxlang.json}, {@code Application.bx}, or {@code Application.cfc}).
+	 *
+	 * <p>
+	 * For {@code boxlang.json}: invalidates the {@link MappingResolver} workspace
+	 * cache, re-resolves the config, resets the project index, and re-walks the
+	 * workspace plus any newly-configured external directories.
+	 *
+	 * <p>
+	 * For {@code Application.bx} / {@code Application.cfc}: invalidates only the
+	 * per-file walk-up cache entry so the next diagnostic computation picks up the
+	 * updated Application.bx mappings.
+	 *
+	 * <p>
+	 * Changes to unrelated files are silently ignored.
+	 *
+	 * @param fileUri the URI of the saved / changed file
+	 */
+	public void handleConfigFileChange( URI fileUri ) {
+		if ( fileUri == null ) {
+			return;
+		}
+
+		Path changedFile;
+		try {
+			changedFile = Paths.get( fileUri );
+		} catch ( Exception e ) {
+			return;
+		}
+
+		String	fileName		= changedFile.getFileName().toString();
+		Path	workspaceRoot	= getWorkspaceRootPath();
+
+		if ( fileName.equalsIgnoreCase( "boxlang.json" ) ) {
+			handleBoxlangJsonChange( workspaceRoot );
+		} else if ( fileName.equalsIgnoreCase( "Application.bx" ) ||
+		    fileName.equalsIgnoreCase( "Application.cfc" ) ) {
+			MappingResolver.invalidateFile( changedFile );
+		}
+		// All other files: no-op
+	}
+
+	private void handleBoxlangJsonChange( Path workspaceRoot ) {
+		if ( workspaceRoot == null || projectIndex == null ) {
+			return;
+		}
+
+		// 1. Invalidate the workspace-level config cache
+		MappingResolver.invalidate( workspaceRoot );
+
+		// 2. Resolve fresh config
+		MappingConfig newConfig = MappingResolver.resolve( workspaceRoot );
+
+		// 3. Reset the in-memory index (clears all cached classes)
+		projectIndex.reinitialize( workspaceRoot, newConfig );
+
+		// 4. Re-index workspace files
+		try ( java.util.stream.Stream<Path> stream = Files.walk( workspaceRoot ) ) {
+			stream
+			    .filter( LSPTools::canWalkFile )
+			    .forEach( p -> projectIndex.indexFile( p.toUri() ) );
+		} catch ( IOException e ) {
+			if ( App.logger != null ) {
+				App.logger.warn( "Failed to re-index workspace after boxlang.json change", e );
+			}
+		}
+
+		// 5. Re-index external directories from new config
+		projectIndex.indexExternalDirs( newConfig );
+	}
+
+	private Path getWorkspaceRootPath() {
+		if ( workspaceFolders == null || workspaceFolders.isEmpty() ) {
+			return null;
+		}
+		try {
+			return Path.of( new java.net.URI( workspaceFolders.getFirst().getUri() ) );
+		} catch ( Exception e ) {
+			return null;
+		}
 	}
 
 	public List<Diagnostic> getFileDiagnostics( URI docURI ) {
@@ -468,11 +570,44 @@ public class ProjectContextProvider {
 		DocumentModel model = new DocumentModel( docUri, text, version );
 		documentModels.put( docUri, model );
 
+		// Seed the workspace index so that extends/implements references in this file
+		// can be resolved against sibling classes, even before the background
+		// parseWorkspace() task has completed.
+		ensureWorkspaceIndexSeeded();
+
 		// Parse immediately on open (no debouncing)
 		FileParseResult fpr = FileParseResult.fromSourceString( docUri, text );
 		this.openDocuments.put( docUri, fpr );
 		cacheLatestDiagnostics( fpr );
 		publishDiagnostics( docUri );
+	}
+
+	/**
+	 * Indexes all workspace files once if the index is still empty so that class
+	 * resolution in diagnostics works correctly when a file is opened before the
+	 * background workspace scan has completed.
+	 */
+	private void ensureWorkspaceIndexSeeded() {
+		if ( workspaceFolders == null || workspaceFolders.isEmpty() ) {
+			return;
+		}
+		ProjectIndex index = getIndex();
+		if ( !index.getAllClasses().isEmpty() ) {
+			return; // already seeded
+		}
+		try {
+			Path workspaceRoot = Path.of( new java.net.URI( workspaceFolders.getFirst().getUri() ) );
+			Files.walk( workspaceRoot )
+			    .filter( LSPTools::canWalkFile )
+			    .forEach( p -> {
+				    try {
+					    index.indexFile( p.toUri() );
+				    } catch ( Exception ignored ) {
+				    }
+			    } );
+		} catch ( Exception e ) {
+			App.logger.debug( "Could not seed workspace index on document open", e );
+		}
 	}
 
 	public void trackDocumentClose( URI docUri ) {

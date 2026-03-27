@@ -1,0 +1,8 @@
+class {
+	this.name = "TestApp";
+	// static entries
+	this.mappings[ "/static" ] = "/var/www/static";
+	// dynamic entries — should be skipped
+	this.mappings[ "/dynamic" ] = expandPath( "./dynamic" );
+	this.mappings[ "/fromVar" ] = someVariable;
+}

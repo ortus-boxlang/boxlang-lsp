@@ -32,6 +32,7 @@ import com.google.gson.JsonSerializer;
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlang.lsp.App;
+import ortus.boxlang.lsp.workspace.MappingConfig;
 import ortus.boxlang.runtime.BoxRuntime;
 
 /**
@@ -62,6 +63,7 @@ public class ProjectIndex {
 	private final Gson									gson;
 	private Path										workspaceRoot;
 	private Path										cacheFilePath;
+	private MappingConfig								mappingConfig;
 
 	/**
 	 * Custom TypeAdapter for Instant to handle Java 21 module restrictions
@@ -92,9 +94,121 @@ public class ProjectIndex {
 	 * @param workspaceRoot The root path of the workspace
 	 */
 	public void initialize( Path workspaceRoot ) {
+		initialize( workspaceRoot, null );
+	}
+
+	/**
+	 * Initialize the project index with a workspace root and a MappingConfig.
+	 *
+	 * @param workspaceRoot The root path of the workspace
+	 * @param mappingConfig Optional mapping configuration for virtual FQN computation
+	 */
+	public void initialize( Path workspaceRoot, MappingConfig mappingConfig ) {
 		this.workspaceRoot	= workspaceRoot;
+		this.mappingConfig	= mappingConfig;
 		this.cacheFilePath	= getDefaultCacheFilePath( workspaceRoot );
 		loadCache();
+
+		// Index external directories declared in the MappingConfig so that
+		// virtual FQNs for those files are available immediately.
+		if ( mappingConfig != null ) {
+			indexExternalDirectories( mappingConfig, workspaceRoot );
+		}
+	}
+
+	/**
+	 * Reinitialize the index with updated configuration without loading from the
+	 * disk cache. Clears all in-memory data, then stores the new config. The
+	 * caller is responsible for re-walking and re-indexing all relevant files.
+	 *
+	 * @param workspaceRoot The root path of the workspace
+	 * @param mappingConfig Updated mapping configuration
+	 */
+	public void reinitialize( Path workspaceRoot, MappingConfig mappingConfig ) {
+		this.workspaceRoot	= workspaceRoot;
+		this.mappingConfig	= mappingConfig;
+		this.cacheFilePath	= getDefaultCacheFilePath( workspaceRoot );
+		clear();
+	}
+
+	/**
+	 * Index all external directories declared in the given MappingConfig.
+	 * This is the same logic executed during {@link #initialize(Path, MappingConfig)}
+	 * and is exposed publicly so callers can trigger selective re-indexing after a
+	 * configuration change.
+	 *
+	 * @param config Mapping configuration whose external dirs should be indexed
+	 */
+	public void indexExternalDirs( MappingConfig config ) {
+		if ( config != null && workspaceRoot != null ) {
+			indexExternalDirectories( config, workspaceRoot );
+		}
+	}
+
+	/**
+	 * Walks every external directory declared in the MappingConfig and indexes
+	 * each BoxLang file found. Directories that already sit inside the workspace
+	 * root are skipped to prevent double-indexing.
+	 */
+	private void indexExternalDirectories( MappingConfig config, Path workspaceRoot ) {
+		Path				normalizedRoot	= workspaceRoot.toAbsolutePath().normalize();
+
+		// Collect all directories to walk: mapped real paths + classPaths + modulesDirectory
+		java.util.Set<Path>	dirs			= new java.util.LinkedHashSet<>();
+		config.getMappings().values().forEach( dirs::add );
+		dirs.addAll( config.getClassPaths() );
+		dirs.addAll( config.getModulesDirectory() );
+
+		for ( Path dir : dirs ) {
+			Path normalizedDir = dir.toAbsolutePath().normalize();
+			// Skip dirs that are already under the workspace root (they'll be indexed separately)
+			if ( normalizedDir.startsWith( normalizedRoot ) ) {
+				continue;
+			}
+			if ( !Files.isDirectory( normalizedDir ) ) {
+				continue;
+			}
+			try ( java.util.stream.Stream<Path> stream = Files.walk( normalizedDir ) ) {
+				stream.filter( p -> {
+					try {
+						return Files.isRegularFile( p ) &&
+						    ortus.boxlang.lsp.LSPTools.canWalkFile( p );
+					} catch ( Exception e ) {
+						return false;
+					}
+				} ).forEach( p -> indexFile( p.toUri() ) );
+			} catch ( IOException e ) {
+				if ( App.logger != null ) {
+					App.logger.warn( "Failed to index external directory: " + normalizedDir, e );
+				}
+			}
+		}
+
+		// Also walk directories that ARE inside the workspace root
+		// (they need indexing too, just skip de-dup concern — indexFile is idempotent via removeFile)
+		for ( Path dir : dirs ) {
+			Path normalizedDir = dir.toAbsolutePath().normalize();
+			if ( !normalizedDir.startsWith( normalizedRoot ) ) {
+				continue; // already handled above
+			}
+			if ( !Files.isDirectory( normalizedDir ) ) {
+				continue;
+			}
+			try ( java.util.stream.Stream<Path> stream = Files.walk( normalizedDir ) ) {
+				stream.filter( p -> {
+					try {
+						return Files.isRegularFile( p ) &&
+						    ortus.boxlang.lsp.LSPTools.canWalkFile( p );
+					} catch ( Exception e ) {
+						return false;
+					}
+				} ).forEach( p -> indexFile( p.toUri() ) );
+			} catch ( IOException e ) {
+				if ( App.logger != null ) {
+					App.logger.warn( "Failed to index directory: " + normalizedDir, e );
+				}
+			}
+		}
 	}
 
 	/**
@@ -125,7 +239,7 @@ public class ProjectIndex {
 			}
 
 			// Extract symbols using visitor
-			ProjectIndexVisitor visitor = new ProjectIndexVisitor( fileUri, workspaceRoot );
+			ProjectIndexVisitor visitor = new ProjectIndexVisitor( fileUri, workspaceRoot, mappingConfig );
 			result.getRoot().accept( visitor );
 
 			// Store extracted data
@@ -291,7 +405,12 @@ public class ProjectIndex {
 		if ( fqn == null || fqn.isEmpty() ) {
 			return Optional.empty();
 		}
-		return Optional.ofNullable( classesByFQN.get( fqn ) );
+		Optional<IndexedClass> found = Optional.ofNullable( classesByFQN.get( fqn ) );
+		if ( found.isPresent() ) {
+			return found;
+		}
+		// Final fallback: bxmodule.* prefix resolution
+		return findClassByBxModuleFqn( fqn );
 	}
 
 	/**
@@ -336,7 +455,8 @@ public class ProjectIndex {
 			}
 		}
 
-		return Optional.empty();
+		// Final fallback: bxmodule.* prefix resolution
+		return findClassByBxModuleFqn( className );
 	}
 
 	/**
@@ -373,6 +493,70 @@ public class ProjectIndex {
 			// If we can't determine package, return null
 			return null;
 		}
+	}
+
+	/**
+	 * Resolve a {@code bxmodule.}-prefixed FQN by locating the corresponding
+	 * file on disk inside the configured {@code modulesDirectory} paths and
+	 * indexing it on-demand if it is not already in the index.
+	 *
+	 * <p>
+	 * The expected format is {@code bxmodule.<moduleName>.<subpath>}, e.g.
+	 * {@code bxmodule.myModule.models.User}. The prefix matching is
+	 * case-insensitive; the module name and subpath are matched as-given.
+	 *
+	 * @param fqn the fully qualified name to resolve
+	 *
+	 * @return the matching {@link IndexedClass}, or empty if not found
+	 */
+	public Optional<IndexedClass> findClassByBxModuleFqn( String fqn ) {
+		if ( fqn == null || !fqn.toLowerCase().startsWith( "bxmodule." ) ) {
+			return Optional.empty();
+		}
+		if ( mappingConfig == null ) {
+			return Optional.empty();
+		}
+
+		// Strip the "bxmodule." prefix (9 chars, case-insensitive handled above)
+		String	rest		= fqn.substring( "bxmodule.".length() );
+		int		dotIndex	= rest.indexOf( '.' );
+		if ( dotIndex < 0 ) {
+			// No subpath — just a module name with no class segment
+			return Optional.empty();
+		}
+
+		String	moduleName	= rest.substring( 0, dotIndex );
+		// Convert remaining dots to path separators to build the file subpath
+		String	subPath		= rest.substring( dotIndex + 1 ).replace( '.', java.io.File.separatorChar );
+
+		for ( Path moduleDir : mappingConfig.getModulesDirectory() ) {
+			Path moduleRoot = moduleDir.toAbsolutePath().normalize();
+			if ( !Files.isDirectory( moduleRoot ) ) {
+				continue;
+			}
+
+			// Try each valid BoxLang extension
+			for ( String ext : ortus.boxlang.lsp.LSPTools.BOXLANG_EXTENSIONS ) {
+				Path candidate = moduleRoot.resolve( moduleName ).resolve( subPath + ext ).normalize();
+				if ( !Files.isRegularFile( candidate ) ) {
+					continue;
+				}
+
+				URI candidateUri = candidate.toUri();
+
+				// Index on-demand if not already in the index
+				if ( !classesByFileUri.containsKey( candidateUri.toString() ) ) {
+					indexFile( candidateUri );
+				}
+
+				List<IndexedClass> classes = classesByFileUri.get( candidateUri.toString() );
+				if ( classes != null && !classes.isEmpty() ) {
+					return Optional.of( classes.get( 0 ) );
+				}
+			}
+		}
+
+		return Optional.empty();
 	}
 
 	/**
