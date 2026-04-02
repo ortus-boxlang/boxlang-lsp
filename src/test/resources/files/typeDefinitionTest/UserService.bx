@@ -1,0 +1,50 @@
+/**
+ * User service class.
+ */
+class UserService {
+
+	/**
+	 * Get a user by ID.
+	 * @return User The user entity
+	 */
+	public User function getUserById( required numeric id ) {
+		var user = new User();
+		return user;
+	}
+
+	/**
+	 * Process multiple users.
+	 */
+	public void function processUsers() {
+		// Variable assigned via new expression
+		var user = new User();
+		// Cursor on 'user' should navigate to User.bx
+		var displayName = user.getDisplayName();
+
+		// Another assignment pattern
+		var anotherUser = new User();
+		anotherUser.getId();
+	}
+
+	/**
+	 * Method with User type hint parameter.
+	 */
+	public string function formatUser( required User userParam ) {
+		// Cursor on 'userParam' should navigate to User.bx
+		return userParam.getDisplayName();
+	}
+
+	/**
+	 * Local variable without type hint.
+	 */
+	public void function localVarExample() {
+		// Simple local variable without type
+		var count = 10;
+		// Cursor on 'count' should return empty (primitive type)
+
+		// String variable
+		var name = "hello";
+		// Cursor on 'name' should return empty (primitive type)
+	}
+
+}

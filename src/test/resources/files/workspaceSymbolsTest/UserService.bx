@@ -1,0 +1,30 @@
+/**
+ * User service for business logic.
+ */
+class UserService {
+
+	property name="repository" type="UserRepository";
+	property name="MAX_USERS" type="numeric" default="1000";
+
+	public UserService function init( required UserRepository repository ) {
+		this.repository = repository;
+		return this;
+	}
+
+	public UserEntity function getUser( required numeric id ) {
+		return this.repository.findById( id );
+	}
+
+	public UserEntity function createUser( required string username, required string email ) {
+		var user = new UserEntity();
+		user.username = username;
+		user.email = email;
+		this.repository.save( user );
+		return user;
+	}
+
+	public array function getAllUsers() {
+		return this.repository.findAll();
+	}
+
+}

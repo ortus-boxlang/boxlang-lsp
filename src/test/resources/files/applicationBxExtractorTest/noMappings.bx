@@ -1,0 +1,4 @@
+class {
+	this.name = "TestApp";
+	this.datasource = "myDS";
+}

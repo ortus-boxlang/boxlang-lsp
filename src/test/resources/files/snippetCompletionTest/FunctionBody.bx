@@ -1,0 +1,10 @@
+/**
+ * Test file for snippet completion in function body
+ */
+
+class TestClass {
+	function testMethod() {
+		// Trigger snippets here:
+		
+	}
+}

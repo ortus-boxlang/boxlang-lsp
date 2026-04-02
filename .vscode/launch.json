@@ -15,6 +15,7 @@
                 "xBOXLANG_CONFIG": "boxlang.json",
                 "BOXLANG_MODULESDIRECTORY": "${workspaceFolder}/build"
             },
+            "cwd": "${workspaceFolder}/src/test/resources/test-bx-project",
             "args": [
                 "module:bx-lsp",
                 "--debug-server-port",

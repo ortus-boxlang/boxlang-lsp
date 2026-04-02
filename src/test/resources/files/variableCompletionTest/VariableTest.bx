@@ -1,0 +1,25 @@
+class VariableTest {
+	property name="title" type="string";
+
+	function init( required string initialName, numeric age=21 ) {
+		var localGreeting = "Hello";
+		var combined = localGreeting + initialName;
+		
+		for( var i=1; i<=10; i++ ) {
+			var loopVar = i;
+			// Cursor here for loop completion
+		}
+
+		try {
+			// something
+		} catch( any e ) {
+			// Cursor here for catch completion
+		}
+
+		// Cursor here for general completion
+	}
+
+	function other() {
+		// Cursor here for other method completion
+	}
+}

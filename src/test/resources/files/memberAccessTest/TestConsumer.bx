@@ -1,0 +1,26 @@
+class {
+	public function testNewExpression() {
+		var user = new User(1, "test");
+		user.
+	}
+
+	public function testMethodReturnType() {
+		var service = new UserService();
+		var user = service.getUser(1);
+		user.
+	}
+
+	public function testChainedCall() {
+		var service = new UserService();
+		service.getUser(1).
+	}
+
+	public function testTypeHint() {
+		User typedUser = new User(1, "test");
+		typedUser.
+	}
+
+	public function testParameterTypeHint(required User userParam) {
+		userParam.
+	}
+}

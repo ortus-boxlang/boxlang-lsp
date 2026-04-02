@@ -44,3 +44,26 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew spotlessCheck
+
+  # Verify generated docs are up to date
+  verify_config_docs:
+    name: Verify Config Docs Are Up To Date
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version: 21
+
+      - name: Generate Config Docs
+        run: |
+          chmod +x ./gradlew
+          ./gradlew generateConfigDocs
+
+      - name: Fail if docs differ from checked-in version
+        run: |
+          git diff --exit-code docs/

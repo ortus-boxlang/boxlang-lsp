@@ -1,0 +1,9 @@
+/**
+ * Test class that extends a bxmodule class.
+ * Should produce zero error diagnostics once bxmodule resolution is wired.
+ */
+class extends="bxmodule.testModule.TestModuleClass" {
+
+    property name="myProp";
+
+}

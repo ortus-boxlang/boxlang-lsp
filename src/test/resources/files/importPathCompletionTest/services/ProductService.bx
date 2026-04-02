@@ -1,0 +1,5 @@
+class {
+	function getProduct(id) {
+		return new Product();
+	}
+}

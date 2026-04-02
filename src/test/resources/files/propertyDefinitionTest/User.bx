@@ -1,0 +1,62 @@
+/**
+ * User entity extending BaseEntity.
+ */
+class extends="BaseEntity" {
+    property name="username" type="string";
+    property name="email" type="string";
+    property name="age" type="numeric";
+
+    /**
+     * Get the username.
+     */
+    public function getUsername() {
+        return variables.username;
+    }
+
+    /**
+     * Set the username.
+     */
+    public function setUsername(required string username) {
+        variables.username = username;
+        return this;
+    }
+
+    /**
+     * Get the email.
+     */
+    public function getEmail() {
+        return variables.email;
+    }
+
+    /**
+     * Process user data - demonstrates various property access patterns.
+     */
+    public function processUser() {
+        // Access property via variables scope
+        var name = variables.username;
+
+        // Access inherited property via variables scope
+        var entityId = variables.id;
+
+        // Access property without scope prefix (should work within class)
+        var userEmail = email;
+
+        // Access via this scope
+        var userAge = this.age;
+
+        return {
+            "name": name,
+            "id": entityId,
+            "email": userEmail,
+            "age": userAge
+        };
+    }
+
+    /**
+     * Another method accessing properties.
+     */
+    public function getUserSummary() {
+        // Mix of property access patterns
+        return username & " (" & variables.email & ")";
+    }
+}

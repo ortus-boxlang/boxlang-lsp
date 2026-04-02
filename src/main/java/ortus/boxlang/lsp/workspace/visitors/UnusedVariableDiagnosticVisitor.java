@@ -85,6 +85,12 @@ public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 	public void visit( BoxArgumentDeclaration node ) {
 		BoxFunctionDeclaration func = node.getFirstAncestorOfType( BoxFunctionDeclaration.class );
 
+		// Abstract interface methods have a null body; arguments are part of the contract, not an implementation.
+		// Default interface methods have a body and should still be checked.
+		if ( func != null && func.getBody() == null ) {
+			return;
+		}
+
 		assignedVars.computeIfAbsent( func, k -> new HashSet<>() ).add( node );
 	}
 

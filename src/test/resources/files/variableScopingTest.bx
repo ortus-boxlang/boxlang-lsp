@@ -1,0 +1,25 @@
+/**
+ * Test file for variable scoping across functions.
+ * Tests that variables in one function don't pick up types from parameters in other functions.
+ */
+class {
+
+    function first() {
+        // This should be inferred as type "Thing", NOT "numeric"
+        // The bug was that it picked up the type from second()'s parameter
+        x = new Thing();
+        return x;
+    }
+
+    function second( numeric x ) {
+        // This x is a numeric parameter, completely separate from first()'s x
+        return x * 2;
+    }
+
+    function third() {
+        // Using var keyword should correctly scope this as local
+        var x = new Widget();
+        return x;
+    }
+
+}

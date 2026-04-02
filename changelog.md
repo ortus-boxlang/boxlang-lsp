@@ -9,7 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.6.0] - 2025-10-16
+- BLIDIE-277 Improve LSP setting documentation
+- BLIDE-272 Prevent duplicate diagnostics in editor
+- BLIDE-271 Improve interface method diagnostics
+- Improve project indexing
+- Add API for querying the project index
+- BLIDE-224 Add hover support for variables, functions, classes, and interfaces
+- BLIDE-215 Add go-to-definition for variables, functions, classes, and interfaces
+- BLIDE-236 Add find references for variables, functions, classes, and interfaces
+- BLIDE-224 Add variable type insights
+- BLIDE-213 Add context aware auto complete for keywords, references, arguments, and imports
+- BLIDE-213 Add snippet completions
+- BLIDE-270 Add auto import support on save
+- BLIDE-215 Add ability to go to definition of BoxLang functions within the same file
+- BLIDE-236 Add ability to find references of a BoxLang function within the same file
 
 ## [1.5.0] - 2025-10-16
 

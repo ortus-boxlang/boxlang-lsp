@@ -1,0 +1,20 @@
+/**
+ * Concrete entity extending AbstractEntity.
+ */
+class ConcreteEntity extends="AbstractEntity" {
+
+	/**
+	 * Implement getId from AbstractEntity.
+	 */
+	public numeric function getId() {
+		return variables.id;
+	}
+
+	/**
+	 * Implement persist from AbstractEntity.
+	 */
+	public void function persist() {
+		// Persist implementation
+	}
+
+}

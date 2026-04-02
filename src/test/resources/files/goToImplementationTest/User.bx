@@ -1,0 +1,14 @@
+/**
+ * User entity class.
+ */
+class User {
+
+	property name="id" type="numeric";
+	property name="username" type="string";
+	property name="email" type="string";
+
+	public string function getDisplayName() {
+		return variables.username;
+	}
+
+}

@@ -1,0 +1,21 @@
+class {
+    function stuff(){
+        var x = {
+
+        };
+
+        return new Car( { result = "test", prefix= local.what ?: [] } );
+    }
+
+    function other(){
+        var c = new Car();
+
+        return c.drive()
+    }
+
+    function what(){
+        var c = new Car();
+
+        return c.drive()
+    }
+}

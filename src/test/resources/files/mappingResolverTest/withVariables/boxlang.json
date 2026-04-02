@@ -1,0 +1,8 @@
+{
+	"mappings": {
+		"/app": "${user-dir}/app",
+		"/runtime": "${boxlang-home}/lib"
+	},
+	"classPaths": [],
+	"modulesDirectory": []
+}

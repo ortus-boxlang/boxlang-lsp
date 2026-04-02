@@ -16,3 +16,6 @@ BOXLANG_HOME/*
 bin
 .boxlang
 .boxlang_home/
+lsp-roadmap.md
+.claude
+CLAUDE.md

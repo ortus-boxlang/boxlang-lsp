@@ -1,0 +1,9 @@
+class {
+    function foo(){
+        return 42;
+    }
+
+    function bar(){
+        return foo();
+    }
+}

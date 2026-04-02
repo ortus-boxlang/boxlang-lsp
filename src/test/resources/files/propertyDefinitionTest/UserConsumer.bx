@@ -1,0 +1,21 @@
+/**
+ * A class that consumes User objects.
+ * Used to test that property access DOES NOT navigate to external class properties
+ * (properties are private in BoxLang).
+ */
+class {
+
+    public function displayUser(required User user) {
+        // This should NOT navigate to User.bx's username property
+        // because properties are private in BoxLang
+        // This would actually be a method call, not property access
+        return user.getUsername();
+    }
+
+    public function createAndUseUser() {
+        var user = new User();
+        // Direct property access from outside the class should not navigate
+        // (This is only valid for accessor methods, not direct property access)
+        return user.getUsername();
+    }
+}

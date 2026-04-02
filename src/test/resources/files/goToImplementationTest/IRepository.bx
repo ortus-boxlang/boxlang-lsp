@@ -1,0 +1,21 @@
+/**
+ * Repository interface for data access.
+ */
+interface IRepository {
+
+	/**
+	 * Find entity by ID.
+	 */
+	public any function findById( required numeric id );
+
+	/**
+	 * Save entity.
+	 */
+	public void function save( required any entity );
+
+	/**
+	 * Delete entity.
+	 */
+	public void function delete( required numeric id );
+
+}

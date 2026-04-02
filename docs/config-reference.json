@@ -1,0 +1,150 @@
+{
+  "boxlang.lsp.*": {
+    "title": "IDE Workspace Settings",
+    "description": "Configured in the IDE (VS Code: settings.json). These control LSP behavior and performance.",
+    "settings": [
+      {
+        "key": "enableBackgroundParsing",
+        "type": "boolean",
+        "default": "false",
+        "since": "1.0.0",
+        "description": "When true, triggers a workspace-wide parse and index of all BoxLang files on startup and when this setting changes. Improves symbol discovery at the cost of startup time."
+      },
+      {
+        "key": "processDiagnosticsInParallel",
+        "type": "boolean",
+        "default": "true",
+        "since": "1.0.0",
+        "description": "When true, lint diagnostics for open documents are calculated in parallel threads. Disable if you experience threading issues."
+      }
+    ]
+  },
+  ".bxlint.json": {
+    "title": "Lint Configuration",
+    "description": "Place .bxlint.json at the workspace root to control static analysis. Changes are detected and applied live without reloading the editor.",
+    "settings": [
+      {
+        "key": "diagnostics",
+        "type": "object{}",
+        "default": "{}",
+        "since": "",
+        "description": "Map of rule ID to rule settings. Keys are rule IDs (see Lint Rules section). Each value is an object with optional \u0027enabled\u0027 (boolean) and \u0027severity\u0027 (string) fields."
+      },
+      {
+        "key": "include",
+        "type": "string[]",
+        "default": "[]",
+        "since": "",
+        "description": "Workspace-relative glob patterns. When non-empty, only matching files are analyzed. Supports * (segment), ** (recursive), ? (single char). Always use forward slashes."
+      },
+      {
+        "key": "exclude",
+        "type": "string[]",
+        "default": "[]",
+        "since": "",
+        "description": "Workspace-relative glob patterns. Files matching any exclude pattern are never analyzed, even if they match an include pattern. Evaluated after include."
+      }
+    ],
+    "rules": [
+      {
+        "id": "unusedVariable",
+        "defaultSeverity": "hint",
+        "since": "",
+        "description": "Flags local variables that are declared but never used in the code."
+      },
+      {
+        "id": "unscopedVariable",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags variables that are used without an explicit scope prefix (e.g. variables.foo instead of foo)."
+      },
+      {
+        "id": "duplicateMethod",
+        "defaultSeverity": "error",
+        "since": "",
+        "description": "Flags multiple method definitions with the same name within the same class."
+      },
+      {
+        "id": "duplicateProperty",
+        "defaultSeverity": "error",
+        "since": "",
+        "description": "Flags multiple property definitions with the same name within the same class."
+      },
+      {
+        "id": "emptyCatchBlock",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags catch blocks that contain no executable code, which silently swallows exceptions."
+      },
+      {
+        "id": "invalidExtends",
+        "defaultSeverity": "error",
+        "since": "",
+        "description": "Flags extends references to classes or interfaces that cannot be resolved."
+      },
+      {
+        "id": "invalidImplements",
+        "defaultSeverity": "error",
+        "since": "",
+        "description": "Flags implements references to interfaces that cannot be resolved."
+      },
+      {
+        "id": "missingReturnStatement",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags functions with a non-void return type that lack a return statement in all code paths."
+      },
+      {
+        "id": "shadowedVariable",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags local variables that share the same name as a function parameter, shadowing it."
+      },
+      {
+        "id": "unreachableCode",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags code appearing after control-flow statements like return, throw, or break that can never be executed."
+      },
+      {
+        "id": "unusedImport",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags import statements for classes or packages that are never referenced in the file."
+      },
+      {
+        "id": "unusedPrivateMethod",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags private methods that are never called within the class, indicating dead code."
+      }
+    ]
+  },
+  "boxlang.json": {
+    "title": "Project Mappings",
+    "description": "Place boxlang.json at the workspace root (or any ancestor directory) to define virtual paths, classpaths, and module directories. Supports // line comments.",
+    "settings": [
+      {
+        "key": "mappings",
+        "type": "object{}",
+        "default": "{}",
+        "since": "",
+        "description": "Map of virtual path prefix (e.g. \"/models\") to absolute or relative filesystem path. Supports ${user-dir}, ${boxlang-home}, and ${env.VAR:default} variable expansion."
+      },
+      {
+        "key": "classPaths",
+        "type": "string[]",
+        "default": "[]",
+        "since": "",
+        "description": "List of directories to include in the classpath for type resolution. Paths may be absolute or relative to the boxlang.json file."
+      },
+      {
+        "key": "modulesDirectory",
+        "type": "string[]",
+        "default": "[\"boxlang_modules\"]",
+        "since": "",
+        "description": "List of directories containing BoxLang modules. Defaults to boxlang_modules/ relative to boxlang.json. Paths may be absolute or relative."
+      }
+    ]
+  }
+}

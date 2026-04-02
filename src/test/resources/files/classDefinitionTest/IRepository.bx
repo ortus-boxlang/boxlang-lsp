@@ -1,0 +1,10 @@
+/**
+ * Generic repository interface.
+ *
+ * @author Claude
+ */
+interface {
+    public function findById(required numeric id);
+    public function save(required any entity);
+    public function delete(required numeric id);
+}

@@ -1,0 +1,7 @@
+/**
+ * Test file for class body keyword completion
+ */
+class {
+	// Cursor here for class body keywords
+	
+}

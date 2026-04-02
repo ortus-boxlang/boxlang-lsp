@@ -1,0 +1,63 @@
+/**
+ * Service class for user operations.
+ * Tests various class reference scenarios.
+ *
+ * @author Claude
+ */
+class extends="AbstractEntity" implements="IRepository" {
+    property name="repository" type="UserRepository";
+
+    /**
+     * Creates a new user.
+     *
+     * @param user The user entity to create
+     * @return The created user
+     */
+    public User function createUser(required User user) {
+        return repository.save(user);
+    }
+
+    /**
+     * Gets a user by ID.
+     *
+     * @param id The user ID
+     * @return The user entity
+     */
+    public function getUser(required numeric id) {
+        // Test new ClassName() expression on line 30
+        var defaultUser = new User();
+        return variables.repository.findById(id);
+    }
+
+    /**
+     * Process a user with typed parameter.
+     *
+     * @param entity The user to process
+     */
+    public void function processUser(required User entity) {
+        // Test typed parameter reference
+        entity.setUsername("processed");
+    }
+
+    /**
+     * Test local variable declaration.
+     */
+    public function testLocalVar() {
+        var localUser = new User();
+        localUser.setUsername("test");
+        return localUser;
+    }
+
+    // IRepository implementations
+    public function findById(required numeric id) {
+        return new User();
+    }
+
+    public function save(required any entity) {
+        // Save logic
+    }
+
+    public function delete(required numeric id) {
+        // Delete logic
+    }
+}

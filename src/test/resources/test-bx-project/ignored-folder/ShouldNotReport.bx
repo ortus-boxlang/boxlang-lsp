@@ -1,0 +1,13 @@
+/**
+ * This class is intentionally designed to extend a class that doesn't exit. It should be ignored in diagnostics.
+ */
+class extends="DoesNotExist"{
+
+    public function methodOne( string param1 ) {
+        // method implementation
+    }
+
+    private function methodTwo( int param2 ) {
+        // method implementation
+    }
+}

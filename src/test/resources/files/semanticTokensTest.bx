@@ -1,0 +1,47 @@
+class SemanticTokensFixture {
+
+	property name="convertEmptyStringsToNull";
+
+	function doThing() {
+		return true;
+	}
+
+	function run() {
+		var total = len( "abc" );
+		var custom = customHelper();
+
+		var arr = [ "a", "b" ];
+		arr.toList();
+
+		var qb = new QueryBuilder();
+		qb.from( "users" );
+
+		var obj = new SemanticTokensFixture();
+		obj.doThing();
+
+		checkForNonQueryParamStructKeys( {} );
+	}
+
+	private boolean function checkForNonQueryParamStructKeys( required struct param ) {
+		variables.runtimeFlag = true;
+		var enabled = variables.convertEmptyStringsToNull;
+
+		return param
+			.keyArray()
+			.filter( ( key ) => !convertEmptyStringsToNull && enabled )
+			.isEmpty();
+	}
+
+}
+
+class QueryBuilder {
+
+	function from( required string table ) {
+		return this;
+	}
+
+}
+
+function customHelper() {
+	return 1;
+}

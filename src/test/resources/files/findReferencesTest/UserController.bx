@@ -1,0 +1,31 @@
+/**
+ * User controller for handling user operations
+ */
+class {
+
+    property name="userService" type="UserService";
+
+    /**
+     * Initialize with dependencies
+     */
+    public void function init( required UserService service ) {
+        this.userService = service;
+    }
+
+    /**
+     * Get user action
+     */
+    public User function getUser( required numeric id ) {
+        var user = userService.getUser( id );
+        return user;
+    }
+
+    /**
+     * Create user action
+     */
+    public User function createUser( required string username, required string email ) {
+        var newUser = userService.createUser( username, email );
+        userService.saveUser( newUser );
+        return newUser;
+    }
+}

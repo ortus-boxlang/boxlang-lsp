@@ -1,0 +1,52 @@
+/**
+ * A sample class for testing signature help functionality.
+ *
+ * @author Claude
+ * @since 1.0
+ */
+class {
+    /**
+     * Retrieves a user by their unique identifier.
+     *
+     * @param id The user's unique ID
+     * @param includeDeleted Whether to include deleted users
+     * @return The User object if found, null otherwise
+     * @throws UserNotFoundException If user doesn't exist
+     * @deprecated Use getUserById() instead
+     */
+    public function getUser(required numeric id, boolean includeDeleted = false) {
+        return queryExecute("SELECT * FROM users WHERE id = :id", {id: id});
+    }
+
+    /**
+     * A function with multiple parameters for testing active parameter tracking.
+     *
+     * @param name The name parameter
+     * @param age The age parameter
+     */
+    function multiParamFunc(string name, numeric age) {
+        return "Hello, " & name & " you are " & age;
+    }
+
+    function caller() {
+        var result = getUser(1);
+        simpleFunction();
+        undocumentedFunction("World");
+        multiParamFunc( "test", 42 );
+        arrayAppend( [], "item" );
+        var obj = new ClassWithDocFunc();
+        obj.documentedFunction( 10, "Hello" );
+    }
+
+    /**
+     * A simple function with no documentation tags.
+     */
+    function simpleFunction() {
+        return 42;
+    }
+
+    // A function with no documentation
+    private function undocumentedFunction(string name) {
+        return "Hello, " & name;
+    }
+}

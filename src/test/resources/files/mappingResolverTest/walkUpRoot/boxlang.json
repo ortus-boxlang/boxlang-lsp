@@ -1,0 +1,7 @@
+{
+	"mappings": {
+		"/walkup": "/tmp/walkupTest"
+	},
+	"classPaths": [],
+	"modulesDirectory": []
+}

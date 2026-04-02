@@ -1,0 +1,24 @@
+/**
+ * User entity class for testing workspace symbols.
+ */
+class UserEntity {
+
+	property name="id" type="numeric";
+	property name="username" type="string";
+	property name="email" type="string";
+
+	public UserEntity function init( required numeric id, required string username ) {
+		this.id = id;
+		this.username = username;
+		return this;
+	}
+
+	public string function getDisplayName() {
+		return this.username;
+	}
+
+	public boolean function isActive() {
+		return true;
+	}
+
+}

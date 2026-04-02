@@ -1,0 +1,8 @@
+/**
+ * Repository interface
+ */
+interface {
+	function findById( required numeric id );
+	function save( required any entity );
+	function delete( required any entity );
+}

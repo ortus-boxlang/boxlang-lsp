@@ -25,9 +25,17 @@ import org.eclipse.lsp4j.DocumentFormattingParams;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.DocumentSymbolCapabilities;
 import org.eclipse.lsp4j.DocumentSymbolParams;
+import org.eclipse.lsp4j.Hover;
+import org.eclipse.lsp4j.HoverParams;
+import org.eclipse.lsp4j.ImplementationParams;
+import org.eclipse.lsp4j.SignatureHelp;
+import org.eclipse.lsp4j.SignatureHelpParams;
+import org.eclipse.lsp4j.TypeDefinitionParams;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.RelatedFullDocumentDiagnosticReport;
+import org.eclipse.lsp4j.SemanticTokens;
+import org.eclipse.lsp4j.SemanticTokensParams;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentRegistrationOptions;
 import org.eclipse.lsp4j.TextEdit;
@@ -42,6 +50,7 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonRequest;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.SemanticTokensContract;
 
 public class BoxLangTextDocumentService implements TextDocumentService {
 
@@ -63,7 +72,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	public void didOpen( DidOpenTextDocumentParams params ) {
 		ProjectContextProvider.getInstance().trackDocumentOpen(
 		    LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
-		    params.getTextDocument().getText() );
+		    params.getTextDocument().getText(),
+		    params.getTextDocument().getVersion() );
 		App.logger.debug( "The file was opened" );
 		App.logger.debug( params.getTextDocument().getUri() );
 	}
@@ -72,9 +82,8 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	public void didChange( DidChangeTextDocumentParams params ) {
 		ProjectContextProvider.getInstance().trackDocumentChange(
 		    LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
-		    params.getContentChanges() );
-		// TODO Auto-generated method stub
-		// throw new UnsupportedOperationException("Unimplemented method 'didChange'");
+		    params.getContentChanges(),
+		    params.getTextDocument().getVersion() );
 	}
 
 	@Override
@@ -113,6 +122,17 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 		} );
 	}
 
+	@JsonRequest
+	public CompletableFuture<SemanticTokens> semanticTokensFull( SemanticTokensParams params ) {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
+			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
+			if ( docURI == null ) {
+				return SemanticTokensContract.emptyTokens();
+			}
+			return ProjectContextProvider.getInstance().getSemanticTokens( docURI );
+		} );
+	}
+
 	/**
 	 * The document formatting request is sent from the client to the server to
 	 * format a whole document.
@@ -138,6 +158,9 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	@ResponseJsonAdapter( LocationLinkListAdapter.class )
 	public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(
 	    DefinitionParams params ) {
+
+		// get the node at the cursor position
+		// based on its type figure out where it is defined
 
 		try {
 			URI docURI = new URI( params.getTextDocument().getUri() );
@@ -225,6 +248,96 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 			return result;
 		} );
 
+	}
+
+	@JsonRequest
+	public CompletableFuture<List<? extends Location>> references( org.eclipse.lsp4j.ReferenceParams params ) {
+		java.net.URI	docURI				= LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
+		boolean			includeDeclaration	= params.getContext() != null && params.getContext().isIncludeDeclaration();
+		List<Location>	locs				= ProjectContextProvider.getInstance().findReferences( docURI, params.getPosition(), includeDeclaration );
+		return CompletableFuture.completedFuture( locs );
+	}
+
+	/**
+	 * The hover request is sent from the client to the server to request hover
+	 * information at a given text document position.
+	 */
+	@JsonRequest
+	@Override
+	public CompletableFuture<Hover> hover( HoverParams params ) {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
+			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
+			return ProjectContextProvider.getInstance().getHoverInfo( docURI, params.getPosition() );
+		} );
+	}
+
+	/**
+	 * The signature help request is sent from the client to the server to request
+	 * signature information at a given cursor position.
+	 */
+	@JsonRequest
+	@Override
+	public CompletableFuture<SignatureHelp> signatureHelp( SignatureHelpParams params ) {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
+			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
+			return ProjectContextProvider.getInstance().getSignatureHelp( docURI, params.getPosition() );
+		} );
+	}
+
+	/**
+	 * The goto type definition request is sent from the client to the server to resolve
+	 * the type definition location of a symbol at a given text document position.
+	 * <p>
+	 * This navigates from a variable to its type's class definition.
+	 */
+	@JsonRequest
+	@ResponseJsonAdapter( LocationLinkListAdapter.class )
+	public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> typeDefinition(
+	    TypeDefinitionParams params ) {
+
+		try {
+			URI docURI = new URI( params.getTextDocument().getUri() );
+
+			return CompletableFutures.computeAsync( ( cancelToken ) -> {
+				return Either
+				    .forLeft( ProjectContextProvider.getInstance().findTypeDefinition( docURI,
+				        params.getPosition() ) );
+			} );
+		} catch ( URISyntaxException e ) {
+			e.printStackTrace();
+		}
+
+		return CompletableFuture.supplyAsync( () -> {
+			return Either.forLeft( new ArrayList<>() );
+		} );
+	}
+
+	/**
+	 * The goto implementation request is sent from the client to the server to resolve
+	 * the implementation locations of a symbol at a given text document position.
+	 * <p>
+	 * This navigates from interface/abstract methods to their concrete implementations.
+	 */
+	@JsonRequest
+	@ResponseJsonAdapter( LocationLinkListAdapter.class )
+	public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> implementation(
+	    ImplementationParams params ) {
+
+		try {
+			URI docURI = new URI( params.getTextDocument().getUri() );
+
+			return CompletableFutures.computeAsync( ( cancelToken ) -> {
+				return Either
+				    .forLeft( ProjectContextProvider.getInstance().findImplementations( docURI,
+				        params.getPosition() ) );
+			} );
+		} catch ( URISyntaxException e ) {
+			e.printStackTrace();
+		}
+
+		return CompletableFuture.supplyAsync( () -> {
+			return Either.forLeft( new ArrayList<>() );
+		} );
 	}
 
 }

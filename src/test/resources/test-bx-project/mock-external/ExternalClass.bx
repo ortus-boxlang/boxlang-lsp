@@ -1,0 +1,5 @@
+class {
+	function hello() {
+		return "external";
+	}
+}

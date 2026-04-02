@@ -1,0 +1,11 @@
+/**
+ * SubThing class in subpackage directory.
+ */
+class {
+    property name="value" type="string";
+
+    public function init(required string value) {
+        variables.value = arguments.value;
+        return this;
+    }
+}

@@ -1,0 +1,11 @@
+{
+	"mappings": {
+		"/models": "/tmp/testModels"
+	},
+	"classPaths": [
+		"/tmp/testClasses"
+	],
+	"modulesDirectory": [
+		"/tmp/testModules"
+	]
+}

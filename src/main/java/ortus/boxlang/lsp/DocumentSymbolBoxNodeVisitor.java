@@ -5,7 +5,9 @@ package ortus.boxlang.lsp;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.Position;
@@ -15,9 +17,11 @@ import org.eclipse.lsp4j.SymbolKind;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 import ortus.boxlang.compiler.ast.BoxClass;
+import ortus.boxlang.compiler.ast.BoxInterface;
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
+import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
@@ -52,11 +56,36 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
 
 		visitChildren( node );
 
+		// Sort children: properties first, then constructor, then methods
+		sortClassChildren( classSymbol );
+
+		this.symbolStack.remove( symbolStack.size() - 1 );
+	}
+
+	public void visit( BoxInterface node ) {
+
+		DocumentSymbol interfaceSymbol = new DocumentSymbol();
+		// find the interface name
+		interfaceSymbol.setName( getClassName() );
+		interfaceSymbol.setKind( SymbolKind.Interface );
+		Range range = getRange( node );
+		interfaceSymbol.setRange( range );
+		interfaceSymbol.setSelectionRange( range );
+
+		trackSymbol( interfaceSymbol );
+		interfaceSymbol.setChildren( new ArrayList<DocumentSymbol>() );
+		this.symbolStack.add( interfaceSymbol );
+
+		visitChildren( node );
+
+		// Sort children: properties first, then methods
+		sortClassChildren( interfaceSymbol );
+
 		this.symbolStack.remove( symbolStack.size() - 1 );
 	}
 
 	public void visit( BoxProperty node ) {
-		if ( !inClass() ) {
+		if ( !inClassOrInterface() ) {
 			visitChildren( node );
 			return;
 		}
@@ -75,7 +104,13 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
 		} else {
 			property.setName( nameAnnotation.getValue().toString() );
 		}
-		property.setKind( SymbolKind.Field );
+		property.setKind( SymbolKind.Property );
+
+		// Extract type hint for detail
+		String typeHint = getPropertyTypeHint( node );
+		if ( typeHint != null && !typeHint.isEmpty() ) {
+			property.setDetail( typeHint );
+		}
 
 		Range r = getRange( node );
 		property.setRange( r );
@@ -86,27 +121,38 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
 	}
 
 	public void visit( BoxFunctionDeclaration node ) {
-		DocumentSymbol assignmentSymbol = new DocumentSymbol();
+		DocumentSymbol functionSymbol = new DocumentSymbol();
 
-		assignmentSymbol.setKind( SymbolKind.Function );
+		functionSymbol.setKind( SymbolKind.Function );
 
-		if ( this.inClass() ) {
-			assignmentSymbol.setKind( SymbolKind.Method );
+		if ( this.inClassOrInterface() ) {
+			// Check if this is a constructor (init method)
+			if ( node.getName().equalsIgnoreCase( "init" ) ) {
+				functionSymbol.setKind( SymbolKind.Constructor );
+			} else {
+				functionSymbol.setKind( SymbolKind.Method );
+			}
 		}
 
-		assignmentSymbol.setName( node.getName() );
-		assignmentSymbol.setDetail( "any" );
+		functionSymbol.setName( node.getName() );
 
-		if ( node.getType() != null ) {
-			assignmentSymbol.setDetail( node.getType().toString() );
-		}
+		// Build detail string with return type and parameter summary
+		String detail = buildFunctionDetail( node );
+		functionSymbol.setDetail( detail );
 
 		Range range = getRange( node );
-		assignmentSymbol.setRange( range );
-		assignmentSymbol.setSelectionRange( range );
+		functionSymbol.setRange( range );
+		functionSymbol.setSelectionRange( range );
 
-		trackSymbol( assignmentSymbol );
+		trackSymbol( functionSymbol );
+
+		// Support nested functions
+		functionSymbol.setChildren( new ArrayList<DocumentSymbol>() );
+		this.symbolStack.add( functionSymbol );
+
 		visitChildren( node );
+
+		this.symbolStack.remove( symbolStack.size() - 1 );
 	}
 
 	// public void visit( BoxAssignment node ) {
@@ -130,15 +176,100 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
 
 	private void trackSymbol( DocumentSymbol symbol ) {
 		if ( symbolStack.size() > 0 ) {
-			symbolStack.get( symbolStack.size() - 1 ).getChildren().add( symbol );
+			DocumentSymbol parent = symbolStack.get( symbolStack.size() - 1 );
+			if ( parent.getChildren() != null ) {
+				parent.getChildren().add( symbol );
+			}
 			return;
 		}
 
 		documentSymbols.add( Either.forRight( symbol ) );
 	}
 
-	private boolean inClass() {
-		return symbolStack.size() > 0 && symbolStack.get( symbolStack.size() - 1 ).getKind() == SymbolKind.Class;
+	private boolean inClassOrInterface() {
+		if ( symbolStack.isEmpty() ) {
+			return false;
+		}
+		SymbolKind kind = symbolStack.get( symbolStack.size() - 1 ).getKind();
+		return kind == SymbolKind.Class || kind == SymbolKind.Interface;
+	}
+
+	/**
+	 * Extract type hint from property annotations.
+	 */
+	private String getPropertyTypeHint( BoxProperty node ) {
+		return node.getAllAnnotations()
+		    .stream()
+		    .filter( annotation -> annotation.getKey().getValue().equalsIgnoreCase( "type" ) )
+		    .findFirst()
+		    .map( annotation -> {
+			    if ( annotation.getValue() instanceof BoxStringLiteral bsl ) {
+				    return bsl.getValue();
+			    } else if ( annotation.getValue() != null ) {
+				    return annotation.getValue().toString();
+			    }
+			    return null;
+		    } )
+		    .orElse( null );
+	}
+
+	/**
+	 * Build detail string for a function including return type and parameter summary.
+	 */
+	private String buildFunctionDetail( BoxFunctionDeclaration node ) {
+		StringBuilder detail = new StringBuilder();
+
+		// Add return type
+		if ( node.getType() != null ) {
+			detail.append( node.getType().toString() );
+		} else {
+			detail.append( "any" );
+		}
+
+		// Add parameter summary
+		List<BoxArgumentDeclaration> args = node.getArgs();
+		if ( args != null && !args.isEmpty() ) {
+			detail.append( " (" );
+			detail.append( args.stream()
+			    .map( arg -> {
+				    StringBuilder paramStr = new StringBuilder();
+				    if ( arg.getType() != null ) {
+					    paramStr.append( arg.getType().toString() ).append( " " );
+				    }
+				    paramStr.append( arg.getName() );
+				    return paramStr.toString();
+			    } )
+			    .collect( Collectors.joining( ", " ) ) );
+			detail.append( ")" );
+		}
+
+		return detail.toString();
+	}
+
+	/**
+	 * Sort class/interface children: properties first, then constructor, then methods.
+	 */
+	private void sortClassChildren( DocumentSymbol classSymbol ) {
+		if ( classSymbol.getChildren() == null || classSymbol.getChildren().isEmpty() ) {
+			return;
+		}
+
+		classSymbol.getChildren().sort( Comparator
+		    .comparingInt( ( DocumentSymbol s ) -> getSymbolSortOrder( s.getKind() ) )
+		    .thenComparing( DocumentSymbol::getName, String.CASE_INSENSITIVE_ORDER ) );
+	}
+
+	/**
+	 * Get sort order for a symbol kind (lower = first).
+	 */
+	private int getSymbolSortOrder( SymbolKind kind ) {
+		return switch ( kind ) {
+			case Property -> 0;
+			case Constructor -> 1;
+			case Method -> 2;
+			case Function -> 3;
+			default -> 4;
+		};
 	}
 
 	private Range getRange( BoxNode node ) {

@@ -1,0 +1,11 @@
+<bx:script>
+    x = new Thing();
+
+    x.other();
+
+    y = "what"
+</bx:script>
+
+<bx:output>
+    #y#
+</bx:output>

@@ -1,0 +1,27 @@
+/**
+ * User entity class.
+ * @author Claude
+ */
+class User {
+
+	property name="id" type="numeric";
+	property name="username" type="string";
+	property name="email" type="string";
+
+	/**
+	 * Get the user's display name.
+	 * @return string The display name
+	 */
+	public string function getDisplayName() {
+		return variables.username;
+	}
+
+	/**
+	 * Get user ID.
+	 * @return numeric The user ID
+	 */
+	public numeric function getId() {
+		return variables.id;
+	}
+
+}

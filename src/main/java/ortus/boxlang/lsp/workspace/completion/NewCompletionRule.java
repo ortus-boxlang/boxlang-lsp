@@ -25,8 +25,9 @@ public class NewCompletionRule implements IRule<CompletionFacts, List<Completion
 
 	@Override
 	public boolean when( CompletionFacts facts ) {
-		return !facts.fileParseResult().isTemplate()
-		    && ContextChecker.isNewExpression( facts );
+		// Disabled: ClassAndTypeCompletionRule now handles `new` completion using ProjectIndex
+		// This filesystem-based approach is kept for reference but not used
+		return false;
 	}
 
 	@Override
@@ -34,7 +35,12 @@ public class NewCompletionRule implements IRule<CompletionFacts, List<Completion
 		FileParseResult	fileParseResult	= facts.fileParseResult();
 		var				existingPrompt	= fileParseResult.readLine( facts.completionParams().getPosition().getLine() );
 
-		existingPrompt = existingPrompt.substring( 0, facts.completionParams().getPosition().getCharacter() );
+		// Guard against cursor position beyond line length
+		int				cursorPos		= facts.completionParams().getPosition().getCharacter();
+		if ( cursorPos > existingPrompt.length() ) {
+			cursorPos = existingPrompt.length();
+		}
+		existingPrompt = existingPrompt.substring( 0, cursorPos );
 
 		String					afterNewPrompt	= getAfterNewText( existingPrompt );
 		List<CompletionItem>	options			= new ArrayList<CompletionItem>();
@@ -189,7 +195,9 @@ public class NewCompletionRule implements IRule<CompletionFacts, List<Completion
 
 	private String getAfterNewText( String prompt ) {
 		Matcher match = newPattern.matcher( prompt );
-		match.find();
+		if ( !match.find() ) {
+			return "";
+		}
 
 		String afterNew = match.group( 1 );
 

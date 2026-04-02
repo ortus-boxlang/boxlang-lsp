@@ -255,6 +255,10 @@ public class FileParseResult {
 		return visitor.getFunctionDefinitions();
 	}
 
+	public List<FunctionDefinition> getFunctionDefinitions() {
+		return functionDefinitions;
+	}
+
 	/** Force a full reparse (used when lint configuration changes). */
 	public void reparse() {
 		fullyParse();

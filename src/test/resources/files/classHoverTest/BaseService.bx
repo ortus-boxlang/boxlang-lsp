@@ -1,0 +1,14 @@
+/**
+ * Base service class providing common functionality.
+ *
+ * @author Claude
+ * @since 1.0
+ */
+class {
+    /**
+     * Initializes the base service.
+     */
+    public function init() {
+        return this;
+    }
+}

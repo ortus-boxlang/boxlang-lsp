@@ -1,0 +1,12 @@
+class {
+
+	this.name = "TestApp";
+
+	// Static entries — picked up by ApplicationBxMappingExtractor
+	this.mappings[ "/appmodel" ]	= "./appmodels";
+	this.mappings[ "/ext" ]			= "./app-ext-override";
+
+	// Dynamic entry — should be silently ignored
+	this.mappings[ "/appdynamic" ] = expandPath( "./dynamic" );
+
+}

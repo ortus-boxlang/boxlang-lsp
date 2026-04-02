@@ -1,0 +1,7 @@
+/**
+ * Validatable interface
+ */
+interface {
+	function validate();
+	function getErrors();
+}

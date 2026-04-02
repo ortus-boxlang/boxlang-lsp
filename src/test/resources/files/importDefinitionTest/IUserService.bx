@@ -1,0 +1,8 @@
+/**
+ * Interface for user service operations.
+ * Test file for import navigation.
+ */
+interface {
+    public function findUser(required numeric id);
+    public function saveUser(required any user);
+}

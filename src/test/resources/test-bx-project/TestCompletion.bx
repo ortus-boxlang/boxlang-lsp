@@ -1,0 +1,9 @@
+/**
+ * Test file for autocomplete with inherited members from relative class path
+ * This class extends subpackage.BaseType (relative path)
+ */
+class extends="subpackage.BaseType" {
+    function testInheritedMembers() {
+        this.
+    }
+}

@@ -1,0 +1,34 @@
+/**
+ * User repository implementation.
+ */
+class UserRepository implements="IUserRepository" {
+
+	property name="users" type="array";
+
+	public UserRepository function init() {
+		this.users = [];
+		return this;
+	}
+
+	public UserEntity function findById( required numeric id ) {
+		for ( var user in this.users ) {
+			if ( user.id == id ) {
+				return user;
+			}
+		}
+		return null;
+	}
+
+	public array function findAll() {
+		return this.users;
+	}
+
+	public void function save( required UserEntity user ) {
+		this.users.append( user );
+	}
+
+	private void function clearCache() {
+		// Internal method
+	}
+
+}

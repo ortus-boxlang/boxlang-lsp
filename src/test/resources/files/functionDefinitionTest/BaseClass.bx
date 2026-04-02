@@ -1,0 +1,26 @@
+/**
+ * Base class for testing inherited method definitions.
+ */
+class {
+
+	/**
+	 * A method that can be inherited.
+	 *
+	 * @param message The message to log
+	 *
+	 * @return The logged message
+	 */
+	function logMessage( required string message ) {
+		return "Logged: " & message;
+	}
+
+	/**
+	 * A method that will be overridden.
+	 *
+	 * @return The base greeting
+	 */
+	function getGreeting() {
+		return "Hello from BaseClass";
+	}
+
+}

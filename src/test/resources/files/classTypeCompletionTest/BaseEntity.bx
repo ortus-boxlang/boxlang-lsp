@@ -1,0 +1,20 @@
+/**
+ * Base entity class
+ */
+class {
+	property name="id" type="numeric";
+	property name="createdAt" type="date";
+
+	function init() {
+		variables.createdAt = now();
+		return this;
+	}
+
+	function getId() {
+		return variables.id;
+	}
+
+	function setId( required numeric id ) {
+		variables.id = arguments.id;
+	}
+}

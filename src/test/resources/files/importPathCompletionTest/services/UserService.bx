@@ -1,0 +1,5 @@
+class {
+	function getUser(id) {
+		return new User();
+	}
+}

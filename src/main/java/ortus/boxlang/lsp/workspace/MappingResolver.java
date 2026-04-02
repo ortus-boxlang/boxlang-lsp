@@ -1,0 +1,297 @@
+package ortus.boxlang.lsp.workspace;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+public class MappingResolver {
+
+	private static final Map<Path, MappingConfig>	cache		= new ConcurrentHashMap<>();
+	/** Cache keyed by the resolved Application.bx / Application.cfc path. */
+	private static final Map<Path, MappingConfig>	fileCache	= new ConcurrentHashMap<>();
+
+	private MappingResolver() {
+	}
+
+	/**
+	 * Resolve a MappingConfig for the given workspace root. The result is cached
+	 * keyed by workspace root so repeated calls are cheap.
+	 *
+	 * @param workspaceRoot the workspace root directory
+	 * 
+	 * @return the resolved MappingConfig (never null)
+	 */
+	public static MappingConfig resolve( Path workspaceRoot ) {
+		return cache.computeIfAbsent( workspaceRoot.toAbsolutePath().normalize(), MappingResolver::computeConfig );
+	}
+
+	/**
+	 * Invalidate any cached result for the given workspace root so the next
+	 * {@link #resolve(Path)} call re-reads the filesystem. Also clears any
+	 * per-file Application.bx cache entries underneath that workspace root.
+	 */
+	public static void invalidate( Path workspaceRoot ) {
+		Path normRoot = workspaceRoot.toAbsolutePath().normalize();
+		cache.remove( normRoot );
+		fileCache.keySet().removeIf( p -> p.startsWith( normRoot ) );
+	}
+
+	/**
+	 * Invalidate the per-file cache entry for the given Application.bx (or
+	 * Application.cfc) path so the next {@link #resolveForFile} call re-reads
+	 * it from disk.
+	 */
+	public static void invalidateFile( Path appBxPath ) {
+		fileCache.remove( appBxPath.toAbsolutePath().normalize() );
+	}
+
+	/**
+	 * Resolve a per-file {@link MappingConfig} for the given source file.
+	 *
+	 * <p>
+	 * Walks upward from the file's parent directory toward {@code workspaceRoot},
+	 * looking for the nearest {@code Application.bx} or {@code Application.cfc}
+	 * (case-insensitive). When found, static {@code this.mappings} entries are
+	 * extracted, resolved relative to the Application.bx directory, and merged
+	 * with the workspace-level config from {@link #resolve(Path)}. Application.bx
+	 * keys take priority on collision.
+	 *
+	 * <p>
+	 * The result is cached by the Application.bx path so repeated calls are cheap.
+	 * When no Application.bx is found the workspace-level config is returned.
+	 *
+	 * @param filePath      the source file being analysed
+	 * @param workspaceRoot the workspace root (walk-up boundary, inclusive)
+	 *
+	 * @return merged MappingConfig (never null)
+	 */
+	public static MappingConfig resolveForFile( Path filePath, Path workspaceRoot ) {
+		Path	normalRoot	= workspaceRoot.toAbsolutePath().normalize();
+		Path	dir			= filePath.toAbsolutePath().normalize().getParent();
+
+		// Walk upward until we hit the workspace boundary (inclusive)
+		while ( dir != null ) {
+			if ( !dir.startsWith( normalRoot ) && !dir.equals( normalRoot ) ) {
+				break;
+			}
+
+			// Look for Application.bx or Application.cfc in this directory
+			Path appBx = findApplicationBx( dir );
+			if ( appBx != null ) {
+				return fileCache.computeIfAbsent( appBx, k -> mergeWithApplicationBx( k, workspaceRoot ) );
+			}
+
+			if ( dir.equals( normalRoot ) ) {
+				break;
+			}
+			dir = dir.getParent();
+		}
+
+		// No Application.bx found within workspace — fall back to base config
+		return resolve( workspaceRoot );
+	}
+
+	// ───────────────────────────────────────────────────────────────────────────
+	// Private helpers
+	// ───────────────────────────────────────────────────────────────────────────
+
+	/**
+	 * Find Application.bx or Application.cfc (case-insensitive) in {@code dir}.
+	 * Returns null if none is present.
+	 */
+	private static Path findApplicationBx( Path dir ) {
+		try ( java.util.stream.Stream<Path> files = Files.list( dir ) ) {
+			return files
+			    .filter( p -> Files.isRegularFile( p ) )
+			    .filter( p -> {
+				    String name = p.getFileName().toString();
+				    return name.equalsIgnoreCase( "Application.bx" ) ||
+				        name.equalsIgnoreCase( "Application.cfc" );
+			    } )
+			    .findFirst()
+			    .orElse( null );
+		} catch ( IOException e ) {
+			return null;
+		}
+	}
+
+	/**
+	 * Merge the workspace-level config with static entries from the given
+	 * Application.bx file. Application.bx entries override base config on collision.
+	 */
+	private static MappingConfig mergeWithApplicationBx( Path appBxPath, Path workspaceRoot ) {
+		MappingConfig		base		= resolve( workspaceRoot );
+		Map<String, String>	rawMappings	= ApplicationBxMappingExtractor.extract( appBxPath );
+		Path				appDir		= appBxPath.getParent();
+
+		// Resolve raw paths relative to Application.bx's directory
+		Map<String, Path>	appMappings	= new java.util.LinkedHashMap<>();
+		for ( Map.Entry<String, String> entry : rawMappings.entrySet() ) {
+			Path resolved = resolvePath( entry.getValue(), appDir );
+			if ( resolved != null ) {
+				appMappings.put( entry.getKey(), resolved );
+			}
+		}
+
+		// Merge: base first, then Application.bx overrides on collision
+		Map<String, Path> merged = new java.util.LinkedHashMap<>( base.getMappings() );
+		merged.putAll( appMappings );
+
+		return new MappingConfig( merged, base.getClassPaths(), base.getModulesDirectory(), workspaceRoot );
+	}
+
+	private static MappingConfig computeConfig( Path workspaceRoot ) {
+		Path configFile = findConfigFile( workspaceRoot );
+		if ( configFile == null ) {
+			return emptyConfig( workspaceRoot );
+		}
+		return parseConfig( configFile, workspaceRoot );
+	}
+
+	/**
+	 * Walk up from workspaceRoot until a boxlang.json is found, or return null.
+	 */
+	private static Path findConfigFile( Path startDir ) {
+		Path dir = startDir.toAbsolutePath().normalize();
+		while ( dir != null ) {
+			Path candidate = dir.resolve( "boxlang.json" );
+			if ( Files.isRegularFile( candidate ) ) {
+				return candidate;
+			}
+			dir = dir.getParent();
+		}
+		return null;
+	}
+
+	private static MappingConfig parseConfig( Path configFile, Path workspaceRoot ) {
+		String raw;
+		try {
+			raw = Files.readString( configFile );
+		} catch ( IOException e ) {
+			return emptyConfig( workspaceRoot );
+		}
+
+		String				stripped			= stripLineComments( raw );
+		JsonObject			root				= JsonParser.parseString( stripped ).getAsJsonObject();
+		Path				configDir			= configFile.getParent();
+
+		Map<String, Path>	mappings			= parseMappings( root, configDir, workspaceRoot );
+		List<Path>			classPaths			= parsePathArray( root, "classPaths", configDir, workspaceRoot );
+		List<Path>			modulesDirectory	= parsePathArray( root, "modulesDirectory", configDir, workspaceRoot );
+
+		return new MappingConfig( mappings, classPaths, modulesDirectory, workspaceRoot );
+	}
+
+	private static String stripLineComments( String json ) {
+		StringBuilder	sb		= new StringBuilder();
+		boolean			inStr	= false;
+		int				i		= 0;
+		while ( i < json.length() ) {
+			char c = json.charAt( i );
+			if ( c == '\\' && inStr ) {
+				sb.append( c );
+				i++;
+				if ( i < json.length() ) {
+					sb.append( json.charAt( i ) );
+					i++;
+				}
+				continue;
+			}
+			if ( c == '"' ) {
+				inStr = !inStr;
+				sb.append( c );
+				i++;
+				continue;
+			}
+			if ( !inStr && c == '/' && i + 1 < json.length() && json.charAt( i + 1 ) == '/' ) {
+				// skip to end of line
+				while ( i < json.length() && json.charAt( i ) != '\n' ) {
+					i++;
+				}
+				continue;
+			}
+			sb.append( c );
+			i++;
+		}
+		return sb.toString();
+	}
+
+	private static Map<String, Path> parseMappings( JsonObject root, Path configDir, Path workspaceRoot ) {
+		if ( !root.has( "mappings" ) || !root.get( "mappings" ).isJsonObject() ) {
+			return Collections.emptyMap();
+		}
+		JsonObject			mappingsObj	= root.getAsJsonObject( "mappings" );
+		Map<String, Path>	result		= new HashMap<>();
+		for ( Map.Entry<String, JsonElement> entry : mappingsObj.entrySet() ) {
+			String	key			= entry.getKey();
+			String	rawVal		= entry.getValue().getAsString();
+			String	expanded	= expandVariables( rawVal, workspaceRoot );
+			result.put( key, resolvePath( expanded, configDir ) );
+		}
+		return result;
+	}
+
+	private static List<Path> parsePathArray( JsonObject root, String field, Path configDir, Path workspaceRoot ) {
+		if ( !root.has( field ) || !root.get( field ).isJsonArray() ) {
+			return Collections.emptyList();
+		}
+		JsonArray	arr		= root.getAsJsonArray( field );
+		List<Path>	result	= new ArrayList<>();
+		for ( JsonElement el : arr ) {
+			String	rawVal		= el.getAsString();
+			String	expanded	= expandVariables( rawVal, workspaceRoot );
+			result.add( resolvePath( expanded, configDir ) );
+		}
+		return result;
+	}
+
+	private static String expandVariables( String value, Path workspaceRoot ) {
+		// ${user-dir}
+		value = value.replace( "${user-dir}", workspaceRoot.toAbsolutePath().normalize().toString() );
+
+		// ${boxlang-home}
+		try {
+			String bxHome = ortus.boxlang.runtime.BoxRuntime.getInstance().getRuntimeHome().toAbsolutePath().toString();
+			value = value.replace( "${boxlang-home}", bxHome );
+		} catch ( Exception ignored ) {
+			// BoxRuntime not available in this context — leave token as-is
+		}
+
+		// ${env.VAR_NAME:default}
+		java.util.regex.Matcher	m	= java.util.regex.Pattern
+		    .compile( "\\$\\{env\\.([^}:]+)(?::([^}]*))?\\}" )
+		    .matcher( value );
+		StringBuffer			sb	= new StringBuffer();
+		while ( m.find() ) {
+			String	varName		= m.group( 1 );
+			String	defaultVal	= m.group( 2 ) != null ? m.group( 2 ) : "";
+			String	envVal		= System.getenv( varName );
+			m.appendReplacement( sb, java.util.regex.Matcher.quoteReplacement( envVal != null ? envVal : defaultVal ) );
+		}
+		m.appendTail( sb );
+		return sb.toString();
+	}
+
+	private static Path resolvePath( String val, Path configDir ) {
+		Path p = Path.of( val );
+		if ( p.isAbsolute() ) {
+			return p.normalize();
+		}
+		return configDir.resolve( val ).toAbsolutePath().normalize();
+	}
+
+	private static MappingConfig emptyConfig( Path workspaceRoot ) {
+		return new MappingConfig( Collections.emptyMap(), Collections.emptyList(), Collections.emptyList(), workspaceRoot );
+	}
+}

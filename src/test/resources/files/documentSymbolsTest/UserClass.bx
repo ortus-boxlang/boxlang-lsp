@@ -1,0 +1,41 @@
+/**
+ * User class with various members for document symbol testing.
+ */
+class UserClass {
+
+	property name="id" type="numeric";
+	property name="username" type="string";
+	property name="email" type="string";
+	property name="isActive" type="boolean" default="true";
+
+	/**
+	 * Constructor for UserClass.
+	 */
+	public UserClass function init( required numeric id, required string username ) {
+		this.id = id;
+		this.username = username;
+		return this;
+	}
+
+	/**
+	 * Get the display name.
+	 */
+	public string function getDisplayName() {
+		return this.username;
+	}
+
+	/**
+	 * Check if user is active.
+	 */
+	public boolean function isActive() {
+		return this.isActive;
+	}
+
+	/**
+	 * Private helper method.
+	 */
+	private void function validateEmail( required string email ) {
+		// validation logic
+	}
+
+}

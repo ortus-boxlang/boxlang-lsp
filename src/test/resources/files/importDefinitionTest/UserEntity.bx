@@ -1,0 +1,25 @@
+/**
+ * User entity class.
+ * Test file for import navigation.
+ *
+ * @author Claude
+ */
+class {
+    property name="id" type="numeric";
+    property name="username" type="string";
+    property name="email" type="string";
+
+    public function init(required numeric id, required string username) {
+        variables.id = arguments.id;
+        variables.username = arguments.username;
+        return this;
+    }
+
+    public string function getUsername() {
+        return variables.username;
+    }
+
+    public void function setUsername(required string username) {
+        variables.username = arguments.username;
+    }
+}

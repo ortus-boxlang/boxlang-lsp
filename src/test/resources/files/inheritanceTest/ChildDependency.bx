@@ -1,0 +1,16 @@
+/**
+ * Class that uses Child to test cross-file go-to-definition.
+ */
+class {
+
+	function doSomething() {
+		var child = new Child();
+
+		// This should go to childFunc() in Child.bx
+		child.childFunc();
+
+		// This should go to parentFunc() in Parent.bx
+		child.parentFunc();
+	}
+
+}

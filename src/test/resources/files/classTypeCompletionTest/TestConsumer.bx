@@ -1,0 +1,20 @@
+class {
+	function testNew() {
+		// Test completion after new keyword
+		var user = new
+	}
+
+	function testTypeHint( User user ) {
+		// Test completion in type hint position
+		var entity
+		return user;
+	}
+
+	function testExtends() {
+		// This is just a marker - we'll test extends in class declaration
+	}
+
+	function testImplements() {
+		// This is just a marker - we'll test implements in class declaration
+	}
+}

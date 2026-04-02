@@ -64,8 +64,19 @@ public class MemoryThresholdMonitor {
 			public void handleNotification( Notification notification, Object handback ) {
 				if ( notification.getType().equals( MemoryNotificationInfo.MEMORY_THRESHOLD_EXCEEDED ) ) {
 					App.logger.info( "Memory threshold exceeded: clearing the parser cache" );
-					int size = Parser.getCacheSize();
-					Parser.clearParseCache();
+					int size = 0;
+					try {
+						size = Parser.getCacheSize();
+					} catch ( Exception e ) {
+						App.logger.error( "Error getting parser cache size", e );
+					}
+
+					try {
+						Parser.clearParseCache();
+					} catch ( Exception e ) {
+						App.logger.error( "Error clearing parser cache", e );
+						return;
+					}
 					App.logger.info( "Freed {} parser states", size );
 				}
 			}

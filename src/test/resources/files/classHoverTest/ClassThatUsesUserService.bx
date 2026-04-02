@@ -1,0 +1,11 @@
+class {
+    public function testMethod() {
+        // Test hover on class in new expression
+        var service = new UserService();
+
+        // Test hover on type hint
+        UserService typedService = new UserService();
+
+        return service.getUser(1);
+    }
+}

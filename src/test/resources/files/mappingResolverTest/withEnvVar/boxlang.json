@@ -1,0 +1,7 @@
+{
+	"mappings": {
+		"/envpath": "${env.BX_LSP_TEST_MISSING_VAR:fallback}"
+	},
+	"classPaths": [],
+	"modulesDirectory": []
+}

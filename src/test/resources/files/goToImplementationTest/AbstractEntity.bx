@@ -1,0 +1,19 @@
+/**
+ * Abstract base entity class.
+ */
+abstract class AbstractEntity {
+
+	property name="id" type="numeric";
+	property name="createdAt" type="date";
+
+	/**
+	 * Get entity ID - abstract method to be implemented.
+	 */
+	public abstract numeric function getId();
+
+	/**
+	 * Save the entity - abstract method to be implemented.
+	 */
+	public abstract void function persist();
+
+}

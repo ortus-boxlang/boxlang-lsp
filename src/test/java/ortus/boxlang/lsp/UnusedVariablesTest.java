@@ -31,9 +31,14 @@ public class UnusedVariablesTest {
 		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 		assertFalse( diagnostics.isEmpty(), "Diagnostics should not be empty." );
-		assertEquals( 1, diagnostics.size(), "Diagnostics should contain 1 item." );
-		Diagnostic d = diagnostics.get( 0 );
-		assertEquals( "Variable [bar] is declared but never used.", d.getMessage() );
+		// File now generates 2 diagnostics: unused variable + unreachable code after return
+		assertEquals( 2, diagnostics.size(), "Diagnostics should contain 2 items (unused variable + unreachable code)." );
+		Diagnostic unusedVar = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "bar" ) )
+		    .findFirst()
+		    .orElse( null );
+		assertNotNull( unusedVar, "Should have unused variable diagnostic" );
+		assertEquals( "Variable [bar] is declared but never used.", unusedVar.getMessage() );
 	}
 
 	@Test
@@ -286,5 +291,45 @@ public class UnusedVariablesTest {
 		    .orElse( null );
 
 		assertThat( argAUnused ).isNull();
+	}
+
+	@Test
+	void testShouldNotWarnForUnusedArgumentsInAbstractInterfaceMethods() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unusedvariables/InterfaceMethods.bx" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+
+		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
+		assertNotNull( diagnostics, "Diagnostics should not be null." );
+
+		// Abstract interface method arguments (getName, getCount, doSomething) must not be flagged
+		boolean abstractArgWarned = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "is declared but never used." ) )
+		    .anyMatch( d -> d.getMessage().contains( "prefix" ) || d.getMessage().contains( "limit" )
+		        || d.getMessage().contains( "filter" ) || d.getMessage().contains( "value" ) );
+
+		assertFalse( abstractArgWarned, "Abstract interface method arguments should not produce unused-argument warnings." );
+	}
+
+	@Test
+	void testShouldWarnForUnusedArgumentsInDefaultInterfaceMethods() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unusedvariables/InterfaceMethods.bx" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+
+		List<Diagnostic> diagnostics = pcp.getFileDiagnostics( f.toURI() );
+		assertNotNull( diagnostics, "Diagnostics should not be null." );
+
+		// publicMethodWithIssues declares 'arg' but never uses it — should be flagged
+		Diagnostic unusedArg = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "Variable [arg] is declared but never used." ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( unusedArg ).isNotNull();
 	}
 }
