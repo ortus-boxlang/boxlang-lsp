@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-04-02
+
 - BLIDIE-277 Improve LSP setting documentation
 - BLIDE-272 Prevent duplicate diagnostics in editor
 - BLIDE-271 Improve interface method diagnostics
@@ -44,7 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverted LSP to be a BoxLang module
 - BLIDE-96 Added version info
 
-[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.5.0...HEAD
+[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.6.0...v1.9.0
 [1.5.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.3.0...v1.5.0
 [1.3.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.3.0...v1.3.0
 [1.2.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.1.0...v1.2.0
