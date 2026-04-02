@@ -19,6 +19,7 @@ package ortus.boxlang.lsp.lint.rules;
 
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
+import ortus.boxlang.lsp.config.annotation.LintRule;
 import ortus.boxlang.lsp.lint.DiagnosticRule;
 
 /**
@@ -26,6 +27,7 @@ import ortus.boxlang.lsp.lint.DiagnosticRule;
  *
  * Imports that are never used clutter the code and should be removed.
  */
+@LintRule( id = "unusedImport", description = "Flags import statements for classes or packages that are never referenced in the file.", defaultSeverity = "warning" )
 public class UnusedImportRule implements DiagnosticRule {
 
 	public static final String ID = "unusedImport";

@@ -129,6 +129,19 @@ task zipJavadocs( type: Zip ) {
 }
 javadoc.finalizedBy( zipJavadocs )
 
+task generateConfigDocs(type: JavaExec, dependsOn: classes) {
+    description = 'Generates docs/config-reference.md and docs/config-reference.json from annotated source classes.'
+    group = 'documentation'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'ortus.boxlang.lsp.config.ConfigDocGenerator'
+    args = ["${projectDir}/docs"]
+    outputs.files(
+        file("${projectDir}/docs/config-reference.md"),
+        file("${projectDir}/docs/config-reference.json")
+    )
+    inputs.files(sourceSets.main.allJava)
+}
+
 /**
  * Docs are here:
  * - https://github.com/harbby/gradle-serviceloader,

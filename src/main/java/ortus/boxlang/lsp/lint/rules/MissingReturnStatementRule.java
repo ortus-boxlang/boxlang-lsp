@@ -19,6 +19,7 @@ package ortus.boxlang.lsp.lint.rules;
 
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
+import ortus.boxlang.lsp.config.annotation.LintRule;
 import ortus.boxlang.lsp.lint.DiagnosticRule;
 
 /**
@@ -27,6 +28,7 @@ import ortus.boxlang.lsp.lint.DiagnosticRule;
  * When a function declares a non-void return type but has no return
  * statement, it may not behave as expected.
  */
+@LintRule( id = "missingReturnStatement", description = "Flags functions with a non-void return type that lack a return statement in all code paths.", defaultSeverity = "warning" )
 public class MissingReturnStatementRule implements DiagnosticRule {
 
 	public static final String ID = "missingReturnStatement";

@@ -19,6 +19,7 @@ package ortus.boxlang.lsp.lint.rules;
 
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
+import ortus.boxlang.lsp.config.annotation.LintRule;
 import ortus.boxlang.lsp.lint.DiagnosticRule;
 
 /**
@@ -27,6 +28,7 @@ import ortus.boxlang.lsp.lint.DiagnosticRule;
  * Empty catch blocks silently swallow exceptions which can make
  * debugging difficult and mask real errors.
  */
+@LintRule( id = "emptyCatchBlock", description = "Flags catch blocks that contain no executable code, which silently swallows exceptions.", defaultSeverity = "warning" )
 public class EmptyCatchBlockRule implements DiagnosticRule {
 
 	public static final String ID = "emptyCatchBlock";

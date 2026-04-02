@@ -19,6 +19,7 @@ package ortus.boxlang.lsp.lint.rules;
 
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
+import ortus.boxlang.lsp.config.annotation.LintRule;
 import ortus.boxlang.lsp.lint.DiagnosticRule;
 
 /**
@@ -27,6 +28,7 @@ import ortus.boxlang.lsp.lint.DiagnosticRule;
  * Code that appears after return, throw, break, or continue statements
  * will never be executed and should be removed or the control flow fixed.
  */
+@LintRule( id = "unreachableCode", description = "Flags code appearing after control-flow statements like return, throw, or break that can never be executed.", defaultSeverity = "warning" )
 public class UnreachableCodeRule implements DiagnosticRule {
 
 	public static final String ID = "unreachableCode";

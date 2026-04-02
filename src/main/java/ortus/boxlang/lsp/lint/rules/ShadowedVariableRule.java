@@ -19,6 +19,7 @@ package ortus.boxlang.lsp.lint.rules;
 
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
+import ortus.boxlang.lsp.config.annotation.LintRule;
 import ortus.boxlang.lsp.lint.DiagnosticRule;
 
 /**
@@ -27,6 +28,7 @@ import ortus.boxlang.lsp.lint.DiagnosticRule;
  * A local variable that shadows a parameter can lead to confusing
  * behavior and is often a mistake.
  */
+@LintRule( id = "shadowedVariable", description = "Flags local variables that share the same name as a function parameter, shadowing it.", defaultSeverity = "warning" )
 public class ShadowedVariableRule implements DiagnosticRule {
 
 	public static final String ID = "shadowedVariable";

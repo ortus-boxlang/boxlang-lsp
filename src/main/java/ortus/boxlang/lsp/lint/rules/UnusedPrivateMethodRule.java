@@ -19,6 +19,7 @@ package ortus.boxlang.lsp.lint.rules;
 
 import org.eclipse.lsp4j.DiagnosticSeverity;
 
+import ortus.boxlang.lsp.config.annotation.LintRule;
 import ortus.boxlang.lsp.lint.DiagnosticRule;
 
 /**
@@ -27,6 +28,7 @@ import ortus.boxlang.lsp.lint.DiagnosticRule;
  * Private methods that are never called within the class are dead code
  * and can be safely removed.
  */
+@LintRule( id = "unusedPrivateMethod", description = "Flags private methods that are never called within the class, indicating dead code.", defaultSeverity = "warning" )
 public class UnusedPrivateMethodRule implements DiagnosticRule {
 
 	public static final String ID = "unusedPrivateMethod";
