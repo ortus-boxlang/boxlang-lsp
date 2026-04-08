@@ -186,10 +186,10 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 		if ( node.getLeft() instanceof BoxDotAccess bda ) {
 			var access = bda.getAccess();
 
-			if ( access instanceof BoxIdentifier accessIdentifier ) {
+			if ( access instanceof BoxIdentifier accessIdentifier && accessIdentifier.getSourceText() != null ) {
 				properties.add( ( ( String ) accessIdentifier.getSourceText() ).toLowerCase() );
 			}
-		} else if ( node.getLeft() instanceof BoxIdentifier id ) {
+		} else if ( node.getLeft() instanceof BoxIdentifier id && id.getSourceText() != null ) {
 			properties.add( ( ( String ) id.getSourceText() ).toLowerCase() );
 		} else if ( node.getLeft() instanceof BoxArrayAccess arrayAccess ) {
 			if ( arrayAccess.getAccess() instanceof BoxStringLiteral accessIdentifier ) {

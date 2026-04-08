@@ -1,0 +1,12 @@
+function add( a, b ){
+    return a + b;
+}
+
+
+x = {
+    "colors": [ "red", "orange", "yellow", "green", "indigo", "violet" ],
+    "sum": add( 12, 4 )
+}
+
+
+println( add( 2, 3 ) )

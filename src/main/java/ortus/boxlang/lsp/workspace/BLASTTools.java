@@ -19,6 +19,9 @@ public class BLASTTools {
 	 */
 	public static String getPropertyName( BoxProperty property ) {
 		for ( var anno : property.getAllAnnotations() ) {
+			if ( anno.getKey().getSourceText() == null ) {
+				continue;
+			}
 			if ( anno.getKey().getSourceText().equalsIgnoreCase( "name" ) && anno.getValue() != null ) {
 				var val = anno.getValue().getAsSimpleValue();
 				return val != null ? StringCaster.cast( val ) : null;
