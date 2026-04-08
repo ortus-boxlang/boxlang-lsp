@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -35,17 +36,28 @@ import ortus.boxlang.lsp.workspace.visitors.PropertyVisitor;
 
 public class FileParseResult {
 
+	public static record ProfilingSnapshot( long fullParses, long parseSourceMillis, long generateDiagnosticsMillis ) {
+
+		public static ProfilingSnapshot empty() {
+			return new ProfilingSnapshot( 0L, 0L, 0L );
+		}
+	}
+
+	private static final LongAdder							FULL_PARSE_COUNT			= new LongAdder();
+	private static final LongAdder							PARSE_SOURCE_NANOS			= new LongAdder();
+	private static final LongAdder							GENERATE_DIAGNOSTICS_NANOS	= new LongAdder();
+
 	private URI												uri;
-	private boolean											isOpen				= false;
-	private String											source				= null;
-	private WeakReference<ParsingResult>					parseResultRef		= new WeakReference<ParsingResult>( null );
-	private List<Issue>										issues				= new ArrayList<Issue>();
-	private List<Diagnostic>								diagnostics			= new ArrayList<Diagnostic>();
-	private List<CodeAction>								codeActions			= new ArrayList<CodeAction>();
-	private List<Either<SymbolInformation, DocumentSymbol>>	outline				= new ArrayList<Either<SymbolInformation, DocumentSymbol>>();
-	private List<ParsedProperty>							properties			= new ArrayList<ParsedProperty>();
-	private List<SourceCodeVisitor>							visitors			= new ArrayList<SourceCodeVisitor>();
-	private List<FunctionDefinition>						functionDefinitions	= new ArrayList<FunctionDefinition>();
+	private boolean											isOpen						= false;
+	private String											source						= null;
+	private WeakReference<ParsingResult>					parseResultRef				= new WeakReference<ParsingResult>( null );
+	private List<Issue>										issues						= new ArrayList<Issue>();
+	private List<Diagnostic>								diagnostics					= new ArrayList<Diagnostic>();
+	private List<CodeAction>								codeActions					= new ArrayList<CodeAction>();
+	private List<Either<SymbolInformation, DocumentSymbol>>	outline						= new ArrayList<Either<SymbolInformation, DocumentSymbol>>();
+	private List<ParsedProperty>							properties					= new ArrayList<ParsedProperty>();
+	private List<SourceCodeVisitor>							visitors					= new ArrayList<SourceCodeVisitor>();
+	private List<FunctionDefinition>						functionDefinitions			= new ArrayList<FunctionDefinition>();
 
 	public static FileParseResult fromFileSystem( URI uri ) {
 		FileParseResult fpr = new FileParseResult();
@@ -144,6 +156,20 @@ public class FileParseResult {
 		    .map( ParsingResult::getRoot );
 	}
 
+	public static void resetProfiling() {
+		FULL_PARSE_COUNT.reset();
+		PARSE_SOURCE_NANOS.reset();
+		GENERATE_DIAGNOSTICS_NANOS.reset();
+	}
+
+	public static ProfilingSnapshot getProfilingSnapshot() {
+		return new ProfilingSnapshot(
+		    FULL_PARSE_COUNT.sum(),
+		    java.util.concurrent.TimeUnit.NANOSECONDS.toMillis( PARSE_SOURCE_NANOS.sum() ),
+		    java.util.concurrent.TimeUnit.NANOSECONDS.toMillis( GENERATE_DIAGNOSTICS_NANOS.sum() )
+		);
+	}
+
 	private Optional<ParsingResult> findParsingResult() {
 
 		if ( parseResultRef.get() == null ) {
@@ -154,7 +180,8 @@ public class FileParseResult {
 	}
 
 	private ParsingResult parseSource() {
-		Parser parser = new Parser();
+		long	startNanos	= System.nanoTime();
+		Parser	parser		= new Parser();
 
 		try {
 			if ( this.isOpen ) {
@@ -168,10 +195,13 @@ public class FileParseResult {
 		} catch ( Exception e ) {
 			App.logger.error( "Unable to parse " + this.uri, e );
 			return null;
+		} finally {
+			PARSE_SOURCE_NANOS.add( System.nanoTime() - startNanos );
 		}
 	}
 
 	private List<Diagnostic> generateDiagnostics() {
+		long				startNanos		= System.nanoTime();
 
 		List<Diagnostic>	fileDiagnostics	= new ArrayList<>();
 		List<CodeAction>	fileCodeActions	= new ArrayList<>();
@@ -209,10 +239,15 @@ public class FileParseResult {
 
 		this.codeActions = fileCodeActions;
 
-		return fileDiagnostics;
+		try {
+			return fileDiagnostics;
+		} finally {
+			GENERATE_DIAGNOSTICS_NANOS.add( System.nanoTime() - startNanos );
+		}
 	}
 
 	private void fullyParse() {
+		FULL_PARSE_COUNT.increment();
 		parseResultRef = new WeakReference<>( parseSource() );
 
 		findAstRoot().ifPresent( root -> {

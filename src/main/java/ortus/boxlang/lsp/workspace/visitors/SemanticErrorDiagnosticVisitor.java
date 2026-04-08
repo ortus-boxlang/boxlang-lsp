@@ -181,7 +181,12 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 			return;
 		}
 
-		String propertyName = BLASTTools.getPropertyName( node ).toLowerCase();
+		String propertyName = BLASTTools.getPropertyName( node );
+		if ( propertyName == null ) {
+			return;
+		}
+
+		propertyName = propertyName.toLowerCase();
 
 		if ( seenProperties.contains( propertyName ) ) {
 			Diagnostic diagnostic = new Diagnostic(

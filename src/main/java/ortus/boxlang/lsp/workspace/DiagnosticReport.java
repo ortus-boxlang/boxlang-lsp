@@ -9,7 +9,7 @@ import org.eclipse.lsp4j.PreviousResultId;
 
 public class DiagnosticReport {
 
-	private URI					fileURI;
+	private final URI			fileURI;
 	private long				resultId	= 0;
 	private List<Diagnostic>	diagnostics	= new ArrayList<>();
 
@@ -17,12 +17,12 @@ public class DiagnosticReport {
 		this.fileURI = fileURI;
 	}
 
-	public List<Diagnostic> getDiagnostics() {
+	public synchronized List<Diagnostic> getDiagnostics() {
 		return diagnostics;
 	}
 
-	public void setDiagnostics( List<Diagnostic> diagnostics ) {
-		this.diagnostics = diagnostics;
+	public synchronized void setDiagnostics( List<Diagnostic> diagnostics ) {
+		this.diagnostics = new ArrayList<>( diagnostics );
 		this.resultId++;
 	}
 
@@ -30,11 +30,11 @@ public class DiagnosticReport {
 		return fileURI;
 	}
 
-	public long getResultId() {
+	public synchronized long getResultId() {
 		return resultId;
 	}
 
-	public boolean matches( PreviousResultId previousResultId ) {
+	public synchronized boolean matches( PreviousResultId previousResultId ) {
 		if ( previousResultId == null || previousResultId.getValue() == null ) {
 			return false;
 		}

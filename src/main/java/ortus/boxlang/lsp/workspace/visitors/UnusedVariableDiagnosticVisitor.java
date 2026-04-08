@@ -70,7 +70,11 @@ public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	public void visit( BoxProperty node ) {
-		properties.add( BLASTTools.getPropertyName( node ).toLowerCase() );
+		String propertyName = BLASTTools.getPropertyName( node );
+		if ( propertyName == null ) {
+			return;
+		}
+		properties.add( propertyName.toLowerCase() );
 	}
 
 	private String getNameFromNode( BoxNode node ) {

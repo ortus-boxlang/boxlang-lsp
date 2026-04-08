@@ -14,9 +14,14 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import org.eclipse.lsp4j.CodeAction;
@@ -107,22 +112,118 @@ import ortus.boxlang.runtime.services.AsyncService;
 
 public class ProjectContextProvider {
 
+	private record WorkspaceScanCandidate( Path path, URI uri ) {
+	}
+
 	private boolean shouldAnalyzePath( URI docURI ) {
 		try {
 			var folders = getWorkspaceFolders();
 			if ( folders == null || folders.isEmpty() ) {
 				return true; // no workspace context -> analyze
 			}
-			Path	root		= Path.of( new URI( folders.getFirst().getUri() ) );
-			Path	filePath	= Paths.get( docURI );
-			if ( !filePath.startsWith( root ) ) {
-				return true; // outside workspace? allow
-			}
-			Path		rel	= root.relativize( filePath );
-			LintConfig	lc	= LintConfigLoader.get();
-			return lc.shouldAnalyze( rel.toString() );
+			return shouldAnalyzePath( Paths.get( docURI ), Path.of( new URI( folders.getFirst().getUri() ) ), LintConfigLoader.get() );
 		} catch ( Exception e ) {
 			return true; // fail open
+		}
+	}
+
+	private boolean shouldAnalyzePath( Path filePath, Path workspaceRoot, LintConfig lintConfig ) {
+		if ( workspaceRoot == null || lintConfig == null ) {
+			return true;
+		}
+		if ( !filePath.startsWith( workspaceRoot ) ) {
+			return true;
+		}
+		Path relativePath = workspaceRoot.relativize( filePath );
+		return lintConfig.shouldAnalyze( relativePath.toString() );
+	}
+
+	private WorkspaceScanCandidate createScanCandidate( Path path, WorkspaceScanPassProfile profile ) {
+		long	startNanos	= System.nanoTime();
+		URI		fileUri		= path.toUri();
+		profile.uriConversions.increment();
+		profile.uriConversionNanos.add( System.nanoTime() - startNanos );
+		return new WorkspaceScanCandidate( path, fileUri );
+	}
+
+	private List<WorkspaceScanCandidate> collectWorkspaceScanCandidates( Path workspaceRoot, LintConfig lintConfig,
+	    WorkspaceScanPassProfile profile ) throws IOException {
+		try ( Stream<Path> stream = Files.walk( workspaceRoot ) ) {
+			return stream
+			    .peek( path -> profile.walkedPaths.increment() )
+			    .filter( path -> {
+				    boolean canWalk = LSPTools.canWalkFile( path );
+				    if ( canWalk ) {
+					    profile.candidateFiles.increment();
+					    if ( Files.isSymbolicLink( path ) ) {
+						    profile.symlinkFiles.increment();
+					    }
+				    }
+				    return canWalk;
+			    } )
+			    .map( path -> createScanCandidate( path, profile ) )
+			    .filter( candidate -> shouldAnalyzePath( candidate, workspaceRoot, lintConfig, profile ) )
+			    .toList();
+		}
+	}
+
+	private boolean shouldAnalyzePath( WorkspaceScanCandidate candidate, Path workspaceRoot, LintConfig lintConfig,
+	    WorkspaceScanPassProfile profile ) {
+		long	startNanos		= System.nanoTime();
+		boolean	shouldAnalyze	= shouldAnalyzePath( candidate.path(), workspaceRoot, lintConfig );
+		profile.analyzeChecks.increment();
+		profile.analyzeCheckNanos.add( System.nanoTime() - startNanos );
+		if ( !shouldAnalyze ) {
+			profile.skippedByLint.increment();
+		}
+		return shouldAnalyze;
+	}
+
+	private int getWorkspaceScanParallelism() {
+		if ( !this.userSettings.isProcessDiagnosticsInParallel() ) {
+			return 1;
+		}
+
+		int availableProcessors = Math.max( 1, Runtime.getRuntime().availableProcessors() );
+		if ( availableProcessors <= 2 ) {
+			return 1;
+		}
+
+		return Math.min( 4, Math.max( 2, availableProcessors / 2 ) );
+	}
+
+	private void processWorkspaceScanCandidates( List<WorkspaceScanCandidate> candidates, String threadNamePrefix,
+	    Consumer<WorkspaceScanCandidate> consumer ) {
+		int parallelism = Math.min( getWorkspaceScanParallelism(), candidates.size() );
+		if ( parallelism <= 1 ) {
+			candidates.forEach( consumer );
+			return;
+		}
+
+		AtomicLong		workerSequence	= new AtomicLong( 0 );
+		ExecutorService	executor		= Executors.newFixedThreadPool( parallelism, runnable -> {
+											Thread thread = new Thread( runnable, threadNamePrefix + "-" + workerSequence.incrementAndGet() );
+											thread.setDaemon( true );
+											return thread;
+										} );
+
+		try {
+			List<Future<?>> futures = new ArrayList<>( candidates.size() );
+			for ( WorkspaceScanCandidate candidate : candidates ) {
+				futures.add( executor.submit( () -> consumer.accept( candidate ) ) );
+			}
+
+			for ( Future<?> future : futures ) {
+				future.get();
+			}
+		} catch ( InterruptedException e ) {
+			Thread.currentThread().interrupt();
+			throw new RuntimeException( "Workspace scan interrupted", e );
+		} catch ( ExecutionException e ) {
+			Throwable cause = e.getCause() == null ? e : e.getCause();
+			throw new RuntimeException( "Workspace scan worker failed", cause );
+		} finally {
+			executor.shutdownNow();
 		}
 	}
 
@@ -135,14 +236,129 @@ public class ProjectContextProvider {
 	private List<FunctionDefinition>			functionDefinitions			= new ArrayList<FunctionDefinition>();
 	private UserSettings						userSettings				= new UserSettings();
 	private long								WorkspaceDiagnosticReportId	= 1;
-	private List<DiagnosticReport>				cachedDiagnosticReports		= new CopyOnWriteArrayList<DiagnosticReport>();
+	private final Map<URI, DiagnosticReport>	cachedDiagnosticReports		= new ConcurrentHashMap<URI, DiagnosticReport>();
 	private final SemanticTokensBuilder			semanticTokensBuilder		= new SemanticTokensBuilder();
 
 	private boolean								shouldPublishDiagnostics	= false;
 	private final AtomicBoolean					workspaceParseRunning		= new AtomicBoolean( false );
+	private final AtomicLong					workspaceParseSequence		= new AtomicLong( 0 );
+	private volatile WorkspaceScanProfile		activeWorkspaceScanProfile;
 	private ProjectIndex						projectIndex;
 	private final DebouncedDocumentProcessor	documentProcessor			= new DebouncedDocumentProcessor( 300 );
 	private final DebouncedDocumentProcessor	publishDebouncer			= new DebouncedDocumentProcessor( 50 );
+
+	private static final class WorkspaceScanPassProfile {
+
+		private final LongAdder	walkedPaths			= new LongAdder();
+		private final LongAdder	candidateFiles		= new LongAdder();
+		private final LongAdder	analyzedFiles		= new LongAdder();
+		private final LongAdder	skippedByLint		= new LongAdder();
+		private final LongAdder	symlinkFiles		= new LongAdder();
+		private final LongAdder	successes			= new LongAdder();
+		private final LongAdder	errors				= new LongAdder();
+		private final LongAdder	diagnosticsProduced	= new LongAdder();
+		private final LongAdder	reindexedFiles		= new LongAdder();
+		private final LongAdder	cacheHits			= new LongAdder();
+		private final LongAdder	uriConversions		= new LongAdder();
+		private final LongAdder	uriConversionNanos	= new LongAdder();
+		private final LongAdder	analyzeChecks		= new LongAdder();
+		private final LongAdder	analyzeCheckNanos	= new LongAdder();
+		private final LongAdder	getDiagnosticsNanos	= new LongAdder();
+		private final LongAdder	openDocumentHits	= new LongAdder();
+		private final LongAdder	parsedFileHits		= new LongAdder();
+		private final LongAdder	filesystemFallbacks	= new LongAdder();
+		private volatile long	startNanos;
+		private volatile long	endNanos;
+
+		private void markStart() {
+			startNanos = System.nanoTime();
+		}
+
+		private void markEnd() {
+			endNanos = System.nanoTime();
+		}
+
+		private long elapsedMillis() {
+			if ( startNanos == 0L || endNanos == 0L ) {
+				return 0L;
+			}
+			return java.util.concurrent.TimeUnit.NANOSECONDS.toMillis( endNanos - startNanos );
+		}
+	}
+
+	private static final class WorkspaceScanProfile {
+
+		private final long									scanId;
+		private final Path									workspaceRoot;
+		private final long									startNanos			= System.nanoTime();
+		private volatile long								endNanos;
+		private volatile boolean							completed;
+		private volatile boolean							cancelled;
+		private final WorkspaceScanPassProfile				indexPass			= new WorkspaceScanPassProfile();
+		private final WorkspaceScanPassProfile				diagnosticPass		= new WorkspaceScanPassProfile();
+		private volatile FileParseResult.ProfilingSnapshot	fileParseSnapshot	= FileParseResult.ProfilingSnapshot.empty();
+
+		private WorkspaceScanProfile( long scanId, Path workspaceRoot ) {
+			this.scanId			= scanId;
+			this.workspaceRoot	= workspaceRoot;
+		}
+
+		private void markCompleted() {
+			completed	= true;
+			endNanos	= System.nanoTime();
+		}
+
+		private void markCancelled() {
+			cancelled	= true;
+			endNanos	= System.nanoTime();
+		}
+
+		private long totalElapsedMillis() {
+			long end = endNanos == 0L ? System.nanoTime() : endNanos;
+			return java.util.concurrent.TimeUnit.NANOSECONDS.toMillis( end - startNanos );
+		}
+
+		private String toLogMessage() {
+			return String.format(
+			    "Workspace parse #%d summary: root=%s status=%s totalMs=%d index{walked=%d,candidates=%d,analyzed=%d,reindexed=%d,cached=%d,lintSkipped=%d,symlinks=%d,uriConversions=%d,uriMs=%d,analyzeMs=%d,errors=%d,ms=%d} diagnostics{walked=%d,candidates=%d,analyzed=%d,successes=%d,lintSkipped=%d,symlinks=%d,uriConversions=%d,uriMs=%d,analyzeMs=%d,getDiagnosticsMs=%d,openHits=%d,parsedHits=%d,fsFallbacks=%d,parseMs=%d,diagGenMs=%d,fullParses=%d,diagnostics=%d,errors=%d,ms=%d}",
+			    scanId,
+			    workspaceRoot,
+			    cancelled ? "cancelled" : completed ? "completed" : "in-progress",
+			    totalElapsedMillis(),
+			    indexPass.walkedPaths.sum(),
+			    indexPass.candidateFiles.sum(),
+			    indexPass.analyzedFiles.sum(),
+			    indexPass.reindexedFiles.sum(),
+			    indexPass.cacheHits.sum(),
+			    indexPass.skippedByLint.sum(),
+			    indexPass.symlinkFiles.sum(),
+			    indexPass.uriConversions.sum(),
+			    java.util.concurrent.TimeUnit.NANOSECONDS.toMillis( indexPass.uriConversionNanos.sum() ),
+			    java.util.concurrent.TimeUnit.NANOSECONDS.toMillis( indexPass.analyzeCheckNanos.sum() ),
+			    indexPass.errors.sum(),
+			    indexPass.elapsedMillis(),
+			    diagnosticPass.walkedPaths.sum(),
+			    diagnosticPass.candidateFiles.sum(),
+			    diagnosticPass.analyzedFiles.sum(),
+			    diagnosticPass.successes.sum(),
+			    diagnosticPass.skippedByLint.sum(),
+			    diagnosticPass.symlinkFiles.sum(),
+			    diagnosticPass.uriConversions.sum(),
+			    java.util.concurrent.TimeUnit.NANOSECONDS.toMillis( diagnosticPass.uriConversionNanos.sum() ),
+			    java.util.concurrent.TimeUnit.NANOSECONDS.toMillis( diagnosticPass.analyzeCheckNanos.sum() ),
+			    java.util.concurrent.TimeUnit.NANOSECONDS.toMillis( diagnosticPass.getDiagnosticsNanos.sum() ),
+			    diagnosticPass.openDocumentHits.sum(),
+			    diagnosticPass.parsedFileHits.sum(),
+			    diagnosticPass.filesystemFallbacks.sum(),
+			    fileParseSnapshot.parseSourceMillis(),
+			    fileParseSnapshot.generateDiagnosticsMillis(),
+			    fileParseSnapshot.fullParses(),
+			    diagnosticPass.diagnosticsProduced.sum(),
+			    diagnosticPass.errors.sum(),
+			    diagnosticPass.elapsedMillis()
+			);
+		}
+	}
 
 	public static ortus.boxlang.compiler.ast.Position toBLPosition( Position lspPosition ) {
 		Point								start	= new Point( lspPosition.getLine(), lspPosition.getCharacter() );
@@ -198,12 +414,13 @@ public class ProjectContextProvider {
 	}
 
 	public List<DiagnosticReport> getCachedDiagnosticReports() {
-		return cachedDiagnosticReports;
+		return new ArrayList<>( cachedDiagnosticReports.values() );
 	}
 
 	public void remove( URI docURI ) {
 		this.parsedFiles.remove( docURI );
 		this.openDocuments.remove( docURI );
+		this.cachedDiagnosticReports.remove( docURI );
 		// Remove from project index as well
 		if ( projectIndex != null ) {
 			projectIndex.removeFile( docURI );
@@ -253,60 +470,72 @@ public class ProjectContextProvider {
 			try {
 				BoxExecutor executor = AsyncService.chooseParallelExecutor( "LSP_diagnostic", 0, true );
 				executor.submitAndGet( () -> {
+					WorkspaceScanProfile completedProfile = null;
 					try {
-						Path	workspaceRoot	= Path.of( new URI( provider.getWorkspaceFolders().getFirst().getUri() ) );
+						Path						workspaceRoot	= Path.of( new URI( provider.getWorkspaceFolders().getFirst().getUri() ) );
+						LintConfig					lintConfig		= LintConfigLoader.get();
+						final WorkspaceScanProfile	profile			= new WorkspaceScanProfile( workspaceParseSequence.incrementAndGet(), workspaceRoot );
+						completedProfile			= profile;
+						activeWorkspaceScanProfile	= profile;
+						App.logger.info( "Starting workspace parse #{} for {}", profile.scanId, workspaceRoot );
 
 						// Get the project index for incremental indexing
-						var		index			= getIndex();
+						var index = getIndex();
 
 						// ── Pass 1: index all files that need it ─────────────────────────────────
 						// This ensures every class is known before diagnostics are computed,
 						// avoiding ordering-dependent false "class not found" errors.
-						try ( Stream<Path> indexStream = Files.walk( workspaceRoot ) ) {
-							( this.userSettings.isProcessDiagnosticsInParallel() ? indexStream.parallel() : indexStream )
-							    .filter( LSPTools::canWalkFile )
-							    .filter( p -> shouldAnalyzePath( p.toUri() ) )
-							    .forEach( p -> {
-								    try {
-									    if ( index.needsReindexing( p.toUri() ) ) {
-										    index.indexFile( p.toUri() );
-									    }
-								    } catch ( Exception e ) {
-									    e.printStackTrace();
-								    }
-							    } );
-						}
+						profile.indexPass.markStart();
+						List<WorkspaceScanCandidate> indexCandidates = collectWorkspaceScanCandidates( workspaceRoot, lintConfig, profile.indexPass );
+						processWorkspaceScanCandidates( indexCandidates, "LSP_index", candidate -> {
+							try {
+								profile.indexPass.analyzedFiles.increment();
+								URI fileUri = candidate.uri();
+								if ( index.needsReindexing( fileUri ) ) {
+									index.indexFile( fileUri );
+									profile.indexPass.reindexedFiles.increment();
+								} else {
+									profile.indexPass.cacheHits.increment();
+								}
+							} catch ( Exception e ) {
+								profile.indexPass.errors.increment();
+								e.printStackTrace();
+							}
+						} );
+						profile.indexPass.markEnd();
 
 						// ── Pass 2: compute and cache diagnostics ─────────────────────────────────
 						// All classes are now indexed, so extends/implements lookups will succeed.
-						try ( Stream<Path> diagStream = Files.walk( workspaceRoot ) ) {
-							( this.userSettings.isProcessDiagnosticsInParallel() ? diagStream.parallel() : diagStream )
-							    .filter( LSPTools::canWalkFile )
-							    .filter( p -> shouldAnalyzePath( p.toUri() ) )
-							    .forEach( ( clazzPath ) -> {
-								    try {
-									    List<Diagnostic> diagnostics			= provider.getFileDiagnostics( clazzPath.toUri() );
+						FileParseResult.resetProfiling();
+						profile.diagnosticPass.markStart();
+						List<WorkspaceScanCandidate> diagnosticCandidates = collectWorkspaceScanCandidates( workspaceRoot, lintConfig, profile.diagnosticPass );
+						processWorkspaceScanCandidates( diagnosticCandidates, "LSP_diag", candidate -> {
+							try {
+								profile.diagnosticPass.analyzedFiles.increment();
+								URI					fileUri				= candidate.uri();
+								long				getDiagnosticsStart	= System.nanoTime();
+								List<Diagnostic>	diagnostics			= provider.getFileDiagnostics( fileUri );
+								profile.diagnosticPass.getDiagnosticsNanos.add( System.nanoTime() - getDiagnosticsStart );
+								profile.diagnosticPass.successes.increment();
+								profile.diagnosticPass.diagnosticsProduced.add( diagnostics.size() );
 
-									    DiagnosticReport cachedFileDiagnostics	= this.cachedDiagnosticReports.stream()
-									        .filter( dr -> dr.getFileURI().toString().equals( clazzPath.toUri().toString() ) )
-									        .findFirst()
-									        .orElseGet( () -> {
-																					        DiagnosticReport newReport = new DiagnosticReport(
-																					            clazzPath.toUri() );
-																					        this.cachedDiagnosticReports.add( newReport );
-																					        return newReport;
-																				        } );
-
-									    cachedFileDiagnostics.setDiagnostics( diagnostics );
-								    } catch ( Exception e ) {
-									    e.printStackTrace();
-								    }
-							    } );
-						}
+								cacheDiagnostics( fileUri, diagnostics );
+							} catch ( Exception e ) {
+								profile.diagnosticPass.errors.increment();
+								e.printStackTrace();
+							}
+						} );
+						profile.diagnosticPass.markEnd();
+						profile.fileParseSnapshot = FileParseResult.getProfilingSnapshot();
 
 					} catch ( IOException | URISyntaxException e ) {
 						e.printStackTrace();
 					} finally {
+						activeWorkspaceScanProfile = null;
+						if ( completedProfile != null ) {
+							completedProfile.markCompleted();
+							App.logger.info( completedProfile.toLogMessage() );
+						}
 						App.logger.info( "Completed workspace diagnostic report" );
 						// Save the project index cache
 						if ( projectIndex != null ) {
@@ -532,6 +761,7 @@ public class ProjectContextProvider {
 	 */
 	private void processDocumentUpdate( URI docUri, String content ) {
 		FileParseResult fpr = FileParseResult.fromSourceString( docUri, content );
+		this.parsedFiles.remove( docUri );
 		this.openDocuments.put( docUri, fpr );
 		cacheLatestDiagnostics( fpr );
 		publishDiagnostics( docUri );
@@ -553,6 +783,7 @@ public class ProjectContextProvider {
 		}
 
 		FileParseResult fpr = FileParseResult.fromSourceString( docUri, fileContent );
+		this.parsedFiles.remove( docUri );
 		this.openDocuments.put( docUri, fpr );
 		cacheLatestDiagnostics( fpr );
 		publishDiagnostics( docUri );
@@ -577,6 +808,7 @@ public class ProjectContextProvider {
 
 		// Parse immediately on open (no debouncing)
 		FileParseResult fpr = FileParseResult.fromSourceString( docUri, text );
+		this.parsedFiles.remove( docUri );
 		this.openDocuments.put( docUri, fpr );
 		cacheLatestDiagnostics( fpr );
 		publishDiagnostics( docUri );
@@ -620,19 +852,36 @@ public class ProjectContextProvider {
 	}
 
 	private Optional<FileParseResult> getLatestFileParseResult( URI docUri ) {
+		WorkspaceScanProfile activeProfile = this.activeWorkspaceScanProfile;
 		if ( this.openDocuments.containsKey( docUri ) ) {
+			if ( activeProfile != null ) {
+				activeProfile.diagnosticPass.openDocumentHits.increment();
+			}
 			return Optional.of( this.openDocuments.get( docUri ) );
 		}
 
 		if ( this.parsedFiles.containsKey( docUri ) ) {
+			if ( activeProfile != null ) {
+				activeProfile.diagnosticPass.parsedFileHits.increment();
+			}
 			return Optional.of( this.parsedFiles.get( docUri ) );
 		}
 
-		FileParseResult result = FileParseResult.fromFileSystem( docUri );
+		if ( activeProfile != null ) {
+			activeProfile.diagnosticPass.filesystemFallbacks.increment();
+		}
 
-		cacheLatestDiagnostics( result );
+		FileParseResult	result			= FileParseResult.fromFileSystem( docUri );
+		FileParseResult	openDocument	= this.openDocuments.get( docUri );
+		if ( openDocument != null ) {
+			return Optional.of( openDocument );
+		}
 
-		return Optional.of( result );
+		FileParseResult cachedResult = this.parsedFiles.computeIfAbsent( docUri, key -> result );
+
+		cacheLatestDiagnostics( cachedResult );
+
+		return Optional.of( cachedResult );
 	}
 
 	/**
@@ -4078,17 +4327,16 @@ public class ProjectContextProvider {
 		return actions;
 	}
 
-	private void cacheLatestDiagnostics( FileParseResult fpr ) {
-		DiagnosticReport cachedFileDiagnostics = this.cachedDiagnosticReports.stream()
-		    .filter( dr -> dr.getFileURI().toString().equals( fpr.getURI().toString() ) )
-		    .findFirst()
-		    .orElseGet( () -> {
-			    DiagnosticReport newReport = new DiagnosticReport( fpr.getURI() );
-			    this.cachedDiagnosticReports.add( newReport );
-			    return newReport;
-		    } );
+	private DiagnosticReport cacheDiagnostics( URI fileUri, List<Diagnostic> diagnostics ) {
+		return this.cachedDiagnosticReports.compute( fileUri, ( uri, existingReport ) -> {
+			DiagnosticReport report = existingReport == null ? new DiagnosticReport( uri ) : existingReport;
+			report.setDiagnostics( diagnostics );
+			return report;
+		} );
+	}
 
-		cachedFileDiagnostics.setDiagnostics( fpr.getDiagnostics() );
+	private void cacheLatestDiagnostics( FileParseResult fpr ) {
+		cacheDiagnostics( fpr.getURI(), fpr.getDiagnostics() );
 	}
 
 	/** Recompute diagnostics for all currently open documents and publish immediately. */
@@ -4181,20 +4429,14 @@ public class ProjectContextProvider {
 			return;
 		}
 
-		var keep = this.cachedDiagnosticReports.stream()
-		    .map( dr -> {
-			    Path filePath		= Paths.get( dr.getFileURI() );
-			    Path relativePath	= workspaceFolderPath.relativize( filePath );
+		this.cachedDiagnosticReports.forEach( ( uri, report ) -> {
+			Path	filePath		= Paths.get( uri );
+			Path	relativePath	= workspaceFolderPath.relativize( filePath );
 
-			    if ( !lc.shouldAnalyze( relativePath.toString() ) ) {
-				    dr.setDiagnostics( new ArrayList() );
-			    }
-
-			    return dr;
-		    } )
-		    .collect( Collectors.toList() );
-
-		this.cachedDiagnosticReports = keep;
+			if ( !lc.shouldAnalyze( relativePath.toString() ) ) {
+				report.setDiagnostics( new ArrayList<Diagnostic>() );
+			}
+		} );
 		// this.cachedDiagnosticReports.forEach( dr -> {
 
 		// // clear first

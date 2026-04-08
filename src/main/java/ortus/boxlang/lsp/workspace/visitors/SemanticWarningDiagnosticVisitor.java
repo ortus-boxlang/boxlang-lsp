@@ -252,6 +252,10 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 				return;
 			}
 
+			if ( nextNode.getPosition() == null ) {
+				return;
+			}
+
 			Diagnostic diagnostic = new Diagnostic(
 			    ProjectContextProvider.positionToRange( nextNode.getPosition() ),
 			    "Unreachable code after " + statementType + " statement.",
@@ -259,6 +263,7 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 			    "boxlang",
 			    UnreachableCodeRule.ID
 			);
+
 			diagnostic.setTags( List.of( DiagnosticTag.Unnecessary ) );
 			diagnostics.add( diagnostic );
 		}
