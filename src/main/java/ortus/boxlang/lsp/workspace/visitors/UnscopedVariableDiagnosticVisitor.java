@@ -161,7 +161,8 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 		    ProjectContextProvider.positionToRange( node.getPosition() ),
 		    "Variable [" + name + "] is not scoped.",
 		    org.eclipse.lsp4j.DiagnosticSeverity.Warning,
-		    "boxlang"
+		    "boxlang",
+		    UnscopedVariableRule.ID
 		);
 		d.setData( Map.of( "variableName", name, "id", UUID.randomUUID().toString() ) );
 		diagnosticNodes.put( d, node );

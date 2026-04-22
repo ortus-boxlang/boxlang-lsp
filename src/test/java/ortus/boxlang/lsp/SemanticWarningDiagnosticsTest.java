@@ -655,6 +655,60 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertThat( missingReturn.getSeverity() ).isEqualTo( DiagnosticSeverity.Warning );
 	}
 
+	@Test
+	void testSuppressWarningsWithRuleIdSuppressesOnlyMatchingRule() throws Exception {
+		String	code		= """
+		                      class {
+		                          @SuppressWarnings( unreachableCode )
+		                          function calculate() {
+		                              return 42;
+		                              udf();
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "SuppressUnreachableOnly.bx", code );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic unreachable = diagnostics.stream()
+		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( unreachable ).isNull();
+	}
+
+	@Test
+	void testSuppressWarningsWithoutRuleIdSuppressesWarningsAndErrorsForStructure() throws Exception {
+		String	code		= """
+		                      @SuppressWarnings
+		                      class {
+		                          function doSomething() {
+		                              try {
+		                                  return 42;
+		                                  udf();
+		                              } catch (any e) {
+		                              }
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "SuppressAllWarningsAndErrors.bx", code );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		long warningOrErrorCount = diagnostics.stream()
+		    .filter( d -> d.getSeverity() == DiagnosticSeverity.Warning || d.getSeverity() == DiagnosticSeverity.Error )
+		    .count();
+
+		assertThat( warningOrErrorCount ).isEqualTo( 0 );
+	}
+
 	// ============ Helper Methods ============
 
 	private Path createTestFile( String fileName, String content ) throws Exception {

@@ -219,8 +219,10 @@ public class FileParseResult {
 			return diagnostic;
 		} ).toList() );
 
-		findAstRoot().ifPresent( astRoot -> {
-			FunctionReturnDiagnosticVisitor returnDiagnosticVisitor = new FunctionReturnDiagnosticVisitor();
+		Optional<BoxNode> astRootOpt = findAstRoot();
+		if ( astRootOpt.isPresent() ) {
+			BoxNode							astRoot					= astRootOpt.get();
+			FunctionReturnDiagnosticVisitor	returnDiagnosticVisitor	= new FunctionReturnDiagnosticVisitor();
 			astRoot.accept( returnDiagnosticVisitor );
 			fileDiagnostics.addAll( returnDiagnosticVisitor.getDiagnostics() );
 
@@ -235,7 +237,11 @@ public class FileParseResult {
 				fileDiagnostics.addAll( visitor.getDiagnostics() );
 				fileCodeActions.addAll( visitor.getCodeActions() );
 			}
-		} );
+
+			DiagnosticSuppressionFilter suppressionFilter = DiagnosticSuppressionFilter.fromAst( astRoot );
+			fileDiagnostics	= new ArrayList<>( suppressionFilter.filterDiagnostics( fileDiagnostics ) );
+			fileCodeActions	= new ArrayList<>( suppressionFilter.filterCodeActions( fileCodeActions ) );
+		}
 
 		this.codeActions = fileCodeActions;
 

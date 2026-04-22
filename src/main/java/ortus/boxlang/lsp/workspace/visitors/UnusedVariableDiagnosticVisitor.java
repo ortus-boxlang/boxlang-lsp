@@ -52,7 +52,8 @@ public class UnusedVariableDiagnosticVisitor extends SourceCodeVisitor {
 			        ProjectContextProvider.positionToRange( varNode.getPosition() ),
 			        "Variable [" + getNameFromNode( varNode ) + "] is declared but never used.",
 			        settings == null ? DiagnosticSeverity.Hint : settings.toSeverityOr( DiagnosticSeverity.Hint ),
-			        "boxlang"
+			        "boxlang",
+			        UnusedVariableRule.ID
 			    );
 
 			    diagnostic.setTags( List.of( DiagnosticTag.Unnecessary ) );
