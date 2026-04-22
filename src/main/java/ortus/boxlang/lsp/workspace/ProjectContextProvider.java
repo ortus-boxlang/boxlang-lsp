@@ -643,7 +643,7 @@ public class ProjectContextProvider {
 			handleBoxlangJsonChange( workspaceRoot );
 		} else if ( fileName.equalsIgnoreCase( "Application.bx" ) ||
 		    fileName.equalsIgnoreCase( "Application.cfc" ) ) {
-			MappingResolver.invalidateFile( changedFile );
+			handleApplicationBxChange( changedFile, workspaceRoot );
 		}
 		// All other files: no-op
 	}
@@ -670,6 +670,35 @@ public class ProjectContextProvider {
 		} catch ( IOException e ) {
 			if ( App.logger != null ) {
 				App.logger.warn( "Failed to re-index workspace after boxlang.json change", e );
+			}
+		}
+
+		// 5. Re-index external directories from new config
+		projectIndex.indexExternalDirs( newConfig );
+	}
+
+	private void handleApplicationBxChange( Path appBxPath, Path workspaceRoot ) {
+		if ( workspaceRoot == null || projectIndex == null ) {
+			return;
+		}
+
+		// 1. Invalidate the per-file walk-up cache for this Application.bx
+		MappingResolver.invalidateFile( appBxPath );
+
+		// 2. Resolve fresh workspace-level config
+		MappingConfig newConfig = MappingResolver.resolve( workspaceRoot );
+
+		// 3. Reset the in-memory index (clears all cached classes)
+		projectIndex.reinitialize( workspaceRoot, newConfig );
+
+		// 4. Re-index workspace files
+		try ( java.util.stream.Stream<Path> stream = Files.walk( workspaceRoot ) ) {
+			stream
+			    .filter( LSPTools::canWalkFile )
+			    .forEach( p -> projectIndex.indexFile( p.toUri() ) );
+		} catch ( IOException e ) {
+			if ( App.logger != null ) {
+				App.logger.warn( "Failed to re-index workspace after Application.bx change", e );
 			}
 		}
 

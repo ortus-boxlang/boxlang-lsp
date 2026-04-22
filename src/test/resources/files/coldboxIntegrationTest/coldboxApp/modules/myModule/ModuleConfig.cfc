@@ -1,0 +1,3 @@
+// A ColdBox module
+component {
+}
