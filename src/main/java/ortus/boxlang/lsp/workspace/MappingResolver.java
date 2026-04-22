@@ -33,7 +33,27 @@ public class MappingResolver {
 	 * @return the resolved MappingConfig (never null)
 	 */
 	public static MappingConfig resolve( Path workspaceRoot ) {
-		return cache.computeIfAbsent( workspaceRoot.toAbsolutePath().normalize(), MappingResolver::computeConfig );
+		return resolve( workspaceRoot, Collections.emptyMap() );
+	}
+
+	/**
+	 * Resolve a MappingConfig for the given workspace root, overlaying VSCode
+	 * settings mappings on top of the project-level config with the highest
+	 * precedence.
+	 *
+	 * @param workspaceRoot  the workspace root directory
+	 * @param vscodeMappings raw virtual-key → path-string map from VSCode settings
+	 *
+	 * @return the resolved MappingConfig (never null)
+	 */
+	public static MappingConfig resolve( Path workspaceRoot, Map<String, String> vscodeMappings ) {
+		MappingConfig base = cache.computeIfAbsent( workspaceRoot.toAbsolutePath().normalize(), MappingResolver::computeConfig );
+
+		if ( vscodeMappings == null || vscodeMappings.isEmpty() ) {
+			return base;
+		}
+
+		return mergeVscodeMappings( base, vscodeMappings, workspaceRoot );
 	}
 
 	/**
@@ -77,6 +97,25 @@ public class MappingResolver {
 	 * @return merged MappingConfig (never null)
 	 */
 	public static MappingConfig resolveForFile( Path filePath, Path workspaceRoot ) {
+		return resolveForFile( filePath, workspaceRoot, Collections.emptyMap() );
+	}
+
+	/**
+	 * Resolve a per-file {@link MappingConfig} for the given source file,
+	 * overlaying VSCode settings mappings with the highest precedence.
+	 *
+	 * <p>
+	 * VSCode mappings override both {@code Application.bx} / {@code Application.cfc}
+	 * and {@code boxlang.json} entries. Null or empty values in
+	 * {@code vscodeMappings} remove inherited mappings.
+	 *
+	 * @param filePath       the source file being analysed
+	 * @param workspaceRoot  the workspace root (walk-up boundary, inclusive)
+	 * @param vscodeMappings raw virtual-key → path-string map from VSCode settings
+	 *
+	 * @return merged MappingConfig (never null)
+	 */
+	public static MappingConfig resolveForFile( Path filePath, Path workspaceRoot, Map<String, String> vscodeMappings ) {
 		Path	normalRoot	= workspaceRoot.toAbsolutePath().normalize();
 		Path	dir			= filePath.toAbsolutePath().normalize().getParent();
 
@@ -89,7 +128,12 @@ public class MappingResolver {
 			// Look for Application.bx or Application.cfc in this directory
 			Path appBx = findApplicationBx( dir );
 			if ( appBx != null ) {
-				return fileCache.computeIfAbsent( appBx, k -> mergeWithApplicationBx( k, workspaceRoot ) );
+				boolean hasVscodeMappings = vscodeMappings != null && !vscodeMappings.isEmpty();
+				if ( hasVscodeMappings ) {
+					// Bypass cache when vscode mappings are present to avoid stale results
+					return mergeWithApplicationBx( appBx, workspaceRoot, vscodeMappings );
+				}
+				return fileCache.computeIfAbsent( appBx, k -> mergeWithApplicationBx( k, workspaceRoot, Collections.emptyMap() ) );
 			}
 
 			if ( dir.equals( normalRoot ) ) {
@@ -99,7 +143,7 @@ public class MappingResolver {
 		}
 
 		// No Application.bx found within workspace — fall back to base config
-		return resolve( workspaceRoot );
+		return resolve( workspaceRoot, vscodeMappings );
 	}
 
 	// ───────────────────────────────────────────────────────────────────────────
@@ -129,8 +173,10 @@ public class MappingResolver {
 	/**
 	 * Merge the workspace-level config with static entries from the given
 	 * Application.bx file. Application.bx entries override base config on collision.
+	 * When vscodeMappings are provided, they are applied on top with the highest
+	 * precedence.
 	 */
-	private static MappingConfig mergeWithApplicationBx( Path appBxPath, Path workspaceRoot ) {
+	private static MappingConfig mergeWithApplicationBx( Path appBxPath, Path workspaceRoot, Map<String, String> vscodeMappings ) {
 		MappingConfig		base		= resolve( workspaceRoot );
 		Map<String, String>	rawMappings	= ApplicationBxMappingExtractor.extract( appBxPath );
 		Path				appDir		= appBxPath.getParent();
@@ -147,6 +193,41 @@ public class MappingResolver {
 		// Merge: base first, then Application.bx overrides on collision
 		Map<String, Path> merged = new java.util.LinkedHashMap<>( base.getMappings() );
 		merged.putAll( appMappings );
+
+		MappingConfig intermediate = new MappingConfig( merged, base.getClassPaths(), base.getModulesDirectory(), workspaceRoot );
+
+		// Apply VSCode mappings on top with highest precedence
+		if ( vscodeMappings != null && !vscodeMappings.isEmpty() ) {
+			return mergeVscodeMappings( intermediate, vscodeMappings, workspaceRoot );
+		}
+		return intermediate;
+	}
+
+	/**
+	 * Overlay VSCode mappings on top of a base MappingConfig. VSCode mappings have
+	 * the highest precedence. Null or empty values remove inherited mappings.
+	 */
+	private static MappingConfig mergeVscodeMappings( MappingConfig base, Map<String, String> vscodeMappings, Path workspaceRoot ) {
+		// Resolve vscode paths relative to workspace root
+		Map<String, Path> resolvedVscode = new java.util.LinkedHashMap<>();
+		for ( Map.Entry<String, String> entry : vscodeMappings.entrySet() ) {
+			String	key		= entry.getKey();
+			String	rawPath	= entry.getValue();
+			if ( rawPath != null && !rawPath.isEmpty() ) {
+				resolvedVscode.put( key, resolvePath( rawPath, workspaceRoot ) );
+			}
+		}
+
+		// Merge: base first, then vscode overrides, then remove null/empty keys
+		Map<String, Path> merged = new java.util.LinkedHashMap<>( base.getMappings() );
+		for ( Map.Entry<String, String> entry : vscodeMappings.entrySet() ) {
+			String key = entry.getKey();
+			if ( entry.getValue() == null || entry.getValue().isEmpty() ) {
+				merged.remove( key );
+			} else if ( resolvedVscode.containsKey( key ) ) {
+				merged.put( key, resolvedVscode.get( key ) );
+			}
+		}
 
 		return new MappingConfig( merged, base.getClassPaths(), base.getModulesDirectory(), workspaceRoot );
 	}

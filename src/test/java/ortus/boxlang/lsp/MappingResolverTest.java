@@ -178,6 +178,66 @@ public class MappingResolverTest extends BaseTest {
 	}
 
 	// ─── Cycle 11 ─────────────────────────────────────────────────────────────
+	// resolve(workspaceRoot, vscodeMappings) overrides boxlang.json
+
+	@Test
+	void resolveWithVscodeMappingsOverridesBoxlangJson() {
+		Path				root			= fixtureDir( "withMappings" );
+		Map<String, String>	vscodeMappings	= Map.of( "/models", "/vscode/override" );
+		MappingConfig		config			= MappingResolver.resolve( root, vscodeMappings );
+		assertNotNull( config );
+		Path modelsPath = config.getMappings().get( "/models" );
+		assertNotNull( modelsPath, "'/models' mapping should be present" );
+		assertEquals( Path.of( "/vscode/override" ).toAbsolutePath().normalize(), modelsPath,
+		    "VSCode mapping should override boxlang.json value" );
+	}
+
+	// ─── Cycle 12 ─────────────────────────────────────────────────────────────
+	// Empty vscode mapping values remove inherited mappings
+
+	@Test
+	void resolveWithEmptyVscodeMappingRemovesInheritedKey() {
+		Path				root			= fixtureDir( "withMappings" );
+		Map<String, String>	vscodeMappings	= Map.of( "/models", "" );
+		MappingConfig		config			= MappingResolver.resolve( root, vscodeMappings );
+		assertNotNull( config );
+		assertFalse( config.getMappings().containsKey( "/models" ),
+		    "Empty VSCode mapping value should remove inherited '/models' key" );
+	}
+
+	// ─── Cycle 13 ─────────────────────────────────────────────────────────────
+	// VSCode mappings override both boxlang.json and Application.bx
+
+	@Test
+	void resolveForFileWithVscodeMappingsOverridesBothLayers() {
+		Path				root			= Paths.get( "src/test/resources/test-bx-project" ).toAbsolutePath();
+		Map<String, String>	vscodeMappings	= Map.of( "/ext", "/vscode/ext" );
+		Path				bxObjFile		= root.resolve( "bxObj.bx" );
+		MappingConfig		config			= MappingResolver.resolveForFile( bxObjFile, root, vscodeMappings );
+		assertNotNull( config );
+		Path extPath = config.getMappings().get( "/ext" );
+		assertNotNull( extPath, "'/ext' mapping should be present" );
+		assertEquals( Path.of( "/vscode/ext" ).toAbsolutePath().normalize(), extPath,
+		    "VSCode mapping should override both boxlang.json and Application.bx" );
+	}
+
+	// ─── Cycle 14 ─────────────────────────────────────────────────────────────
+	// Relative paths in vscodeMappings resolve relative to workspace root
+
+	@Test
+	void resolveWithRelativeVscodeMappingResolvesToWorkspaceRoot() {
+		Path				root			= fixtureDir( "withMappings" );
+		Map<String, String>	vscodeMappings	= Map.of( "/helpers", "./relative/helpers" );
+		MappingConfig		config			= MappingResolver.resolve( root, vscodeMappings );
+		assertNotNull( config );
+		Path helpersPath = config.getMappings().get( "/helpers" );
+		assertNotNull( helpersPath, "'/helpers' mapping should be present" );
+		Path expected = root.resolve( "relative/helpers" ).toAbsolutePath().normalize();
+		assertEquals( expected, helpersPath,
+		    "Relative VSCode path should resolve relative to workspace root" );
+	}
+
+	// ─── Cycle 15 ─────────────────────────────────────────────────────────────
 	// ProjectContextProvider.getMappings() delegates to MappingResolver
 
 	@Test
