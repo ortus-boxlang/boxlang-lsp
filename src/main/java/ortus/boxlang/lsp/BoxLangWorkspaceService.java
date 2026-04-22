@@ -41,13 +41,19 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 
 	@Override
 	public void didChangeConfiguration( DidChangeConfigurationParams params ) {
-		ProjectContextProvider	provider	= ProjectContextProvider.getInstance();
-		var						oldSettings	= provider.getUserSettings();
-		var						newSettings	= UserSettings.fromChangeConfigurationParams( this.client, params );
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		var						oldSettings		= provider.getUserSettings();
+		var						newSettings		= UserSettings.fromChangeConfigurationParams( this.client, params );
+
+		boolean					mappingsChanged	= !oldSettings.getMappings().equals( newSettings.getMappings() );
 
 		if ( oldSettings.isEnableBackgroundParsing() == false && newSettings.isEnableBackgroundParsing() == true ) {
 			// if we are enabling background parsing, kick off a parse of the workspace
 			provider.parseWorkspace();
+		}
+
+		if ( mappingsChanged ) {
+			provider.handleMappingChange( newSettings.getMappings() );
 		}
 
 		provider.setUserSettings( newSettings );

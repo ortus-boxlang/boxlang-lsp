@@ -562,10 +562,47 @@ public class ProjectContextProvider {
 		}
 		try {
 			Path workspaceRoot = Path.of( new java.net.URI( folders.getFirst().getUri() ) );
-			return MappingResolver.resolve( workspaceRoot ).getMappings();
+			return MappingResolver.resolve( workspaceRoot, userSettings.getMappings() ).getMappings();
 		} catch ( Exception e ) {
 			return new HashMap<>();
 		}
+	}
+
+	/**
+	 * Handle a change to the VSCode {@code boxlang.mappings} setting.
+	 *
+	 * <p>
+	 * Re-resolves the merged mapping config with the new vscode mappings,
+	 * reinitializes the project index, and re-indexes the workspace plus any
+	 * external directories.
+	 *
+	 * @param vscodeMappings the updated vscode mappings map
+	 */
+	public void handleMappingChange( Map<String, String> vscodeMappings ) {
+		Path workspaceRoot = getWorkspaceRootPath();
+		if ( workspaceRoot == null || projectIndex == null ) {
+			return;
+		}
+
+		// 1. Resolve fresh config with updated vscode mappings
+		MappingConfig newConfig = MappingResolver.resolve( workspaceRoot, vscodeMappings );
+
+		// 2. Reset the in-memory index (clears all cached classes)
+		projectIndex.reinitialize( workspaceRoot, newConfig );
+
+		// 3. Re-index workspace files
+		try ( java.util.stream.Stream<Path> stream = Files.walk( workspaceRoot ) ) {
+			stream
+			    .filter( LSPTools::canWalkFile )
+			    .forEach( p -> projectIndex.indexFile( p.toUri() ) );
+		} catch ( IOException e ) {
+			if ( App.logger != null ) {
+				App.logger.warn( "Failed to re-index workspace after vscode mapping change", e );
+			}
+		}
+
+		// 4. Re-index external directories from new config
+		projectIndex.indexExternalDirs( newConfig );
 	}
 
 	/**

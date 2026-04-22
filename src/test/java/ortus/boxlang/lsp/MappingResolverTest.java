@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -15,7 +16,11 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.eclipse.lsp4j.WorkspaceFolder;
+import org.eclipse.lsp4j.services.LanguageClient;
+
+import com.google.gson.JsonObject;
 
 import ortus.boxlang.lsp.workspace.MappingConfig;
 import ortus.boxlang.lsp.workspace.MappingResolver;
@@ -255,6 +260,105 @@ public class MappingResolverTest extends BaseTest {
 			assertTrue( mappings.containsKey( "/models" ), "Expected '/models' mapping key" );
 		} finally {
 			pcp.setWorkspaceFolders( saved );
+		}
+	}
+
+	// ─── Cycle 16 ─────────────────────────────────────────────────────────────
+	// didChangeConfiguration with mapping change triggers re-indexing
+
+	@Test
+	void didChangeConfigurationWithMappingChangeTriggersReindexing() {
+		BoxLangWorkspaceService	service		= new BoxLangWorkspaceService();
+		LanguageClient			mockClient	= mock( org.eclipse.lsp4j.services.LanguageClient.class );
+		service.setLanguageClient( mockClient );
+
+		ProjectContextProvider	pcp				= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= pcp.getWorkspaceFolders();
+		UserSettings			savedSettings	= pcp.getUserSettings();
+
+		Path					root			= fixtureDir( "withMappings" );
+		MappingResolver.invalidate( root );
+
+		try {
+			// Set up workspace folder
+			WorkspaceFolder folder = new WorkspaceFolder();
+			folder.setUri( root.toUri().toString() );
+			pcp.setWorkspaceFolders( List.of( folder ) );
+
+			// Initial settings without vscode mappings
+			JsonObject						emptySettings	= new JsonObject();
+			DidChangeConfigurationParams	emptyParams		= new DidChangeConfigurationParams( emptySettings );
+			pcp.setUserSettings( UserSettings.fromChangeConfigurationParams( mockClient, emptyParams ) );
+
+			// Verify initial state comes from boxlang.json
+			Map<String, Path> initialMappings = pcp.getMappings();
+			assertTrue( initialMappings.containsKey( "/models" ), "Initial mapping should come from boxlang.json" );
+			Path initialPath = initialMappings.get( "/models" );
+			assertEquals( Path.of( "/tmp/testModels" ).toAbsolutePath().normalize(), initialPath,
+			    "Initial '/models' should be from boxlang.json" );
+
+			// Change settings with vscode mappings that override
+			JsonObject mappings = new JsonObject();
+			mappings.addProperty( "/models", "/vscode/models" );
+			JsonObject newSettings = new JsonObject();
+			newSettings.add( "boxlang.mappings", mappings );
+			DidChangeConfigurationParams params = new DidChangeConfigurationParams( newSettings );
+
+			// Trigger didChangeConfiguration
+			service.didChangeConfiguration( params );
+
+			// Verify mappings now reflect vscode override
+			Map<String, Path> updatedMappings = pcp.getMappings();
+			assertEquals( Path.of( "/vscode/models" ).toAbsolutePath().normalize(), updatedMappings.get( "/models" ),
+			    "VSCode mapping should override boxlang.json after re-indexing" );
+		} finally {
+			pcp.setWorkspaceFolders( savedFolders );
+			pcp.setUserSettings( savedSettings );
+		}
+	}
+
+	// ─── Cycle 17 ─────────────────────────────────────────────────────────────
+	// didChangeConfiguration with unrelated change does NOT trigger re-indexing
+
+	@Test
+	void didChangeConfigurationWithUnrelatedChangeDoesNotTriggerReindexing() {
+		BoxLangWorkspaceService	service		= new BoxLangWorkspaceService();
+		LanguageClient			mockClient	= mock( org.eclipse.lsp4j.services.LanguageClient.class );
+		service.setLanguageClient( mockClient );
+
+		ProjectContextProvider	pcp				= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= pcp.getWorkspaceFolders();
+		UserSettings			savedSettings	= pcp.getUserSettings();
+
+		Path					root			= fixtureDir( "withMappings" );
+		MappingResolver.invalidate( root );
+
+		try {
+			WorkspaceFolder folder = new WorkspaceFolder();
+			folder.setUri( root.toUri().toString() );
+			pcp.setWorkspaceFolders( List.of( folder ) );
+
+			// Initial settings without vscode mappings
+			JsonObject						initialSettings	= new JsonObject();
+			DidChangeConfigurationParams	initialParams	= new DidChangeConfigurationParams( initialSettings );
+			pcp.setUserSettings( UserSettings.fromChangeConfigurationParams( mockClient, initialParams ) );
+
+			Map<String, Path> before = pcp.getMappings();
+			assertTrue( before.containsKey( "/models" ) );
+
+			// Change only enableBackgroundParsing (no mappings change)
+			JsonObject newSettings = new JsonObject();
+			newSettings.addProperty( "enableBackgroundParsing", true );
+			DidChangeConfigurationParams params = new DidChangeConfigurationParams( newSettings );
+
+			service.didChangeConfiguration( params );
+
+			// Mappings should remain unchanged
+			Map<String, Path> after = pcp.getMappings();
+			assertEquals( before, after, "Unrelated config change should not affect mappings" );
+		} finally {
+			pcp.setWorkspaceFolders( savedFolders );
+			pcp.setUserSettings( savedSettings );
 		}
 	}
 }
