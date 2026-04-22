@@ -342,6 +342,54 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		assertThat( duplicateProperty ).isNull();
 	}
 
+	// ============ SuppressWarnings Tests ============
+
+	@Test
+	void testSuppressWarningsInvalidExtendsTypedSuppression() throws Exception {
+		String	classCode	= """
+		                      @SuppressWarnings( invalidExtends )
+		                      class extends="NonExistentClass" {
+		                          function init() { return this; }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "SuppressedExtends.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic invalidExtends = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "NonExistentClass" ) && d.getMessage().toLowerCase().contains( "not found" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( invalidExtends ).isNull();
+	}
+
+	@Test
+	void testSuppressWarningsOtherRuleDoesNotSuppressInvalidExtends() throws Exception {
+		String	classCode	= """
+		                      @SuppressWarnings( unusedVariable )
+		                      class extends="NonExistentClass" {
+		                          function init() { return this; }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "WrongSuppressedExtends.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic invalidExtends = diagnostics.stream()
+		    .filter( d -> d.getMessage().contains( "NonExistentClass" ) && d.getMessage().toLowerCase().contains( "not found" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( invalidExtends ).isNotNull();
+	}
+
 	// ============ Helper Methods ============
 
 	private Path createTestFile( String fileName, String content ) throws Exception {
