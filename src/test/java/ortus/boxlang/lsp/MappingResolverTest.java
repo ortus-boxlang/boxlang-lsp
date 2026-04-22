@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -448,5 +450,49 @@ public class MappingResolverTest extends BaseTest {
 		// Should be app-override (Application.bx), not json-override (boxlang.json)
 		assertFalse( myModulePath.toString().contains( "json-override" ),
 		    "boxlang.json should not win when Application.bx provides the same key" );
+	}
+
+	// ─── Cycle 22 ─────────────────────────────────────────────────────────────
+	// Tracer bullet: workspace-level resolve includes ColdBox implicit mappings
+	// for modules/ and modules_app/ directories.
+
+	@Test
+	void workspaceResolveIncludesColdBoxImplicitMappings() throws Exception {
+		Path tempDir = Files.createTempDirectory( "coldboxWorkspace" );
+		try {
+			// ColdBox app root: Application.cfc extends Bootstrap
+			Path appCfc = tempDir.resolve( "Application.cfc" );
+			Files.writeString( appCfc, "component extends=\"coldbox.system.Bootstrap\" {}" );
+
+			// modules_app/core/
+			Path coreDir = tempDir.resolve( "modules_app/core" );
+			Files.createDirectories( coreDir );
+
+			// modules/BCrypt/
+			Path bcryptDir = tempDir.resolve( "modules/BCrypt" );
+			Files.createDirectories( bcryptDir );
+
+			MappingResolver.invalidate( tempDir );
+			MappingConfig config = MappingResolver.resolve( tempDir );
+
+			assertNotNull( config );
+			assertTrue( config.getMappings().containsKey( "/core" ),
+			    "Workspace-level resolve should include ColdBox implicit mapping for /core" );
+			assertTrue( config.getMappings().containsKey( "/BCrypt" ),
+			    "Workspace-level resolve should include ColdBox implicit mapping for /BCrypt" );
+			assertEquals( coreDir.toAbsolutePath().normalize(), config.getMappings().get( "/core" ) );
+			assertEquals( bcryptDir.toAbsolutePath().normalize(), config.getMappings().get( "/BCrypt" ) );
+		} finally {
+			// Clean up temp dir
+			try ( java.util.stream.Stream<Path> walk = Files.walk( tempDir ) ) {
+				walk.sorted( java.util.Comparator.reverseOrder() )
+				    .forEach( p -> {
+					    try {
+						    Files.deleteIfExists( p );
+					    } catch ( IOException ignored ) {
+					    }
+				    } );
+			}
+		}
 	}
 }

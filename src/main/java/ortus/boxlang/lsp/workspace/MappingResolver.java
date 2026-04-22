@@ -253,11 +253,27 @@ public class MappingResolver {
 	}
 
 	private static MappingConfig computeConfig( Path workspaceRoot ) {
-		Path configFile = findConfigFile( workspaceRoot );
-		if ( configFile == null ) {
-			return emptyConfig( workspaceRoot );
+		Path			configFile	= findConfigFile( workspaceRoot );
+		MappingConfig	base		= configFile == null
+		    ? emptyConfig( workspaceRoot )
+		    : parseConfig( configFile, workspaceRoot );
+
+		// Inject ColdBox implicit module mappings at workspace level so that
+		// ProjectIndexVisitor.computeFQN() can resolve module files correctly
+		// even when resolveForFile() has not been called.
+		if ( ColdBoxDetector.isColdBoxApp( workspaceRoot ) ) {
+			Map<String, Path> merged = new java.util.LinkedHashMap<>();
+			merged.putAll( ColdBoxDetector.discoverModuleMappings( workspaceRoot ) );
+			merged.putAll( base.getMappings() );
+			return new MappingConfig(
+			    merged,
+			    base.getClassPaths(),
+			    base.getModulesDirectory(),
+			    workspaceRoot
+			);
 		}
-		return parseConfig( configFile, workspaceRoot );
+
+		return base;
 	}
 
 	/**

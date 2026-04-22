@@ -101,4 +101,43 @@ public class ColdBoxDetectorTest extends BaseTest {
 		assertThat( result ).isNotNull();
 		assertThat( result ).isEmpty();
 	}
+
+	// ─── Cycle 9 ─────────────────────────────────────────────────────────────
+	// discoverModuleMappings scans modules_app directory
+
+	@Test
+	void discoverModuleMappingsScansModulesAppDirectory() {
+		Path				appRoot	= fixtureDir( "withModulesApp" );
+		Map<String, Path>	result	= ColdBoxDetector.discoverModuleMappings( appRoot );
+		assertThat( result ).isNotNull();
+		assertThat( result ).containsKey( "/bar" );
+		assertThat( result.get( "/bar" ).toString() ).endsWith( "modules_app/bar" );
+	}
+
+	// ─── Cycle 10 ────────────────────────────────────────────────────────────
+	// modules/ wins over modules_app/ at same depth on name collision
+
+	@Test
+	void discoverModuleMappingsModulesWinsOverModulesAppAtSameDepth() {
+		Path				appRoot	= fixtureDir( "withModulesAppTieBreaker" );
+		Map<String, Path>	result	= ColdBoxDetector.discoverModuleMappings( appRoot );
+		assertThat( result ).isNotNull();
+		assertThat( result ).containsKey( "/foo" );
+		Path fooPath = result.get( "/foo" );
+		assertThat( fooPath.toString() ).contains( "modules/foo" );
+		assertThat( fooPath.toString() ).doesNotContain( "modules_app" );
+	}
+
+	// ─── Cycle 11 ────────────────────────────────────────────────────────────
+	// discoverModuleMappings recursively scans nested modules_app/
+
+	@Test
+	void discoverModuleMappingsScansNestedModulesApp() {
+		Path				appRoot	= fixtureDir( "withNestedModulesApp" );
+		Map<String, Path>	result	= ColdBoxDetector.discoverModuleMappings( appRoot );
+		assertThat( result ).isNotNull();
+		assertThat( result ).containsKey( "/foo" );
+		assertThat( result ).containsKey( "/baz" );
+		assertThat( result.get( "/baz" ).toString() ).contains( "modules_app/baz" );
+	}
 }

@@ -53,27 +53,30 @@ public class ColdBoxDetector {
 
 	/**
 	 * Recursively discover implicit module mappings under
-	 * {@code {appRoot}/modules}.
+	 * {@code {appRoot}/modules} and {@code {appRoot}/modules_app}.
 	 *
 	 * <p>
-	 * Returns a flat key → path map where each key is {@code /{moduleName}}
-	 * regardless of nesting depth. If two modules share the same name, the
-	 * <em>least nested</em> (fewest path segments from {@code appRoot}) wins. If
-	 * they are at the same depth, the first one encountered wins.
+	 * Both directories are treated identically: flat keys
+	 * ({@code /{moduleName}}), recursive scanning, and least-nested tie-breaking.
+	 * If a module name exists in both {@code modules/} and {@code modules_app/}
+	 * at the same depth, the one in {@code modules/} wins because it is scanned
+	 * first.
 	 *
 	 * @param appRoot the ColdBox application root directory
 	 *
 	 * @return map of flat virtual key → absolute module path; never null
 	 */
 	public static Map<String, Path> discoverModuleMappings( Path appRoot ) {
-		Path modulesDir = appRoot.resolve( "modules" );
-		if ( !Files.isDirectory( modulesDir ) ) {
-			return Collections.emptyMap();
+		Map<String, Path> result = new LinkedHashMap<>();
+
+		for ( String dirName : new String[] { "modules", "modules_app" } ) {
+			Path modulesDir = appRoot.resolve( dirName );
+			if ( Files.isDirectory( modulesDir ) ) {
+				scanModules( modulesDir, appRoot, result );
+			}
 		}
 
-		Map<String, Path> result = new LinkedHashMap<>();
-		scanModules( modulesDir, appRoot, result );
-		return Collections.unmodifiableMap( result );
+		return result.isEmpty() ? Collections.emptyMap() : Collections.unmodifiableMap( result );
 	}
 
 	// ──────────────────────────────────────────────────────────────────────────
@@ -117,10 +120,12 @@ public class ColdBoxDetector {
 					    }
 				    }
 
-				    // Recurse into nested modules/
-				    Path nestedModules = moduleDir.resolve( "modules" );
-				    if ( Files.isDirectory( nestedModules ) ) {
-					    scanModules( nestedModules, appRoot, result );
+				    // Recurse into nested modules/ and modules_app/
+				    for ( String nestedName : new String[] { "modules", "modules_app" } ) {
+					    Path nestedModules = moduleDir.resolve( nestedName );
+					    if ( Files.isDirectory( nestedModules ) ) {
+						    scanModules( nestedModules, appRoot, result );
+					    }
 				    }
 			    } );
 		} catch ( IOException e ) {
