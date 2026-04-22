@@ -175,6 +175,16 @@ public class MappingResolver {
 	 * Application.bx file. Application.bx entries override base config on collision.
 	 * When vscodeMappings are provided, they are applied on top with the highest
 	 * precedence.
+	 *
+	 * <p>
+	 * ColdBox implicit module mappings are injected at the lowest priority
+	 * (below boxlang.json). Precedence stack:
+	 * <ol>
+	 * <li>VSCode mappings (highest)
+	 * <li>Application.bx
+	 * <li>boxlang.json
+	 * <li>ColdBox implicit modules (lowest)
+	 * </ol>
 	 */
 	private static MappingConfig mergeWithApplicationBx( Path appBxPath, Path workspaceRoot, Map<String, String> vscodeMappings ) {
 		MappingConfig		base		= resolve( workspaceRoot );
@@ -190,13 +200,23 @@ public class MappingResolver {
 			}
 		}
 
-		// Merge: base first, then Application.bx overrides on collision
-		Map<String, Path> merged = new java.util.LinkedHashMap<>( base.getMappings() );
+		// Merge precedence: ColdBox implicit (lowest) → boxlang.json → Application.bx
+		Map<String, Path> merged = new java.util.LinkedHashMap<>();
+
+		// 1. ColdBox implicit module mappings (lowest priority)
+		if ( ColdBoxDetector.isColdBoxApp( appDir ) ) {
+			merged.putAll( ColdBoxDetector.discoverModuleMappings( appDir ) );
+		}
+
+		// 2. boxlang.json overrides ColdBox implicit
+		merged.putAll( base.getMappings() );
+
+		// 3. Application.bx overrides both
 		merged.putAll( appMappings );
 
 		MappingConfig intermediate = new MappingConfig( merged, base.getClassPaths(), base.getModulesDirectory(), workspaceRoot );
 
-		// Apply VSCode mappings on top with highest precedence
+		// 4. VSCode mappings on top with highest precedence
 		if ( vscodeMappings != null && !vscodeMappings.isEmpty() ) {
 			return mergeVscodeMappings( intermediate, vscodeMappings, workspaceRoot );
 		}
