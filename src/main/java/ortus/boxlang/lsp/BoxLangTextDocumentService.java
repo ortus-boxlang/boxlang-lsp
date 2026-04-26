@@ -28,17 +28,17 @@ import org.eclipse.lsp4j.DocumentSymbolParams;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
 import org.eclipse.lsp4j.ImplementationParams;
-import org.eclipse.lsp4j.SignatureHelp;
-import org.eclipse.lsp4j.SignatureHelpParams;
-import org.eclipse.lsp4j.TypeDefinitionParams;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.RelatedFullDocumentDiagnosticReport;
 import org.eclipse.lsp4j.SemanticTokens;
 import org.eclipse.lsp4j.SemanticTokensParams;
+import org.eclipse.lsp4j.SignatureHelp;
+import org.eclipse.lsp4j.SignatureHelpParams;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentRegistrationOptions;
 import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.TypeDefinitionParams;
 import org.eclipse.lsp4j.adapters.CodeActionResponseAdapter;
 import org.eclipse.lsp4j.adapters.DocumentDiagnosticReportTypeAdapter;
 import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter;
@@ -143,8 +143,12 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 	@JsonRequest
 	public CompletableFuture<List<? extends TextEdit>> formatting( DocumentFormattingParams params ) {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
+			App.logger.info( "Received textDocument/formatting request for {} with options tabSize={} insertSpaces={}",
+			    params.getTextDocument().getUri(),
+			    params.getOptions() == null ? null : params.getOptions().getTabSize(),
+			    params.getOptions() == null ? null : params.getOptions().isInsertSpaces() );
 			return ProjectContextProvider.getInstance()
-			    .formatDocument( LSPTools.convertDocumentURI( params.getTextDocument().getUri() ) );
+			    .formatDocument( LSPTools.convertDocumentURI( params.getTextDocument().getUri() ), params.getOptions() );
 		} );
 	}
 

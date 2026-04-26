@@ -1,11 +1,11 @@
 package ortus.boxlang.lsp;
 
+import java.util.Map;
+
 import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.services.LanguageClient;
-
-import java.util.Map;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -21,6 +21,9 @@ public class UserSettings {
 
 	@ConfigSetting( type = "boolean", description = "When true, lint diagnostics for open documents are calculated in parallel threads. Disable if you experience threading issues.", defaultValue = "true", since = "1.0.0" )
 	private boolean				processDiagnosticsInParallel	= true;
+
+	@ConfigSetting( type = "boolean", description = "When true, enables the experimental BoxLang formatter in the IDE when not overridden by shared repo configuration.", defaultValue = "false", since = "1.4.0" )
+	private boolean				experimentalFormatterEnabled	= false;
 
 	private LanguageClient		client							= null;
 
@@ -38,6 +41,10 @@ public class UserSettings {
 		return processDiagnosticsInParallel;
 	}
 
+	public boolean isExperimentalFormatterEnabled() {
+		return experimentalFormatterEnabled;
+	}
+
 	public Map<String, String> getMappings() {
 		return mappings;
 	}
@@ -49,6 +56,7 @@ public class UserSettings {
 		userSettings.client							= client;
 		userSettings.enableBackgroundParsing		= userSettings.checkBoolean( settings, "enableBackgroundParsing", false );
 		userSettings.processDiagnosticsInParallel	= userSettings.checkBoolean( settings, "processDiagnosticsInParallel", true );
+		userSettings.experimentalFormatterEnabled	= userSettings.checkBoolean( settings, "experimentalFormatterEnabled", false );
 		userSettings.mappings						= userSettings.parseMappings( settings );
 
 		return userSettings;

@@ -35,6 +35,7 @@ import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.FileSystemWatcher;
+import org.eclipse.lsp4j.FormattingOptions;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.MarkupContent;
@@ -81,10 +82,13 @@ import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxImport;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.compiler.ast.statement.BoxReturnType;
-import ortus.boxlang.compiler.ast.visitor.PrettyPrintBoxVisitor;
 import ortus.boxlang.lsp.App;
 import ortus.boxlang.lsp.LSPTools;
 import ortus.boxlang.lsp.UserSettings;
+import ortus.boxlang.lsp.formatting.FormatterConfigResolver;
+import ortus.boxlang.lsp.formatting.FormattingCapabilityCoordinator;
+import ortus.boxlang.lsp.formatting.FormattingSettingsResolver;
+import ortus.boxlang.lsp.formatting.PrettyPrintRuntimeAdapter;
 import ortus.boxlang.lsp.lint.LintConfig;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.workspace.codeLens.CodeLensFacts;
@@ -235,6 +239,10 @@ public class ProjectContextProvider {
 	private Map<URI, DocumentModel>				documentModels				= new ConcurrentHashMap<URI, DocumentModel>();
 	private List<FunctionDefinition>			functionDefinitions			= new ArrayList<FunctionDefinition>();
 	private UserSettings						userSettings				= new UserSettings();
+	private FormattingCapabilityCoordinator		formattingCapabilityCoordinator;
+	private final FormattingSettingsResolver	formattingSettingsResolver	= new FormattingSettingsResolver();
+	private FormatterConfigResolver				formatterConfigResolver		= new FormatterConfigResolver();
+	private PrettyPrintRuntimeAdapter			prettyPrintRuntimeAdapter	= new PrettyPrintRuntimeAdapter();
 	private long								WorkspaceDiagnosticReportId	= 1;
 	private final Map<URI, DiagnosticReport>	cachedDiagnosticReports		= new ConcurrentHashMap<URI, DiagnosticReport>();
 	private final SemanticTokensBuilder			semanticTokensBuilder		= new SemanticTokensBuilder();
@@ -433,6 +441,30 @@ public class ProjectContextProvider {
 
 	public UserSettings getUserSettings() {
 		return userSettings;
+	}
+
+	public void setFormattingCapabilityCoordinator( FormattingCapabilityCoordinator formattingCapabilityCoordinator ) {
+		this.formattingCapabilityCoordinator = formattingCapabilityCoordinator;
+	}
+
+	public FormattingCapabilityCoordinator getFormattingCapabilityCoordinator() {
+		return formattingCapabilityCoordinator;
+	}
+
+	public void setFormatterConfigResolver( FormatterConfigResolver formatterConfigResolver ) {
+		this.formatterConfigResolver = formatterConfigResolver;
+	}
+
+	public FormatterConfigResolver getFormatterConfigResolver() {
+		return formatterConfigResolver;
+	}
+
+	public void setPrettyPrintRuntimeAdapter( PrettyPrintRuntimeAdapter prettyPrintRuntimeAdapter ) {
+		this.prettyPrintRuntimeAdapter = prettyPrintRuntimeAdapter;
+	}
+
+	public PrettyPrintRuntimeAdapter getPrettyPrintRuntimeAdapter() {
+		return prettyPrintRuntimeAdapter;
 	}
 
 	public long getWorkspaceDiagnosticReportId() {
@@ -639,7 +671,11 @@ public class ProjectContextProvider {
 		String	fileName		= changedFile.getFileName().toString();
 		Path	workspaceRoot	= getWorkspaceRootPath();
 
-		if ( fileName.equalsIgnoreCase( "boxlang.json" ) ) {
+		if ( fileName.equalsIgnoreCase( LintConfigLoader.CONFIG_FILENAME ) ) {
+			handleLintConfigChange();
+		} else if ( fileName.equalsIgnoreCase( ".bxformat.json" ) || fileName.equalsIgnoreCase( ".cfformat.json" ) ) {
+			handleFormatterConfigChange( changedFile );
+		} else if ( fileName.equalsIgnoreCase( "boxlang.json" ) ) {
 			handleBoxlangJsonChange( workspaceRoot );
 		} else if ( fileName.equalsIgnoreCase( "Application.bx" ) ||
 		    fileName.equalsIgnoreCase( "Application.cfc" ) ) {
@@ -706,6 +742,34 @@ public class ProjectContextProvider {
 		projectIndex.indexExternalDirs( newConfig );
 	}
 
+	private void handleLintConfigChange() {
+		LintConfigLoader.invalidate();
+		LintConfig lintConfig = LintConfigLoader.get();
+
+		if ( formattingCapabilityCoordinator != null ) {
+			formattingCapabilityCoordinator.refresh( lintConfig, userSettings );
+		}
+
+		recomputeAndPublishDiagnosticsForOpenDocuments();
+
+		if ( workspaceFolders == null || workspaceFolders.isEmpty() ) {
+			return;
+		}
+
+		try {
+			clearExcludedDiagnostics();
+			parseWorkspace();
+		} catch ( Exception e ) {
+			App.logger.warn( "Failed to re-parse workspace after lint config change", e );
+		}
+	}
+
+	private void handleFormatterConfigChange( Path changedFile ) {
+		if ( formatterConfigResolver != null ) {
+			formatterConfigResolver.invalidate( changedFile );
+		}
+	}
+
 	private Path getWorkspaceRootPath() {
 		if ( workspaceFolders == null || workspaceFolders.isEmpty() ) {
 			return null;
@@ -763,27 +827,90 @@ public class ProjectContextProvider {
 	}
 
 	public List<? extends TextEdit> formatDocument( URI docUri ) {
+		return formatDocument( docUri, null );
+	}
+
+	public List<? extends TextEdit> formatDocument( URI docUri, FormattingOptions formattingOptions ) {
+		LintConfig	lintConfig				= LintConfigLoader.get();
+		Boolean		lintEnabled				= lintConfig != null
+		    && lintConfig.formatting != null
+		    && lintConfig.formatting.experimental != null
+		        ? lintConfig.formatting.experimental.enabled
+		        : null;
+		boolean		ideEnabled				= userSettings != null && userSettings.isExperimentalFormatterEnabled();
+		boolean		effectiveEnabled		= formattingSettingsResolver.isExperimentalFormattingEnabled( lintConfig, userSettings );
+		boolean		runtimeAdapterPresent	= prettyPrintRuntimeAdapter != null;
+		boolean		runtimeSupported		= runtimeAdapterPresent && prettyPrintRuntimeAdapter.isPrettyPrintAvailable();
+
+		App.logger.info(
+		    "Formatting request state for {}: lintEnabled={} ideEnabled={} effectiveEnabled={} runtimeAdapterPresent={} runtimeSupported={} tabSize={} insertSpaces={}",
+		    docUri,
+		    lintEnabled,
+		    ideEnabled,
+		    effectiveEnabled,
+		    runtimeAdapterPresent,
+		    runtimeSupported,
+		    formattingOptions == null ? null : formattingOptions.getTabSize(),
+		    formattingOptions == null ? null : formattingOptions.isInsertSpaces() );
+
+		if ( !effectiveEnabled || !runtimeAdapterPresent || !runtimeSupported ) {
+			App.logger.info( "Formatting request for {} returned no edits before formatting: reason={}", docUri,
+			    !effectiveEnabled ? "formatter-disabled"
+			        : !runtimeAdapterPresent ? "runtime-adapter-missing" : "runtime-unsupported" );
+			return new ArrayList<>();
+		}
+
 		return this.getLatestFileParseResult( docUri )
 		    .flatMap( fpr -> fpr.findAstRoot() )
 		    .map( astRoot -> {
-			    List<TextEdit>		edits					= new ArrayList<TextEdit>();
+			    try {
+				    Path resolvedConfigPath = resolveFormatterConfigPath( docUri ).orElse( null );
+				    App.logger.info( "Formatting {} using formatterConfigPath={}", docUri, resolvedConfigPath );
 
-			    PrettyPrintBoxVisitor prettyPrintBoxVisitor	= new PrettyPrintBoxVisitor();
+				    String formattedOutput = prettyPrintRuntimeAdapter.prettyPrint(
+				        astRoot,
+				        resolvedConfigPath,
+				        formattingOptions == null ? null : formattingOptions.getTabSize(),
+				        formattingOptions == null ? null : formattingOptions.isInsertSpaces() );
 
-			    astRoot.accept( prettyPrintBoxVisitor );
+				    if ( formattedOutput == null ) {
+					    App.logger.warn( "Formatting {} returned null output", docUri );
+					    return new ArrayList<TextEdit>();
+				    }
 
-			    if ( astRoot != null ) {
 				    Range range = positionToRange( astRoot.getPosition() );
 				    range.getStart().setLine( 0 );
 				    range.getStart().setCharacter( 0 );
 				    range.getEnd().setLine( range.getEnd().getLine() + 1 );
-				    edits.add( new TextEdit( range,
-				        prettyPrintBoxVisitor.getOutput() ) );
+				    App.logger.info( "Formatting {} produced {} characters of output", docUri, formattedOutput.length() );
+				    return new ArrayList<>( List.of( new TextEdit( range, formattedOutput ) ) );
+			    } catch ( PrettyPrintRuntimeAdapter.PrettyPrintException e ) {
+				    if ( e.isConfigError() ) {
+					    App.logger.warn( "Formatter configuration could not be loaded for {}", docUri, e );
+				    } else {
+					    App.logger.warn( "PrettyPrint formatting failed for {}", docUri, e );
+				    }
+				    return new ArrayList<TextEdit>();
 			    }
+		    } ).orElseGet( () -> {
+			    App.logger.info( "Formatting request for {} returned no edits because no parse result or AST root was available", docUri );
+			    return new ArrayList<>();
+		    } );
 
-			    return edits;
-		    } ).orElse( new ArrayList<>() );
+	}
 
+	private Optional<Path> resolveFormatterConfigPath( URI docUri ) {
+		Path workspaceRoot = getWorkspaceRootPath();
+		if ( workspaceRoot == null || formatterConfigResolver == null ) {
+			return Optional.empty();
+		}
+
+		try {
+			return formatterConfigResolver.resolveConfigPath( Path.of( docUri ), workspaceRoot );
+		} catch ( Exception e ) {
+			App.logger.debug( "Unable to resolve formatter config for {}", docUri, e );
+			return Optional.empty();
+		}
 	}
 
 	public void trackDocumentChange( URI docUri, List<TextDocumentContentChangeEvent> changes ) {
@@ -4417,14 +4544,24 @@ public class ProjectContextProvider {
 	public void watchLSPConfig() {
 		startConfigWatcher();
 		try {
-			FileSystemWatcher watcher = new FileSystemWatcher();
-			watcher.setGlobPattern( ".bxlint.json" );
-			watcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
-			DidChangeWatchedFilesRegistrationOptions	options			= new DidChangeWatchedFilesRegistrationOptions( List.of( watcher ) );
+			FileSystemWatcher lintWatcher = new FileSystemWatcher();
+			lintWatcher.setGlobPattern( ".bxlint.json" );
+			lintWatcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
+
+			FileSystemWatcher bxformatWatcher = new FileSystemWatcher();
+			bxformatWatcher.setGlobPattern( "**/.bxformat.json" );
+			bxformatWatcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
+
+			FileSystemWatcher cfformatWatcher = new FileSystemWatcher();
+			cfformatWatcher.setGlobPattern( "**/.cfformat.json" );
+			cfformatWatcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
+
+			DidChangeWatchedFilesRegistrationOptions	options			= new DidChangeWatchedFilesRegistrationOptions(
+			    List.of( lintWatcher, bxformatWatcher, cfformatWatcher ) );
 			Registration								registration	= new Registration( UUID.randomUUID().toString(), "workspace/didChangeWatchedFiles",
 			    options );
 			client.registerCapability( new RegistrationParams( List.of( registration ) ) );
-			App.logger.info( "Registered dynamic file watcher for .bxlint.json" );
+			App.logger.info( "Registered dynamic file watchers for formatter and lint config files" );
 		} catch ( Exception e ) {
 			App.logger.warn( "Failed to register dynamic file watcher", e );
 		}
@@ -4438,43 +4575,58 @@ public class ProjectContextProvider {
 		new Thread( () -> {
 			try {
 				java.nio.file.Path			root	= java.nio.file.Path.of( new java.net.URI( folders.getFirst().getUri() ) );
-				java.nio.file.Path			cfg		= root.resolve( ortus.boxlang.lsp.lint.LintConfigLoader.CONFIG_FILENAME );
 				java.nio.file.WatchService	watcher	= root.getFileSystem().newWatchService();
-				root.register( watcher, java.nio.file.StandardWatchEventKinds.ENTRY_CREATE, java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY,
-				    java.nio.file.StandardWatchEventKinds.ENTRY_DELETE );
-				App.logger.info( "Started lint config watcher at: " + cfg );
+				registerConfigWatchDirectories( root, watcher );
+				App.logger.info( "Started config watcher at: " + root );
 				while ( true ) {
-					java.nio.file.WatchKey	key		= watcher.take();
-					boolean					changed	= false;
+					java.nio.file.WatchKey	key			= watcher.take();
+					Path					watchedDir	= ( Path ) key.watchable();
 					for ( var event : key.pollEvents() ) {
-						java.nio.file.Path changedPath = root.resolve( ( java.nio.file.Path ) event.context() );
-						if ( changedPath.equals( cfg ) ) {
-							changed = true;
-							break;
+						if ( event.kind() == java.nio.file.StandardWatchEventKinds.OVERFLOW ) {
+							continue;
+						}
+
+						java.nio.file.Path changedPath = watchedDir.resolve( ( java.nio.file.Path ) event.context() );
+						if ( event.kind() == java.nio.file.StandardWatchEventKinds.ENTRY_CREATE && Files.isDirectory( changedPath ) ) {
+							registerConfigWatchDirectories( changedPath, watcher );
+						}
+
+						if ( isWatchedConfigPath( changedPath ) ) {
+							App.logger.info( "Detected config change: " + changedPath + "; refreshing formatting/lint state." );
+							ortus.boxlang.lsp.workspace.ProjectContextProvider.getInstance().handleConfigFileChange( changedPath.toUri() );
 						}
 					}
-					key.reset();
-					if ( changed ) {
-						App.logger.info( "Detected lint config change: " + cfg + "; reloading and recomputing diagnostics." );
-						LintConfigLoader.invalidate();
-						// Eager reload to surface any parse errors immediately
-						LintConfigLoader.get();
-						// Recompute diagnostics for currently open documents
-						var provider = ortus.boxlang.lsp.workspace.ProjectContextProvider.getInstance();
-						provider.recomputeAndPublishDiagnosticsForOpenDocuments();
-
-						try {
-							provider.clearExcludedDiagnostics();
-							provider.parseWorkspace();
-						} catch ( Exception e ) {
-							App.logger.warn( "Failed to re-parse workspace after lint config change", e );
-						}
+					if ( !key.reset() ) {
+						App.logger.debug( "Stopping config watch for invalid key: {}", watchedDir );
 					}
 				}
 			} catch ( Exception e ) {
 				App.logger.warn( "Config watcher failure", e );
 			}
 		}, "boxlang-lsp-config-watcher" ).start();
+	}
+
+	private void registerConfigWatchDirectories( Path root, java.nio.file.WatchService watcher ) throws IOException {
+		try ( Stream<Path> stream = Files.walk( root ) ) {
+			stream.filter( Files::isDirectory )
+			    .forEach( path -> registerConfigWatchDirectory( path, watcher ) );
+		}
+	}
+
+	private void registerConfigWatchDirectory( Path directory, java.nio.file.WatchService watcher ) {
+		try {
+			directory.register( watcher, java.nio.file.StandardWatchEventKinds.ENTRY_CREATE, java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY,
+			    java.nio.file.StandardWatchEventKinds.ENTRY_DELETE );
+		} catch ( IOException e ) {
+			App.logger.debug( "Unable to register config watch for {}", directory, e );
+		}
+	}
+
+	private boolean isWatchedConfigPath( Path changedPath ) {
+		String fileName = changedPath.getFileName() == null ? "" : changedPath.getFileName().toString();
+		return fileName.equalsIgnoreCase( LintConfigLoader.CONFIG_FILENAME )
+		    || fileName.equalsIgnoreCase( ".bxformat.json" )
+		    || fileName.equalsIgnoreCase( ".cfformat.json" );
 	}
 
 	private void clearExcludedDiagnostics() {

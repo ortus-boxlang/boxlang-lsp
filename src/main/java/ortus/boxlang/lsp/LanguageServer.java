@@ -23,22 +23,61 @@ import org.eclipse.lsp4j.services.LanguageClientAware;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.eclipse.lsp4j.services.WorkspaceService;
 
+import ortus.boxlang.lsp.formatting.FormattingCapabilityCoordinator;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.SemanticTokensContract;
 
 public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer, LanguageClientAware {
 
-	private WorkspaceService		workspaceService		= new BoxLangWorkspaceService();
-	private TextDocumentService		textDocumentService		= new BoxLangTextDocumentService();
-	private ProjectContextProvider	projectContextProvider	= ProjectContextProvider.getInstance();
+	private final BoxLangWorkspaceService			workspaceService;
+	private final BoxLangTextDocumentService		textDocumentService;
+	private final ProjectContextProvider			projectContextProvider;
+	private final FormattingCapabilityCoordinator	formattingCapabilityCoordinator;
 
-	private boolean					supportsFileWatch;
+	private boolean									supportsFileWatch;
+
+	public LanguageServer() {
+		this( createDefaults() );
+	}
+
+	private LanguageServer( DefaultServices defaults ) {
+		this( defaults.workspaceService(), new BoxLangTextDocumentService(), ProjectContextProvider.getInstance(), defaults.formattingCapabilityCoordinator() );
+	}
+
+	private static DefaultServices createDefaults() {
+		FormattingCapabilityCoordinator formattingCapabilityCoordinator = new FormattingCapabilityCoordinator();
+		return new DefaultServices( new BoxLangWorkspaceService( formattingCapabilityCoordinator ), formattingCapabilityCoordinator );
+	}
+
+	LanguageServer(
+	    BoxLangWorkspaceService workspaceService,
+	    BoxLangTextDocumentService textDocumentService,
+	    ProjectContextProvider projectContextProvider,
+	    FormattingCapabilityCoordinator formattingCapabilityCoordinator ) {
+		this.workspaceService					= workspaceService;
+		this.textDocumentService				= textDocumentService;
+		this.projectContextProvider				= projectContextProvider;
+		this.formattingCapabilityCoordinator	= formattingCapabilityCoordinator;
+		this.projectContextProvider.setFormattingCapabilityCoordinator( formattingCapabilityCoordinator );
+	}
+
+	private record DefaultServices( BoxLangWorkspaceService workspaceService, FormattingCapabilityCoordinator formattingCapabilityCoordinator ) {
+	}
 
 	@Override
 	public CompletableFuture<InitializeResult> initialize( InitializeParams params ) {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
-			ServerCapabilities capabilities = new ServerCapabilities();
+			ServerCapabilities	capabilities							= new ServerCapabilities();
+			boolean				supportsDynamicFormattingRegistration	= params.getCapabilities() != null
+			    && params.getCapabilities().getTextDocument() != null
+			    && params.getCapabilities().getTextDocument().getFormatting() != null
+			    && params.getCapabilities().getTextDocument().getFormatting().getDynamicRegistration() == true;
+			formattingCapabilityCoordinator.setSupportsDynamicRegistration( supportsDynamicFormattingRegistration );
+			App.logger.info( "Formatting initialization: dynamicRegistrationSupported={} staticAdvertisement={} workspaceFolders={}",
+			    supportsDynamicFormattingRegistration,
+			    formattingCapabilityCoordinator.shouldAdvertiseFormattingStatically(),
+			    params.getWorkspaceFolders() == null ? 0 : params.getWorkspaceFolders().size() );
 
 			capabilities.setTextDocumentSync( TextDocumentSyncKind.Incremental );
 			capabilities.setDocumentSymbolProvider( true );
@@ -46,6 +85,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			capabilities.setTypeDefinitionProvider( true );
 			capabilities.setImplementationProvider( true );
 			capabilities.setHoverProvider( true );
+			capabilities.setDocumentFormattingProvider( formattingCapabilityCoordinator.shouldAdvertiseFormattingStatically() );
 			CompletionOptions completionOptions = new CompletionOptions();
 			capabilities.setReferencesProvider( true );
 
@@ -75,7 +115,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			// TODO add an initialize method to ProjectContextProvider to pass in workspace folders
 			// and other client capabilities as needed
 			// as well as enforce the proper order of operations
-			ProjectContextProvider.getInstance().setWorkspaceFolders( params.getWorkspaceFolders() );
+			projectContextProvider.setWorkspaceFolders( params.getWorkspaceFolders() );
 
 			// this needs to come before parseWorkspace so that we can watch for changes to the lsp config file
 			if ( params.getCapabilities() != null
@@ -83,13 +123,13 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			    && params.getCapabilities().getWorkspace().getDidChangeWatchedFiles() != null
 			    && params.getCapabilities().getWorkspace().getDidChangeWatchedFiles().getDynamicRegistration() == true ) {
 				supportsFileWatch = true;
-				ProjectContextProvider.getInstance().watchLSPConfig();
+				projectContextProvider.watchLSPConfig();
 			}
 
 			// eagerly gather config
 			LintConfigLoader.get();
 
-			ProjectContextProvider.getInstance().parseWorkspace();
+			projectContextProvider.parseWorkspace();
 
 			return new InitializeResult( capabilities );
 		} );
@@ -127,8 +167,11 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 	@Override
 	public void connect( LanguageClient client ) {
 
-		( ( BoxLangWorkspaceService ) workspaceService ).setLanguageClient( client );
+		workspaceService.setLanguageClient( client );
 		projectContextProvider.setLanguageClient( client );
+		formattingCapabilityCoordinator.setLanguageClient( client );
+		App.logger.info( "Refreshing formatting capability state after client connection" );
+		formattingCapabilityCoordinator.refresh( LintConfigLoader.get(), projectContextProvider.getUserSettings() );
 
 		client.showMessage( new MessageParams( MessageType.Info, "Connected to the BoxLang Language Server!" ) );
 	}

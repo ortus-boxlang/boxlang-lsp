@@ -26,6 +26,19 @@ public class LintConfig {
 	@ConfigSetting( type = "string[]", description = "Workspace-relative glob patterns. Files matching any exclude pattern are never analyzed, even if they match an include pattern. Evaluated after include.", defaultValue = "[]" )
 	public List<String>					exclude		= Collections.emptyList();
 
+	@ConfigSetting( type = "object", description = "Formatting configuration shared across IDEs for the workspace. The experimental formatter toggle lives under formatting.experimental.enabled.", defaultValue = "{}" )
+	public FormattingConfig				formatting	= new FormattingConfig();
+
+	public static class FormattingConfig {
+
+		public ExperimentalFormattingConfig experimental = new ExperimentalFormattingConfig();
+	}
+
+	public static class ExperimentalFormattingConfig {
+
+		public Boolean enabled = null;
+	}
+
 	public RuleSettings forRule( String id ) {
 		return diagnostics == null ? null : diagnostics.get( id );
 	}

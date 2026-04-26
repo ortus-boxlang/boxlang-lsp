@@ -1,4 +1,9 @@
 {
+    "formatting": {
+        "experimental": {
+            "enabled": true
+        }
+    },
     "exclude": [
         "ignored-folder/**"
     ]
