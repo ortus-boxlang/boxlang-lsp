@@ -1,17 +1,45 @@
 package ortus.boxlang.lsp;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.Mockito.mock;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.lsp4j.DidChangeConfigurationParams;
+import org.eclipse.lsp4j.MessageActionItem;
+import org.eclipse.lsp4j.MessageParams;
+import org.eclipse.lsp4j.PublishDiagnosticsParams;
+import org.eclipse.lsp4j.ShowMessageRequestParams;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.junit.jupiter.api.Test;
 
 import com.google.gson.JsonObject;
 
 public class UserSettingsTest extends BaseTest {
+
+	private static final LanguageClient NO_OP_CLIENT = new LanguageClient() {
+
+		@Override
+		public void telemetryEvent( Object object ) {
+		}
+
+		@Override
+		public void publishDiagnostics( PublishDiagnosticsParams diagnostics ) {
+		}
+
+		@Override
+		public void showMessage( MessageParams messageParams ) {
+		}
+
+		@Override
+		public CompletableFuture<MessageActionItem> showMessageRequest( ShowMessageRequestParams requestParams ) {
+			return CompletableFuture.completedFuture( null );
+		}
+
+		@Override
+		public void logMessage( MessageParams message ) {
+		}
+	};
 
 	// ─── Cycle 1 ─────────────────────────────────────────────────────────────
 	// Tracer bullet: UserSettings parses boxlang.mappings from settings payload
@@ -26,9 +54,8 @@ public class UserSettingsTest extends BaseTest {
 		settings.add( "boxlang.mappings", mappings );
 
 		DidChangeConfigurationParams	params			= new DidChangeConfigurationParams( settings );
-		LanguageClient					mockClient		= mock( LanguageClient.class );
 
-		UserSettings					userSettings	= UserSettings.fromChangeConfigurationParams( mockClient, params );
+		UserSettings					userSettings	= UserSettings.fromChangeConfigurationParams( NO_OP_CLIENT, params );
 
 		Map<String, String>				result			= userSettings.getMappings();
 		assertThat( result ).isNotNull();
@@ -46,9 +73,8 @@ public class UserSettingsTest extends BaseTest {
 		settings.addProperty( "enableBackgroundParsing", true );
 
 		DidChangeConfigurationParams	params			= new DidChangeConfigurationParams( settings );
-		LanguageClient					mockClient		= mock( LanguageClient.class );
 
-		UserSettings					userSettings	= UserSettings.fromChangeConfigurationParams( mockClient, params );
+		UserSettings					userSettings	= UserSettings.fromChangeConfigurationParams( NO_OP_CLIENT, params );
 
 		Map<String, String>				result			= userSettings.getMappings();
 		assertThat( result ).isNotNull();
@@ -64,9 +90,8 @@ public class UserSettingsTest extends BaseTest {
 		settings.addProperty( "boxlang.mappings", "not-an-object" );
 
 		DidChangeConfigurationParams	params			= new DidChangeConfigurationParams( settings );
-		LanguageClient					mockClient		= mock( LanguageClient.class );
 
-		UserSettings					userSettings	= UserSettings.fromChangeConfigurationParams( mockClient, params );
+		UserSettings					userSettings	= UserSettings.fromChangeConfigurationParams( NO_OP_CLIENT, params );
 
 		Map<String, String>				result			= userSettings.getMappings();
 		assertThat( result ).isNotNull();
@@ -81,12 +106,26 @@ public class UserSettingsTest extends BaseTest {
 		JsonObject						settings		= new JsonObject();
 
 		DidChangeConfigurationParams	params			= new DidChangeConfigurationParams( settings );
-		LanguageClient					mockClient		= mock( LanguageClient.class );
 
-		UserSettings					userSettings	= UserSettings.fromChangeConfigurationParams( mockClient, params );
+		UserSettings					userSettings	= UserSettings.fromChangeConfigurationParams( NO_OP_CLIENT, params );
 
 		Map<String, String>				result			= userSettings.getMappings();
 		assertThat( result ).isNotNull();
 		assertThat( result ).isEmpty();
+	}
+
+	// ─── Cycle 5 ─────────────────────────────────────────────────────────────
+	// Experimental formatter IDE toggle parses from settings payload
+
+	@Test
+	void parsesExperimentalFormattingToggleFromSettingsPayload() {
+		JsonObject settings = new JsonObject();
+		settings.addProperty( "experimentalFormatterEnabled", true );
+
+		DidChangeConfigurationParams	params			= new DidChangeConfigurationParams( settings );
+
+		UserSettings					userSettings	= UserSettings.fromChangeConfigurationParams( NO_OP_CLIENT, params );
+
+		assertThat( userSettings.isExperimentalFormatterEnabled() ).isTrue();
 	}
 }

@@ -179,6 +179,14 @@ public class LintConfigExclusionTest extends BaseTest {
 	}
 
 	@Test
+	void testExperimentalFormattingToggleLoadsFromLintConfig() {
+		var config = LintConfigLoader.get();
+
+		assertNotNull( config, "LintConfig should be loaded" );
+		assertThat( config.formatting.experimental.enabled ).isTrue();
+	}
+
+	@Test
 	void testShouldAnalyzePathRespectingExclusions() {
 		// Test the shouldAnalyze logic directly
 		var		config					= LintConfigLoader.get();

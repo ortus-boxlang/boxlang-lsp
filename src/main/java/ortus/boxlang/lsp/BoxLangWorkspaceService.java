@@ -24,6 +24,7 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.WorkspaceService;
 
+import ortus.boxlang.lsp.formatting.FormattingCapabilityCoordinator;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.index.IndexedClass;
 import ortus.boxlang.lsp.workspace.index.IndexedMethod;
@@ -32,8 +33,17 @@ import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 
 public class BoxLangWorkspaceService implements WorkspaceService {
 
-	private static final int	MAX_RESULTS	= 200;
-	private LanguageClient		client;
+	private static final int						MAX_RESULTS	= 200;
+	private LanguageClient							client;
+	private final FormattingCapabilityCoordinator	formattingCapabilityCoordinator;
+
+	public BoxLangWorkspaceService() {
+		this( new FormattingCapabilityCoordinator() );
+	}
+
+	BoxLangWorkspaceService( FormattingCapabilityCoordinator formattingCapabilityCoordinator ) {
+		this.formattingCapabilityCoordinator = formattingCapabilityCoordinator;
+	}
 
 	public void setLanguageClient( LanguageClient client ) {
 		this.client = client;
@@ -57,6 +67,7 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 		}
 
 		provider.setUserSettings( newSettings );
+		formattingCapabilityCoordinator.refresh( ortus.boxlang.lsp.lint.LintConfigLoader.get(), newSettings );
 	}
 
 	@Override

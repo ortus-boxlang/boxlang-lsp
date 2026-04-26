@@ -1,5 +1,8 @@
 class Car {
-    function drive(){
-        return 5;
-    }
+	property name="b";
+	property name="a";
+
+	function drive() {
+		return 5;
+	}
 }
