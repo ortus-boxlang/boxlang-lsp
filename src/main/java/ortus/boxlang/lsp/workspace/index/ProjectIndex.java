@@ -455,6 +455,14 @@ public class ProjectIndex {
 			}
 		}
 
+		// Filesystem fallback: resolve dot-path as a file path
+		if ( className.contains( "." ) && workspaceRoot != null ) {
+			result = findClassByFileSystemPath( className, contextFileUri );
+			if ( result.isPresent() ) {
+				return result;
+			}
+		}
+
 		// Final fallback: bxmodule.* prefix resolution
 		return findClassByBxModuleFqn( className );
 	}
@@ -493,6 +501,60 @@ public class ProjectIndex {
 			// If we can't determine package, return null
 			return null;
 		}
+	}
+
+	/**
+	 * Resolve a dot-path class name by locating the corresponding file directly
+	 * on disk relative to the file making the reference and indexing it on-demand
+	 * if it is not already in the index.
+	 *
+	 * <p>
+	 * For example, from {@code subpackage/BaseType.bx} the reference
+	 * {@code subsubpackage.EvenBaserType} is resolved to
+	 * {@code subpackage/subsubpackage/EvenBaserType.bx}.
+	 *
+	 * @param className      the dot-path class name to resolve
+	 * @param contextFileUri the file making the reference, or {@code null}
+	 *
+	 * @return the matching {@link IndexedClass}, or empty if not found
+	 */
+	private Optional<IndexedClass> findClassByFileSystemPath( String className, URI contextFileUri ) {
+		if ( className == null || className.isEmpty() || contextFileUri == null ) {
+			return Optional.empty();
+		}
+
+		try {
+			// Convert dots to path separators
+			String	subPath	= className.replace( '.', java.io.File.separatorChar );
+			Path	contextParent	= Paths.get( contextFileUri ).getParent();
+
+			if ( contextParent == null ) {
+				return Optional.empty();
+			}
+
+			for ( String ext : ortus.boxlang.lsp.LSPTools.BOXLANG_EXTENSIONS ) {
+				Path	candidate	= contextParent.resolve( subPath + ext ).normalize();
+				if ( !Files.isRegularFile( candidate ) ) {
+					continue;
+				}
+
+				URI candidateUri = candidate.toUri();
+
+				// Index on-demand if not already in the index
+				if ( !classesByFileUri.containsKey( candidateUri.toString() ) ) {
+					indexFile( candidateUri );
+				}
+
+				List<IndexedClass> classes = classesByFileUri.get( candidateUri.toString() );
+				if ( classes != null && !classes.isEmpty() ) {
+					return Optional.of( classes.get( 0 ) );
+				}
+			}
+		} catch ( Exception e ) {
+			App.logger.warn( "Filesystem class resolution failed for '" + className + "' from " + contextFileUri, e );
+		}
+
+		return Optional.empty();
 	}
 
 	/**
