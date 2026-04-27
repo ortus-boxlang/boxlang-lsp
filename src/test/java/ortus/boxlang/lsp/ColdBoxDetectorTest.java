@@ -16,6 +16,10 @@ public class ColdBoxDetectorTest extends BaseTest {
 		return Paths.get( "src/test/resources/files/coldboxDetectorTest" ).resolve( name ).toAbsolutePath();
 	}
 
+	private static String pathString( Path path ) {
+		return path.toString().replace( '\\', '/' );
+	}
+
 	// ─── Cycle 1 ─────────────────────────────────────────────────────────────
 	// Tracer bullet: isColdBoxApp detects extends="coldbox.system.Bootstrap"
 
@@ -61,7 +65,7 @@ public class ColdBoxDetectorTest extends BaseTest {
 		Map<String, Path>	result	= ColdBoxDetector.discoverModuleMappings( appRoot );
 		assertThat( result ).isNotNull();
 		assertThat( result ).containsKey( "/foo" );
-		assertThat( result.get( "/foo" ).toString() ).endsWith( "modules/foo" );
+		assertThat( pathString( result.get( "/foo" ) ) ).endsWith( "modules/foo" );
 	}
 
 	// ─── Cycle 6 ─────────────────────────────────────────────────────────────
@@ -88,7 +92,7 @@ public class ColdBoxDetectorTest extends BaseTest {
 		// /modules/foo is less nested than /modules/foo/modules/sub/foo
 		Path fooPath = result.get( "/foo" );
 		assertThat( fooPath.toString() ).doesNotContain( "sub" );
-		assertThat( fooPath.toString() ).endsWith( "modules/foo" );
+		assertThat( pathString( fooPath ) ).endsWith( "modules/foo" );
 	}
 
 	// ─── Cycle 8 ─────────────────────────────────────────────────────────────
@@ -111,7 +115,7 @@ public class ColdBoxDetectorTest extends BaseTest {
 		Map<String, Path>	result	= ColdBoxDetector.discoverModuleMappings( appRoot );
 		assertThat( result ).isNotNull();
 		assertThat( result ).containsKey( "/bar" );
-		assertThat( result.get( "/bar" ).toString() ).endsWith( "modules_app/bar" );
+		assertThat( pathString( result.get( "/bar" ) ) ).endsWith( "modules_app/bar" );
 	}
 
 	// ─── Cycle 10 ────────────────────────────────────────────────────────────
@@ -124,7 +128,7 @@ public class ColdBoxDetectorTest extends BaseTest {
 		assertThat( result ).isNotNull();
 		assertThat( result ).containsKey( "/foo" );
 		Path fooPath = result.get( "/foo" );
-		assertThat( fooPath.toString() ).contains( "modules/foo" );
+		assertThat( pathString( fooPath ) ).contains( "modules/foo" );
 		assertThat( fooPath.toString() ).doesNotContain( "modules_app" );
 	}
 
@@ -138,6 +142,6 @@ public class ColdBoxDetectorTest extends BaseTest {
 		assertThat( result ).isNotNull();
 		assertThat( result ).containsKey( "/foo" );
 		assertThat( result ).containsKey( "/baz" );
-		assertThat( result.get( "/baz" ).toString() ).contains( "modules_app/baz" );
+		assertThat( pathString( result.get( "/baz" ) ) ).contains( "modules_app/baz" );
 	}
 }
