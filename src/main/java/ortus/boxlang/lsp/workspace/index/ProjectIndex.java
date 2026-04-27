@@ -525,7 +525,7 @@ public class ProjectIndex {
 
 		try {
 			// Convert dots to path separators
-			String	subPath	= className.replace( '.', java.io.File.separatorChar );
+			String	subPath			= className.replace( '.', java.io.File.separatorChar );
 			Path	contextParent	= Paths.get( contextFileUri ).getParent();
 
 			if ( contextParent == null ) {
@@ -533,7 +533,7 @@ public class ProjectIndex {
 			}
 
 			for ( String ext : ortus.boxlang.lsp.LSPTools.BOXLANG_EXTENSIONS ) {
-				Path	candidate	= contextParent.resolve( subPath + ext ).normalize();
+				Path candidate = contextParent.resolve( subPath + ext ).normalize();
 				if ( !Files.isRegularFile( candidate ) ) {
 					continue;
 				}
