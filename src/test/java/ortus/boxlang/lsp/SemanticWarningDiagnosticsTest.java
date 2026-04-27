@@ -545,6 +545,34 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertThat( unusedPrivate ).isNull();
 	}
 
+	@Test
+	void testUsedPrivateMethodInArgs() throws Exception {
+		String	code		= """
+		                      class {
+		                          public function publicMethod( a = helperMethod()) {
+		                              return a;
+		                          }
+
+		                          private function helperMethod() {
+		                              return "what";
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "UsedPrivate.bx", code );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic unusedPrivate = diagnostics.stream()
+		    .filter( d -> d.getMessage().toLowerCase().contains( "helpermethod" ) && d.getMessage().toLowerCase().contains( "never" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( unusedPrivate ).isNull();
+	}
+
 	// ============ Unused Import Tests ============
 
 	@Test

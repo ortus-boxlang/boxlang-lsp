@@ -309,6 +309,7 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 	@Override
 	public void visit( BoxArgumentDeclaration node ) {
 		// Parameters are tracked in visit(BoxFunctionDeclaration)
+		visitChildren( node );
 	}
 
 	@Override
