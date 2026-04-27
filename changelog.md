@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-04-27
+
 ## [1.9.0] - 2026-04-02
 
 - BLIDIE-277 Improve LSP setting documentation
@@ -46,7 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverted LSP to be a BoxLang module
 - BLIDE-96 Added version info
 
-[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.9.0...HEAD
+[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.6.0...v1.9.0
 [1.5.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.3.0...v1.5.0
 [1.3.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.3.0...v1.3.0
