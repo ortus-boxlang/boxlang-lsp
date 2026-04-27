@@ -8,5 +8,13 @@ class extends="subpackage.BaseType" implements="subpackage.InterfaceDef" {
     function bxObjFunction( string param1, numeric param2 ) {
         // function body
     }
+
+    function usesPrivateFunction( arg1 ) {
+        return arg1 * 2;
+    }
+
+    private function genValue() {
+        return 42;
+    }
     
 }
