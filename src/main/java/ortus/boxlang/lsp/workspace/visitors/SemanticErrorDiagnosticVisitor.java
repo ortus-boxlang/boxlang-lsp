@@ -224,55 +224,6 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	/**
-	 * Get the package (directory path) of the current file relative to workspace root.
-	 * For example, if file is at "subpackage/BaseType.bx", returns "subpackage".
-	 * Returns null if package cannot be determined.
-	 */
-	private String getCurrentPackage() {
-		if ( this.filePath == null ) {
-			return null;
-		}
-
-		try {
-			// Get workspace root
-			var folders = ProjectContextProvider.getInstance().getWorkspaceFolders();
-			if ( folders == null || folders.isEmpty() ) {
-				return null;
-			}
-
-			java.net.URI		workspaceUri	= new java.net.URI( folders.get( 0 ).getUri() );
-			java.nio.file.Path	workspaceRoot	= java.nio.file.Paths.get( workspaceUri );
-
-			// Convert filePath to Path (handle both URI and file path formats)
-			java.nio.file.Path	filePath;
-			if ( this.filePath.startsWith( "file:" ) ) {
-				filePath = java.nio.file.Paths.get( new java.net.URI( this.filePath ) );
-			} else {
-				filePath = java.nio.file.Paths.get( this.filePath );
-			}
-
-			// Get relative path from workspace root
-			java.nio.file.Path	relativePath	= workspaceRoot.relativize( filePath );
-			String				pathStr			= relativePath.toString();
-
-			// Get the directory part (without filename)
-			int					lastSlash		= Math.max( pathStr.lastIndexOf( '/' ), pathStr.lastIndexOf( '\\' ) );
-			if ( lastSlash < 0 ) {
-				// File is in root directory
-				return null;
-			}
-
-			String packagePath = pathStr.substring( 0, lastSlash );
-
-			// Convert path separators to dots
-			return packagePath.replace( '/', '.' ).replace( '\\', '.' );
-		} catch ( Exception e ) {
-			// If we can't determine package, return null
-			return null;
-		}
-	}
-
-	/**
 	 * Create a range that covers from the "class" or "interface" keyword to the opening brace "{".
 	 * This provides a more precise diagnostic location for class declaration issues.
 	 *
@@ -326,22 +277,7 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 			return;
 		}
 
-		// Try to find by simple name first
-		var foundClass = index.findClassByName( className );
-		if ( foundClass.isEmpty() ) {
-			// Try by FQN
-			foundClass = index.findClassByFQN( className );
-		}
-
-		// If still not found and className contains a dot (potential relative path),
-		// try resolving relative to the current file's package
-		if ( foundClass.isEmpty() && className.contains( "." ) ) {
-			String currentPackage = getCurrentPackage();
-			if ( currentPackage != null && !currentPackage.isEmpty() ) {
-				String qualifiedName = currentPackage + "." + className;
-				foundClass = index.findClassByFQN( qualifiedName );
-			}
-		}
+		var foundClass = index.findClassWithContext( className, resolveFileUri() );
 
 		if ( foundClass.isEmpty() ) {
 			Diagnostic diagnostic = new Diagnostic(
@@ -361,22 +297,7 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 			return;
 		}
 
-		// Try to find by simple name first
-		var foundClass = index.findClassByName( interfaceName );
-		if ( foundClass.isEmpty() ) {
-			// Try by FQN
-			foundClass = index.findClassByFQN( interfaceName );
-		}
-
-		// If still not found and interfaceName contains a dot (potential relative path),
-		// try resolving relative to the current file's package
-		if ( foundClass.isEmpty() && interfaceName.contains( "." ) ) {
-			String currentPackage = getCurrentPackage();
-			if ( currentPackage != null && !currentPackage.isEmpty() ) {
-				String qualifiedName = currentPackage + "." + interfaceName;
-				foundClass = index.findClassByFQN( qualifiedName );
-			}
-		}
+		var foundClass = index.findClassWithContext( interfaceName, resolveFileUri() );
 
 		if ( foundClass.isEmpty() ) {
 			Diagnostic diagnostic = new Diagnostic(
@@ -387,6 +308,26 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 			    InvalidImplementsRule.ID
 			);
 			diagnostics.add( diagnostic );
+		}
+	}
+
+	/**
+	 * Convert {@code this.filePath} to a {@code URI} so it can be passed to
+	 * {@link ProjectIndex#findClassWithContext} for context-aware resolution.
+	 *
+	 * @return the file URI, or {@code null} if the path cannot be converted
+	 */
+	private java.net.URI resolveFileUri() {
+		if ( this.filePath == null ) {
+			return null;
+		}
+		try {
+			if ( this.filePath.startsWith( "file:" ) ) {
+				return new java.net.URI( this.filePath );
+			}
+			return java.nio.file.Paths.get( this.filePath ).toUri();
+		} catch ( Exception e ) {
+			return null;
 		}
 	}
 
