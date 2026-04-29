@@ -16,6 +16,13 @@
         "default": "true",
         "since": "1.0.0",
         "description": "When true, lint diagnostics for open documents are calculated in parallel threads. Disable if you experience threading issues."
+      },
+      {
+        "key": "experimentalFormatterEnabled",
+        "type": "boolean",
+        "default": "false",
+        "since": "1.4.0",
+        "description": "When true, enables the experimental BoxLang formatter in the IDE when not overridden by shared repo configuration."
       }
     ]
   },
@@ -43,6 +50,20 @@
         "default": "[]",
         "since": "",
         "description": "Workspace-relative glob patterns. Files matching any exclude pattern are never analyzed, even if they match an include pattern. Evaluated after include."
+      },
+      {
+        "key": "mappings",
+        "type": "object{}",
+        "default": "{}",
+        "since": "",
+        "description": "Map of virtual path prefix (e.g. \"/models\") to absolute or relative filesystem path used by the LSP during analysis and indexing. Paths are resolved relative to the workspace root."
+      },
+      {
+        "key": "formatting",
+        "type": "object",
+        "default": "{}",
+        "since": "",
+        "description": "Formatting configuration shared across IDEs for the workspace. The experimental formatter toggle lives under formatting.experimental.enabled."
       }
     ],
     "rules": [

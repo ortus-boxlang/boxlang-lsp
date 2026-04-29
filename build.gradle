@@ -142,6 +142,16 @@ task generateConfigDocs(type: JavaExec, dependsOn: classes) {
     inputs.files(sourceSets.main.allJava)
 }
 
+task generateLintSchema(type: JavaExec, dependsOn: classes) {
+	description = 'Generates docs/bxlint.schema.json from the LintConfig model.'
+	group = 'documentation'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'ortus.boxlang.lsp.config.LintSchemaGenerator'
+	args = ["${projectDir}/docs"]
+	outputs.file(file("${projectDir}/docs/bxlint.schema.json"))
+	inputs.files(sourceSets.main.allJava)
+}
+
 /**
  * Docs are here:
  * - https://github.com/harbby/gradle-serviceloader,

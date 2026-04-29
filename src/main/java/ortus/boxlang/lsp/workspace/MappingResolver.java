@@ -15,6 +15,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import ortus.boxlang.lsp.lint.LintConfig;
+import ortus.boxlang.lsp.lint.LintConfigLoader;
+
 public class MappingResolver {
 
 	private static final Map<Path, MappingConfig>	cache		= new ConcurrentHashMap<>();
@@ -182,6 +185,7 @@ public class MappingResolver {
 	 * <ol>
 	 * <li>VSCode mappings (highest)
 	 * <li>Application.bx
+	 * <li>.bxlint.json mappings
 	 * <li>boxlang.json
 	 * <li>ColdBox implicit modules (lowest)
 	 * </ol>
@@ -200,7 +204,7 @@ public class MappingResolver {
 			}
 		}
 
-		// Merge precedence: ColdBox implicit (lowest) → boxlang.json → Application.bx
+		// Merge precedence: ColdBox implicit (lowest) → boxlang.json → .bxlint.json → Application.bx
 		Map<String, Path> merged = new java.util.LinkedHashMap<>();
 
 		// 1. ColdBox implicit module mappings (lowest priority)
@@ -211,7 +215,7 @@ public class MappingResolver {
 		// 2. boxlang.json overrides ColdBox implicit
 		merged.putAll( base.getMappings() );
 
-		// 3. Application.bx overrides both
+		// 3. Application.bx overrides lower-priority config layers
 		merged.putAll( appMappings );
 
 		MappingConfig intermediate = new MappingConfig( merged, base.getClassPaths(), base.getModulesDirectory(), workspaceRoot );
@@ -257,6 +261,7 @@ public class MappingResolver {
 		MappingConfig	base		= configFile == null
 		    ? emptyConfig( workspaceRoot )
 		    : parseConfig( configFile, workspaceRoot );
+		MappingConfig	withLint	= mergeLintMappings( base, workspaceRoot );
 
 		// Inject ColdBox implicit module mappings at workspace level so that
 		// ProjectIndexVisitor.computeFQN() can resolve module files correctly
@@ -264,16 +269,38 @@ public class MappingResolver {
 		if ( ColdBoxDetector.isColdBoxApp( workspaceRoot ) ) {
 			Map<String, Path> merged = new java.util.LinkedHashMap<>();
 			merged.putAll( ColdBoxDetector.discoverModuleMappings( workspaceRoot ) );
-			merged.putAll( base.getMappings() );
+			merged.putAll( withLint.getMappings() );
 			return new MappingConfig(
 			    merged,
-			    base.getClassPaths(),
-			    base.getModulesDirectory(),
+			    withLint.getClassPaths(),
+			    withLint.getModulesDirectory(),
 			    workspaceRoot
 			);
 		}
 
-		return base;
+		return withLint;
+	}
+
+	private static MappingConfig mergeLintMappings( MappingConfig base, Path workspaceRoot ) {
+		LintConfig lintConfig = LintConfigLoader.get( workspaceRoot );
+		if ( lintConfig == null || lintConfig.mappings == null || lintConfig.mappings.isEmpty() ) {
+			return base;
+		}
+
+		Map<String, Path> merged = new java.util.LinkedHashMap<>( base.getMappings() );
+		for ( Map.Entry<String, String> entry : lintConfig.mappings.entrySet() ) {
+			String rawPath = entry.getValue();
+			if ( rawPath == null || rawPath.isBlank() ) {
+				continue;
+			}
+
+			Path resolved = resolvePath( rawPath, workspaceRoot );
+			if ( resolved != null ) {
+				merged.put( entry.getKey(), resolved );
+			}
+		}
+
+		return new MappingConfig( merged, base.getClassPaths(), base.getModulesDirectory(), workspaceRoot );
 	}
 
 	/**

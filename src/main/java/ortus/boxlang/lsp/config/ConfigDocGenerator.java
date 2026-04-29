@@ -40,7 +40,7 @@ public class ConfigDocGenerator {
 	    MappingConfig.class
 	);
 
-	private static final List<Class<?>>	LINT_RULE_CLASSES		= List.of(
+	static final List<Class<?>>			LINT_RULE_CLASSES		= List.of(
 	    UnusedVariableRule.class,
 	    UnscopedVariableRule.class,
 	    DuplicateMethodRule.class,
@@ -72,16 +72,16 @@ public class ConfigDocGenerator {
 	private static List<ConfigGroupEntry> collectConfigGroups() {
 		List<ConfigGroupEntry> result = new ArrayList<>();
 		for ( Class<?> clazz : CONFIG_GROUP_CLASSES ) {
-			ConfigGroup group = clazz.getAnnotation( ConfigGroup.class );
-			if ( group == null )
+			if ( !clazz.isAnnotationPresent( ConfigGroup.class ) )
 				continue;
+			ConfigGroup			group		= clazz.getAnnotation( ConfigGroup.class );
 
-			List<SettingEntry> settings = new ArrayList<>();
+			List<SettingEntry>	settings	= new ArrayList<>();
 			for ( Field field : clazz.getDeclaredFields() ) {
-				ConfigSetting setting = field.getAnnotation( ConfigSetting.class );
-				if ( setting == null )
+				if ( !field.isAnnotationPresent( ConfigSetting.class ) )
 					continue;
-				String key = setting.key().isEmpty() ? field.getName() : setting.key();
+				ConfigSetting	setting	= field.getAnnotation( ConfigSetting.class );
+				String			key		= setting.key().isEmpty() ? field.getName() : setting.key();
 				settings.add( new SettingEntry( key, setting.type(), setting.defaultValue(), setting.since(), setting.description() ) );
 			}
 			result.add( new ConfigGroupEntry( group.configFile(), group.title(), group.description(), settings ) );
@@ -89,12 +89,12 @@ public class ConfigDocGenerator {
 		return result;
 	}
 
-	private static List<LintRuleEntry> collectLintRules() {
+	static List<LintRuleEntry> collectLintRules() {
 		List<LintRuleEntry> result = new ArrayList<>();
 		for ( Class<?> clazz : LINT_RULE_CLASSES ) {
-			LintRule annotation = clazz.getAnnotation( LintRule.class );
-			if ( annotation == null )
+			if ( !clazz.isAnnotationPresent( LintRule.class ) )
 				continue;
+			LintRule annotation = clazz.getAnnotation( LintRule.class );
 			result.add( new LintRuleEntry( annotation.id(), annotation.defaultSeverity(), annotation.since(), annotation.description() ) );
 		}
 		return result;
@@ -198,6 +198,6 @@ public class ConfigDocGenerator {
 	private record SettingEntry( String key, String type, String defaultValue, String since, String description ) {
 	}
 
-	private record LintRuleEntry( String id, String defaultSeverity, String since, String description ) {
+	record LintRuleEntry( String id, String defaultSeverity, String since, String description ) {
 	}
 }

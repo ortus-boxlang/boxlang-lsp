@@ -91,6 +91,15 @@ public class ConfigGroupAnnotationsTest {
 		assertEquals( "[]", annotation.defaultValue() );
 	}
 
+	@Test
+	void lintConfig_mappings_hasConfigSetting() throws NoSuchFieldException {
+		Field			field		= LintConfig.class.getDeclaredField( "mappings" );
+		ConfigSetting	annotation	= field.getAnnotation( ConfigSetting.class );
+		assertNotNull( annotation, "LintConfig.mappings must be annotated with @ConfigSetting" );
+		assertEquals( "object{}", annotation.type() );
+		assertEquals( "{}", annotation.defaultValue() );
+	}
+
 	// --- MappingConfig ---
 
 	@Test

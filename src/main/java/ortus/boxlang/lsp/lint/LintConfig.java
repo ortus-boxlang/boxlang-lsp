@@ -26,6 +26,9 @@ public class LintConfig {
 	@ConfigSetting( type = "string[]", description = "Workspace-relative glob patterns. Files matching any exclude pattern are never analyzed, even if they match an include pattern. Evaluated after include.", defaultValue = "[]" )
 	public List<String>					exclude		= Collections.emptyList();
 
+	@ConfigSetting( type = "object{}", description = "Map of virtual path prefix (e.g. \"/models\") to absolute or relative filesystem path used by the LSP during analysis and indexing. Paths are resolved relative to the workspace root.", defaultValue = "{}" )
+	public Map<String, String>			mappings	= Collections.emptyMap();
+
 	@ConfigSetting( type = "object", description = "Formatting configuration shared across IDEs for the workspace. The experimental formatter toggle lives under formatting.experimental.enabled.", defaultValue = "{}" )
 	public FormattingConfig				formatting	= new FormattingConfig();
 

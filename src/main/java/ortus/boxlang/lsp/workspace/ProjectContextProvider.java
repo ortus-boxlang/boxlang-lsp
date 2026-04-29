@@ -744,7 +744,22 @@ public class ProjectContextProvider {
 
 	private void handleLintConfigChange() {
 		LintConfigLoader.invalidate();
-		LintConfig lintConfig = LintConfigLoader.get();
+		LintConfig	lintConfig		= LintConfigLoader.get();
+		Path		workspaceRoot	= getWorkspaceRootPath();
+
+		if ( workspaceRoot != null && projectIndex != null ) {
+			MappingResolver.invalidate( workspaceRoot );
+			MappingConfig newConfig = MappingResolver.resolve( workspaceRoot, userSettings.getMappings() );
+			projectIndex.reinitialize( workspaceRoot, newConfig );
+			try ( java.util.stream.Stream<Path> stream = Files.walk( workspaceRoot ) ) {
+				stream
+				    .filter( LSPTools::canWalkFile )
+				    .forEach( p -> projectIndex.indexFile( p.toUri() ) );
+			} catch ( IOException e ) {
+				App.logger.warn( "Failed to re-index workspace after lint config change", e );
+			}
+			projectIndex.indexExternalDirs( newConfig );
+		}
 
 		if ( formattingCapabilityCoordinator != null ) {
 			formattingCapabilityCoordinator.refresh( lintConfig, userSettings );

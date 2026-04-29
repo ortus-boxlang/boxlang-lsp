@@ -84,11 +84,21 @@ public class UserSettings {
 
 	private Map<String, String> parseMappings( JsonObject settings ) {
 		try {
-			if ( !settings.has( "boxlang.mappings" ) ) {
+			JsonElement mappingsElement = null;
+
+			if ( settings.has( "boxlang.mappings" ) ) {
+				mappingsElement = settings.get( "boxlang.mappings" );
+			} else if ( settings.has( "boxlang" ) && settings.get( "boxlang" ).isJsonObject() ) {
+				JsonObject boxlangObject = settings.get( "boxlang" ).getAsJsonObject();
+				if ( boxlangObject.has( "mappings" ) ) {
+					mappingsElement = boxlangObject.get( "mappings" );
+				}
+			}
+
+			if ( mappingsElement == null ) {
 				return Map.of();
 			}
 
-			JsonElement mappingsElement = settings.get( "boxlang.mappings" );
 			if ( !mappingsElement.isJsonObject() ) {
 				this.client.logMessage( new MessageParams( MessageType.Error, "Unable to parse boxlang.mappings setting, defaulting to empty map" ) );
 				return Map.of();

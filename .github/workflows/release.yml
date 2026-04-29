@@ -102,8 +102,8 @@ jobs:
           gradle downloadBoxLang
           gradle build -x test --stacktrace --console=plain
 
-      - name: Generate Config Docs
-        run: gradle generateConfigDocs --console=plain
+      - name: Generate Config Docs And Lint Schema
+        run: gradle generateConfigDocs generateLintSchema --console=plain
 
       - name: Commit Changelog [unreleased] with latest version
         uses: EndBug/add-and-commit@v9.1.4

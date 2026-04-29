@@ -11,19 +11,18 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.Map;
 
 import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.services.LanguageClient;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.google.gson.JsonObject;
 
+import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.workspace.MappingConfig;
 import ortus.boxlang.lsp.workspace.MappingResolver;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
@@ -34,6 +33,7 @@ public class MappingResolverTest extends BaseTest {
 	@BeforeEach
 	void clearCache() {
 		// Ensure each test starts with a cold cache so tests are independent
+		LintConfigLoader.invalidate();
 		MappingResolver.invalidate( fixtureDir( "withMappings" ) );
 		MappingResolver.invalidate( fixtureDir( "withComments" ) );
 		MappingResolver.invalidate( fixtureDir( "withVariables" ) );
@@ -242,6 +242,66 @@ public class MappingResolverTest extends BaseTest {
 		Path expected = root.resolve( "relative/helpers" ).toAbsolutePath().normalize();
 		assertEquals( expected, helpersPath,
 		    "Relative VSCode path should resolve relative to workspace root" );
+	}
+
+	@Test
+	void resolveMergesMappingsFromBxlintJson() throws IOException {
+		Path root = Files.createTempDirectory( "bxlint-mappings" );
+		try {
+			Files.createDirectories( root.resolve( "lint-models" ) );
+			Files.writeString( root.resolve( ".bxlint.json" ), "{ \"mappings\": { \"/models\": \"./lint-models\" } }" );
+
+			ProjectContextProvider	pcp		= ProjectContextProvider.getInstance();
+			List<WorkspaceFolder>	saved	= pcp.getWorkspaceFolders();
+			try {
+				WorkspaceFolder folder = new WorkspaceFolder();
+				folder.setUri( root.toUri().toString() );
+				pcp.setWorkspaceFolders( List.of( folder ) );
+				LintConfigLoader.invalidate();
+				MappingResolver.invalidate( root );
+
+				MappingConfig config = MappingResolver.resolve( root );
+				assertEquals( root.resolve( "lint-models" ).toAbsolutePath().normalize(), config.getMappings().get( "/models" ),
+				    ".bxlint.json mappings should be merged into the workspace config" );
+			} finally {
+				pcp.setWorkspaceFolders( saved );
+			}
+		} finally {
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	@Test
+	void resolveUsesBxlintMappingsBetweenBoxlangJsonAndVscode() throws IOException {
+		Path root = Files.createTempDirectory( "bxlint-precedence" );
+		try {
+			Files.createDirectories( root.resolve( "json-models" ) );
+			Files.createDirectories( root.resolve( "lint-models" ) );
+			Files.writeString( root.resolve( "boxlang.json" ), "{ \"mappings\": { \"/models\": \"./json-models\" } }" );
+			Files.writeString( root.resolve( ".bxlint.json" ), "{ \"mappings\": { \"/models\": \"./lint-models\" } }" );
+
+			ProjectContextProvider	pcp		= ProjectContextProvider.getInstance();
+			List<WorkspaceFolder>	saved	= pcp.getWorkspaceFolders();
+			try {
+				WorkspaceFolder folder = new WorkspaceFolder();
+				folder.setUri( root.toUri().toString() );
+				pcp.setWorkspaceFolders( List.of( folder ) );
+				LintConfigLoader.invalidate();
+				MappingResolver.invalidate( root );
+
+				MappingConfig withoutVscode = MappingResolver.resolve( root );
+				assertEquals( root.resolve( "lint-models" ).toAbsolutePath().normalize(), withoutVscode.getMappings().get( "/models" ),
+				    ".bxlint.json should override boxlang.json for the same mapping key" );
+
+				MappingConfig withVscode = MappingResolver.resolve( root, Map.of( "/models", "./vscode-models" ) );
+				assertEquals( root.resolve( "vscode-models" ).toAbsolutePath().normalize(), withVscode.getMappings().get( "/models" ),
+				    "VS Code mappings should still have the highest precedence" );
+			} finally {
+				pcp.setWorkspaceFolders( saved );
+			}
+		} finally {
+			LintConfigLoader.invalidate();
+		}
 	}
 
 	// ─── Cycle 15 ─────────────────────────────────────────────────────────────

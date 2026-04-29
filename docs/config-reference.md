@@ -12,6 +12,7 @@ Configured in the IDE (VS Code: settings.json). These control LSP behavior and p
 | --- | ---- | ------- | ----- | ----------- |
 | `enableBackgroundParsing` | boolean | `false` | 1.0.0 | When true, triggers a workspace-wide parse and index of all BoxLang files on startup and when this setting changes. Improves symbol discovery at the cost of startup time. |
 | `processDiagnosticsInParallel` | boolean | `true` | 1.0.0 | When true, lint diagnostics for open documents are calculated in parallel threads. Disable if you experience threading issues. |
+| `experimentalFormatterEnabled` | boolean | `false` | 1.4.0 | When true, enables the experimental BoxLang formatter in the IDE when not overridden by shared repo configuration. |
 
 ## Lint Configuration
 
@@ -24,6 +25,8 @@ Place .bxlint.json at the workspace root to control static analysis. Changes are
 | `diagnostics` | object{} | `{}` |  | Map of rule ID to rule settings. Keys are rule IDs (see Lint Rules section). Each value is an object with optional 'enabled' (boolean) and 'severity' (string) fields. |
 | `include` | string[] | `[]` |  | Workspace-relative glob patterns. When non-empty, only matching files are analyzed. Supports * (segment), ** (recursive), ? (single char). Always use forward slashes. |
 | `exclude` | string[] | `[]` |  | Workspace-relative glob patterns. Files matching any exclude pattern are never analyzed, even if they match an include pattern. Evaluated after include. |
+| `mappings` | object{} | `{}` |  | Map of virtual path prefix (e.g. "/models") to absolute or relative filesystem path used by the LSP during analysis and indexing. Paths are resolved relative to the workspace root. |
+| `formatting` | object | `{}` |  | Formatting configuration shared across IDEs for the workspace. The experimental formatter toggle lives under formatting.experimental.enabled. |
 
 ## Project Mappings
 

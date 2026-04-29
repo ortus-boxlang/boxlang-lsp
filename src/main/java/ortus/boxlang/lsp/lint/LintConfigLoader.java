@@ -26,11 +26,6 @@ public class LintConfigLoader {
 	private static final BoxLangLogger					LOGGER			= BoxRuntime.getInstance().getLoggingService().getLogger( "lsp.lint" );
 
 	public static LintConfig get() {
-		long now = System.currentTimeMillis();
-		if ( now - lastLoad < TTL_MS ) {
-			LOGGER.trace( "Lint config cache hit (TTL window)." );
-			return CACHE.get();
-		}
 		Path	root	= null;
 		var		folders	= ProjectContextProvider.getInstance().getWorkspaceFolders();
 		if ( folders != null && !folders.isEmpty() ) {
@@ -41,6 +36,16 @@ public class LintConfigLoader {
 				// ignore
 			}
 		}
+		return get( root );
+	}
+
+	public static LintConfig get( Path workspaceRoot ) {
+		long now = System.currentTimeMillis();
+		if ( now - lastLoad < TTL_MS ) {
+			LOGGER.trace( "Lint config cache hit (TTL window)." );
+			return CACHE.get();
+		}
+		Path root = workspaceRoot == null ? null : workspaceRoot.toAbsolutePath().normalize();
 		if ( root == null ) {
 			LOGGER.debug( "No workspace root detected; using existing lint config cache." );
 			lastLoad = now;

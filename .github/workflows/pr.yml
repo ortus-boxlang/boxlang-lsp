@@ -59,10 +59,10 @@ jobs:
           distribution: "temurin"
           java-version: 21
 
-      - name: Generate Config Docs
+      - name: Generate Config Docs And Lint Schema
         run: |
           chmod +x ./gradlew
-          ./gradlew generateConfigDocs
+          ./gradlew generateConfigDocs generateLintSchema
 
       - name: Fail if docs differ from checked-in version
         run: |

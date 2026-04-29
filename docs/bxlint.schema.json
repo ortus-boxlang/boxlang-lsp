@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BoxLang Lint Configuration",
+  "description": "Schema for .bxlint.json, generated from the BoxLang LSP lint configuration model.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "diagnostics": {
+      "type": "object",
+      "propertyNames": {
+        "enum": [
+          "duplicateMethod",
+          "duplicateProperty",
+          "emptyCatchBlock",
+          "invalidExtends",
+          "invalidImplements",
+          "missingReturnStatement",
+          "shadowedVariable",
+          "unreachableCode",
+          "unscopedVariable",
+          "unusedImport",
+          "unusedPrivateMethod",
+          "unusedVariable"
+        ]
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/ruleSettings"
+      },
+      "description": "Map of rule ID to rule settings. Keys are rule IDs (see Lint Rules section). Each value is an object with optional \u0027enabled\u0027 (boolean) and \u0027severity\u0027 (string) fields.",
+      "default": {}
+    },
+    "include": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Workspace-relative glob patterns. When non-empty, only matching files are analyzed. Supports * (segment), ** (recursive), ? (single char). Always use forward slashes.",
+      "default": []
+    },
+    "exclude": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Workspace-relative glob patterns. Files matching any exclude pattern are never analyzed, even if they match an include pattern. Evaluated after include.",
+      "default": []
+    },
+    "mappings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Map of virtual path prefix (e.g. \"/models\") to absolute or relative filesystem path used by the LSP during analysis and indexing. Paths are resolved relative to the workspace root.",
+      "default": {}
+    },
+    "formatting": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "experimental": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enables the experimental formatter for the workspace when present."
+            }
+          }
+        }
+      },
+      "description": "Formatting configuration shared across IDEs for the workspace. The experimental formatter toggle lives under formatting.experimental.enabled.",
+      "default": {}
+    }
+  },
+  "$defs": {
+    "ruleSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "params": {
+          "additionalProperties": true,
+          "description": "Rule-specific parameters. Supported keys depend on the rule.",
+          "type": "object"
+        },
+        "enabled": {
+          "default": true,
+          "description": "Set to false to disable the rule entirely.",
+          "type": "boolean"
+        },
+        "severity": {
+          "enum": [
+            "error",
+            "warning",
+            "information",
+            "info",
+            "hint"
+          ],
+          "description": "Overrides the diagnostic severity for the rule.",
+          "type": "string"
+        }
+      }
+    }
+  }
+}
