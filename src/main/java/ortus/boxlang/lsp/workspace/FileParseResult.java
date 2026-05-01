@@ -30,7 +30,6 @@ import ortus.boxlang.lsp.App;
 import ortus.boxlang.lsp.DocumentSymbolBoxNodeVisitor;
 import ortus.boxlang.lsp.SourceCodeVisitor;
 import ortus.boxlang.lsp.SourceCodeVisitorService;
-import ortus.boxlang.lsp.workspace.FileParseResult.ProfilingSnapshot;
 import ortus.boxlang.lsp.workspace.types.ParsedProperty;
 import ortus.boxlang.lsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
 import ortus.boxlang.lsp.workspace.visitors.PropertyVisitor;
