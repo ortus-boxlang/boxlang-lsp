@@ -8,11 +8,10 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-
-import java.util.Optional;
 
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
@@ -254,7 +253,7 @@ public class MappingIntegrationTest extends BaseTest {
 	private ProjectIndexVisitor parseAndVisit( URI fileUri, Path workspaceRoot, ortus.boxlang.lsp.workspace.MappingConfig mappingConfig )
 	    throws Exception {
 		Parser			parser	= new Parser();
-		ParsingResult	result	= parser.parse( Path.of( fileUri ).toFile() );
+		ParsingResult	result	= parser.parse( Path.of( fileUri ).toFile(), false );
 		assertNotNull( result, "Parsing should succeed" );
 		assertNotNull( result.getRoot(), "AST root should not be null" );
 

@@ -53,7 +53,7 @@ public class ApplicationBxMappingExtractor {
 
 		try {
 			Parser			parser			= new Parser();
-			ParsingResult	parsingResult	= parser.parse( filePath.toFile() );
+			ParsingResult	parsingResult	= parser.parse( filePath.toFile(), false );
 
 			if ( parsingResult == null || parsingResult.getRoot() == null ) {
 				return result;

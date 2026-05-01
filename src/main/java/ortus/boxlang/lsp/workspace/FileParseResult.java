@@ -30,6 +30,7 @@ import ortus.boxlang.lsp.App;
 import ortus.boxlang.lsp.DocumentSymbolBoxNodeVisitor;
 import ortus.boxlang.lsp.SourceCodeVisitor;
 import ortus.boxlang.lsp.SourceCodeVisitorService;
+import ortus.boxlang.lsp.workspace.FileParseResult.ProfilingSnapshot;
 import ortus.boxlang.lsp.workspace.types.ParsedProperty;
 import ortus.boxlang.lsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
 import ortus.boxlang.lsp.workspace.visitors.PropertyVisitor;
@@ -188,10 +189,11 @@ public class FileParseResult {
 				return parser.parse(
 				    this.source,
 				    Parser.detectFile( new File( this.uri ) ),
-				    Parser.getFileExtension( this.uri.toString() ).orElseGet( () -> "bxs" ).matches( "cfc|bx" ) );
+				    Parser.getFileExtension( this.uri.toString() ).orElseGet( () -> "bxs" ).matches( "cfc|bx" ),
+				    false );
 			}
 
-			return parser.parse( Paths.get( this.uri ).toFile() );
+			return parser.parse( Paths.get( this.uri ).toFile(), false );
 		} catch ( Exception e ) {
 			App.logger.error( "Unable to parse " + this.uri, e );
 			return null;

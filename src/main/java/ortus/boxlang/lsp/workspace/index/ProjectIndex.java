@@ -232,7 +232,7 @@ public class ProjectIndex {
 
 			// Parse the file
 			Parser			parser	= new Parser();
-			ParsingResult	result	= parser.parse( filePath.toFile() );
+			ParsingResult	result	= parser.parse( filePath.toFile(), false );
 
 			if ( result == null || result.getRoot() == null ) {
 				return;

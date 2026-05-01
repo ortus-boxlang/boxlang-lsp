@@ -305,7 +305,7 @@ class ProjectIndexVisitorTest extends BaseTest {
 
 	private ProjectIndexVisitor parseAndVisit( URI fileUri, Path workspaceRoot ) throws Exception {
 		Parser			parser	= new Parser();
-		ParsingResult	result	= parser.parse( Path.of( fileUri ).toFile() );
+		ParsingResult	result	= parser.parse( Path.of( fileUri ).toFile(), false );
 
 		assertNotNull( result, "Parsing should succeed" );
 		assertNotNull( result.getRoot(), "AST root should not be null" );
