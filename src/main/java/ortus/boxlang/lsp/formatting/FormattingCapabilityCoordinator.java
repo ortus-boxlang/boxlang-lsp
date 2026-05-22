@@ -54,6 +54,10 @@ public class FormattingCapabilityCoordinator {
 		return !supportsDynamicRegistration && availabilityResolver.isRuntimeSupported();
 	}
 
+	public boolean isRuntimeSupported() {
+		return availabilityResolver.isRuntimeSupported();
+	}
+
 	public void refresh( LintConfig lintConfig, UserSettings userSettings ) {
 		boolean							runtimeSupported		= availabilityResolver.isRuntimeSupported();
 		boolean							formattingEnabled		= availabilityResolver.isFormattingEnabled( lintConfig, userSettings );

@@ -1,5 +1,7 @@
 package ortus.boxlang.lsp.formatting;
 
+import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 
@@ -12,14 +14,20 @@ public class PrettyPrintRuntimeAdapter {
 
 	private final ClassLoader	classLoader;
 	private final String		className;
+	private final String		configClassName;
 
 	public PrettyPrintRuntimeAdapter() {
-		this( PrettyPrintRuntimeAdapter.class.getClassLoader(), PRETTY_PRINT_CLASS_NAME );
+		this( PrettyPrintRuntimeAdapter.class.getClassLoader(), PRETTY_PRINT_CLASS_NAME, CONFIG_CLASS_NAME );
 	}
 
 	PrettyPrintRuntimeAdapter( ClassLoader classLoader, String className ) {
-		this.classLoader	= classLoader;
-		this.className		= className;
+		this( classLoader, className, CONFIG_CLASS_NAME );
+	}
+
+	PrettyPrintRuntimeAdapter( ClassLoader classLoader, String className, String configClassName ) {
+		this.classLoader		= classLoader;
+		this.className			= className;
+		this.configClassName	= configClassName;
 	}
 
 	public boolean isPrettyPrintAvailable() {
@@ -31,10 +39,21 @@ public class PrettyPrintRuntimeAdapter {
 		}
 	}
 
+	public String getDefaultConfigJson() throws PrettyPrintException {
+		try {
+			Class<?>	prettyPrintClass	= classLoader.loadClass( className );
+			Field		defaultConfigField	= prettyPrintClass.getDeclaredField( "DEFAULT_CONFIG" );
+			defaultConfigField.setAccessible( true );
+			return ( String ) defaultConfigField.get( null );
+		} catch ( ClassNotFoundException | NoSuchFieldException | IllegalAccessException e ) {
+			throw new PrettyPrintException( "PrettyPrint runtime support is unavailable", e, false );
+		}
+	}
+
 	public String prettyPrint( BoxNode node, Path configPath, Integer tabSize, Boolean insertSpaces ) throws PrettyPrintException {
 		try {
 			Class<?>	prettyPrintClass	= classLoader.loadClass( className );
-			Class<?>	configClass			= classLoader.loadClass( CONFIG_CLASS_NAME );
+			Class<?>	configClass			= classLoader.loadClass( configClassName );
 			Object		config				= loadConfig( configClass, configPath, tabSize, insertSpaces );
 
 			return ( String ) prettyPrintClass.getMethod( "prettyPrint", BoxNode.class, configClass )
@@ -46,6 +65,20 @@ public class PrettyPrintRuntimeAdapter {
 		} catch ( InvocationTargetException e ) {
 			Throwable cause = e.getCause() == null ? e : e.getCause();
 			throw new PrettyPrintException( "PrettyPrint invocation failed", cause, false );
+		}
+	}
+
+	public String convertCFFormatConfigToBxFormatJson( Path configPath ) throws PrettyPrintException {
+		try {
+			Class<?>	configClass	= classLoader.loadClass( configClassName );
+			Object		config		= configClass.getMethod( "loadConfigAutoDetect", String.class ).invoke( null, configPath.toString() );
+			return ( String ) config.getClass().getMethod( "toJSON" ).invoke( config );
+		} catch ( InvocationTargetException e ) {
+			Throwable	cause		= e.getCause() == null ? e : e.getCause();
+			boolean		configError	= cause instanceof IOException;
+			throw new PrettyPrintException( "Failed to convert formatter configuration", cause, configError );
+		} catch ( ReflectiveOperationException e ) {
+			throw new PrettyPrintException( "PrettyPrint runtime support is unavailable", e, false );
 		}
 	}
 

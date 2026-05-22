@@ -1,5 +1,6 @@
 package ortus.boxlang.lsp;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -7,8 +8,10 @@ import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.CodeActionOptions;
 import org.eclipse.lsp4j.CodeLensOptions;
 import org.eclipse.lsp4j.CompletionOptions;
+import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
+import org.eclipse.lsp4j.InitializedParams;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions;
@@ -85,7 +88,6 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			capabilities.setTypeDefinitionProvider( true );
 			capabilities.setImplementationProvider( true );
 			capabilities.setHoverProvider( true );
-			capabilities.setDocumentFormattingProvider( formattingCapabilityCoordinator.shouldAdvertiseFormattingStatically() );
 			CompletionOptions completionOptions = new CompletionOptions();
 			capabilities.setReferencesProvider( true );
 
@@ -106,6 +108,12 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			    CodeActionKind.SourceFixAll,
 			    CodeActionKind.RefactorRewrite
 			) ) );
+			List<String> executeCommands = new ArrayList<>( List.of( BoxLangWorkspaceService.CREATE_BXLINT_CONFIG_COMMAND ) );
+			if ( formattingCapabilityCoordinator.isRuntimeSupported() ) {
+				executeCommands.add( BoxLangWorkspaceService.CREATE_FORMATTER_CONFIG_COMMAND );
+				executeCommands.add( BoxLangWorkspaceService.CONVERT_CFFORMAT_CONFIG_COMMAND );
+			}
+			capabilities.setExecuteCommandProvider( new ExecuteCommandOptions( executeCommands ) );
 			capabilities.setWorkspaceSymbolProvider( true );
 			SemanticTokensWithRegistrationOptions semanticTokensOptions = new SemanticTokensWithRegistrationOptions();
 			semanticTokensOptions.setLegend( SemanticTokensContract.LEGEND );
@@ -123,15 +131,28 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			    && params.getCapabilities().getWorkspace().getDidChangeWatchedFiles() != null
 			    && params.getCapabilities().getWorkspace().getDidChangeWatchedFiles().getDynamicRegistration() == true ) {
 				supportsFileWatch = true;
+			}
+
+			capabilities.setDocumentFormattingProvider( formattingCapabilityCoordinator.shouldAdvertiseFormattingStatically() );
+
+			return new InitializeResult( capabilities );
+		} );
+	}
+
+	@Override
+	public void initialized( InitializedParams params ) {
+		App.logger.info( "Received initialized notification" );
+		LintConfigLoader.get();
+		workspaceService.loadInitialConfiguration().thenRun( () -> {
+			App.logger.info( "Continuing startup after initial workspace configuration load" );
+			formattingCapabilityCoordinator.refresh( LintConfigLoader.get(), projectContextProvider.getUserSettings() );
+
+			if ( supportsFileWatch ) {
 				projectContextProvider.watchLSPConfig();
 			}
 
-			// eagerly gather config
-			LintConfigLoader.get();
-
+			projectContextProvider.recomputeAndPublishDiagnosticsForOpenDocuments();
 			projectContextProvider.parseWorkspace();
-
-			return new InitializeResult( capabilities );
 		} );
 	}
 

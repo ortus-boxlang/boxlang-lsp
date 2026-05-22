@@ -48,12 +48,12 @@ public class LintConfigLoader {
 		Path root = workspaceRoot == null ? null : workspaceRoot.toAbsolutePath().normalize();
 		if ( root == null ) {
 			LOGGER.debug( "No workspace root detected; using existing lint config cache." );
-			lastLoad = now;
-			return CACHE.get();
+			return new LintConfig();
 		}
 		Path cfgPath = root.resolve( CONFIG_FILENAME );
 		if ( !Files.exists( cfgPath ) ) {
-			LOGGER.trace( ".bxlint.json not found at " + cfgPath + "; using defaults." );
+			LOGGER.trace( ".bxlint.json not found at " + cfgPath + "; resetting to defaults." );
+			CACHE.set( new LintConfig() );
 			lastLoad = now;
 			return CACHE.get();
 		}
@@ -61,8 +61,6 @@ public class LintConfigLoader {
 			LOGGER.debug( "Loading lint config from " + cfgPath );
 			byte[]		bytes	= Files.readAllBytes( cfgPath );
 			LintConfig	lc		= MAPPER.readValue( bytes, LintConfig.class );
-			if ( lc == null )
-				lc = new LintConfig();
 			// normalize include/exclude entries (trim + forward slashes)
 			if ( lc.include != null ) {
 				lc.include = lc.include.stream()

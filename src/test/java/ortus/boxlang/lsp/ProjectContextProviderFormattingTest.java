@@ -90,6 +90,173 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 	}
 
 	@Test
+	void handleConfigFileChangeReparsesClosedFilesWhenLintRulesChange() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		UserSettings			savedSettings	= provider.getUserSettings();
+
+		Path					workspaceRoot	= Files.createDirectories( tempDir.resolve( "workspace-lint-refresh" ) );
+		Path					documentPath	= workspaceRoot.resolve( "UnusedVariableExample.bx" );
+		Path					lintConfig		= workspaceRoot.resolve( ".bxlint.json" );
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+
+		Files.writeString( documentPath, """
+		                                 class {
+		                                 	function demo() {
+		                                 		var unused = 1;
+		                                 	}
+		                                 }
+		                                 """ );
+		Files.writeString( lintConfig, "{}" );
+		folder.setUri( workspaceRoot.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			provider.setUserSettings( new UserSettings() );
+			LintConfigLoader.invalidate();
+
+			assertThat( provider.getFileDiagnostics( documentPath.toUri() ).stream()
+			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "unusedVariable".equals( diagnostic.getCode().getLeft() ) ) ).isTrue();
+
+			Files.writeString( lintConfig, """
+			                               {
+			                                 "diagnostics": {
+			                                   "unusedVariable": {
+			                                     "enabled": false
+			                                   }
+			                                 }
+			                               }
+			                               """ );
+
+			provider.handleConfigFileChange( lintConfig.toUri() );
+
+			assertThat( provider.getFileDiagnostics( documentPath.toUri() ).stream()
+			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "unusedVariable".equals( diagnostic.getCode().getLeft() ) ) ).isFalse();
+		} finally {
+			provider.remove( documentPath.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+			provider.setUserSettings( savedSettings );
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	@Test
+	void handleConfigFileChangeRebuildsClosedFileWorkspaceDiagnosticsWhenRuleBecomesEnabledWithBackgroundParsingDisabled() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		UserSettings			savedSettings	= provider.getUserSettings();
+
+		Path					workspaceRoot	= Files.createDirectories( tempDir.resolve( "workspace-lint-invalid-extends" ) );
+		Path					documentPath	= workspaceRoot.resolve( "InvalidExtendsExample.bx" );
+		Path					lintConfig		= workspaceRoot.resolve( ".bxlint.json" );
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+
+		Files.writeString( documentPath, """
+		                                 class extends="DoesNotExist" {
+		                                 }
+		                                 """ );
+		Files.writeString( lintConfig, """
+		                               {
+		                                 "diagnostics": {
+		                                   "invalidExtends": {
+		                                     "enabled": false
+		                                   }
+		                                 }
+		                               }
+		                               """ );
+		folder.setUri( workspaceRoot.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			provider.setUserSettings( new UserSettings() );
+			LintConfigLoader.invalidate();
+
+			assertThat( provider.getFileDiagnostics( documentPath.toUri() ).stream()
+			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).isFalse();
+
+			Files.writeString( lintConfig, """
+			                               {
+			                                 "diagnostics": {
+			                                   "invalidExtends": {
+			                                     "enabled": true
+			                                   }
+			                                 }
+			                               }
+			                               """ );
+
+			provider.handleConfigFileChange( lintConfig.toUri() );
+
+			assertThat( awaitCachedDiagnostic( provider, documentPath.toUri(), "invalidExtends" ) ).isTrue();
+		} finally {
+			provider.remove( documentPath.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+			provider.setUserSettings( savedSettings );
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	@Test
+	void handleConfigFileChangePublishesClosedFileDiagnosticsWhenRuleBecomesEnabled() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		UserSettings			savedSettings	= provider.getUserSettings();
+		RecordingLanguageClient	client			= new RecordingLanguageClient();
+
+		Path					workspaceRoot	= Files.createDirectories( tempDir.resolve( "workspace-lint-invalid-extends-publish" ) );
+		Path					documentPath	= workspaceRoot.resolve( "InvalidExtendsPublishExample.bx" );
+		Path					lintConfig		= workspaceRoot.resolve( ".bxlint.json" );
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+
+		Files.writeString( documentPath, """
+		                                 class extends="DoesNotExist" {
+		                                 }
+		                                 """ );
+		Files.writeString( lintConfig, """
+		                               {
+		                                 "diagnostics": {
+		                                   "invalidExtends": {
+		                                     "enabled": false
+		                                   }
+		                                 }
+		                               }
+		                               """ );
+		folder.setUri( workspaceRoot.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			provider.setUserSettings( new UserSettings() );
+			provider.setLanguageClient( client );
+			LintConfigLoader.invalidate();
+
+			assertThat( provider.getFileDiagnostics( documentPath.toUri() ).stream()
+			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).isFalse();
+			client.publishedDiagnostics.clear();
+
+			Files.writeString( lintConfig, """
+			                               {
+			                                 "diagnostics": {
+			                                   "invalidExtends": {
+			                                     "enabled": true
+			                                   }
+			                                 }
+			                               }
+			                               """ );
+
+			provider.handleConfigFileChange( lintConfig.toUri() );
+
+			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
+			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).getDiagnostics() )
+			        .isNotEmpty();
+		} finally {
+			provider.remove( documentPath.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+			provider.setUserSettings( savedSettings );
+			provider.setLanguageClient( null );
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	@Test
 	void watchLspConfigRegistersFormatterConfigWatchers() throws Exception {
 		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
 		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
@@ -180,6 +347,168 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			provider.setWorkspaceFolders( savedFolders );
 			provider.setUserSettings( savedSettings );
 			provider.setPrettyPrintRuntimeAdapter( savedRuntimeAdapter );
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	@Test
+	void handleConfigFileChangeClearsPublishedDiagnosticsWhenFileBecomesExcluded() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		UserSettings			savedSettings	= provider.getUserSettings();
+		RecordingLanguageClient	client			= new RecordingLanguageClient();
+
+		Path					workspaceRoot	= Files.createDirectories( tempDir.resolve( "workspace-lint-exclusion" ) );
+		Path					documentPath	= workspaceRoot.resolve( "ExcludedAfterConfigChange.bx" );
+		Path					lintConfig		= workspaceRoot.resolve( ".bxlint.json" );
+		String					source			= """
+		                                          class {
+		                                          	function demo() {
+		                                          		var unused = 1;
+		                                          	}
+		                                          }
+		                                          """;
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+
+		Files.writeString( documentPath, source );
+		Files.writeString( lintConfig, "{}" );
+		folder.setUri( workspaceRoot.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			provider.setUserSettings( new UserSettings() );
+			provider.setLanguageClient( client );
+			LintConfigLoader.invalidate();
+
+			provider.trackDocumentOpen( documentPath.toUri(), source );
+			PublishDiagnosticsParams initialPublish = awaitPublishedDiagnostics( client, documentPath.toUri().toString(),
+			    diagnostics -> !diagnostics.isEmpty() );
+
+			assertThat( initialPublish.getDiagnostics() ).isNotEmpty();
+
+			Files.writeString( lintConfig, """
+			                               {
+			                                 "exclude": [
+			                                   "ExcludedAfterConfigChange.bx"
+			                                 ]
+			                               }
+			                               """ );
+
+			provider.handleConfigFileChange( lintConfig.toUri() );
+
+			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), List::isEmpty ).getDiagnostics() ).isEmpty();
+		} finally {
+			provider.trackDocumentClose( documentPath.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+			provider.setUserSettings( savedSettings );
+			provider.setLanguageClient( null );
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	@Test
+	void handleConfigFileChangeClearsPreviouslyPublishedDiagnosticsForClosedFilesThatBecomeExcluded() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		UserSettings			savedSettings	= provider.getUserSettings();
+		RecordingLanguageClient	client			= new RecordingLanguageClient();
+
+		Path					workspaceRoot	= Files.createDirectories( tempDir.resolve( "workspace-lint-closed-exclusion" ) );
+		Path					documentPath	= workspaceRoot.resolve( "ClosedAfterConfigChange.bx" );
+		Path					lintConfig		= workspaceRoot.resolve( ".bxlint.json" );
+		String					source			= """
+		                                          class {
+		                                          	function demo() {
+		                                          		var unused = 1;
+		                                          	}
+		                                          }
+		                                          """;
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+
+		Files.writeString( documentPath, source );
+		Files.writeString( lintConfig, "{}" );
+		folder.setUri( workspaceRoot.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			provider.setUserSettings( new UserSettings() );
+			provider.setLanguageClient( client );
+			LintConfigLoader.invalidate();
+
+			provider.trackDocumentOpen( documentPath.toUri(), source );
+			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> !diagnostics.isEmpty() ).getDiagnostics() )
+			    .isNotEmpty();
+
+			provider.trackDocumentClose( documentPath.toUri() );
+
+			Files.writeString( lintConfig, """
+			                               {
+			                                 "exclude": [
+			                                   "ClosedAfterConfigChange.bx"
+			                                 ]
+			                               }
+			                               """ );
+
+			provider.handleConfigFileChange( lintConfig.toUri() );
+
+			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), List::isEmpty ).getDiagnostics() ).isEmpty();
+		} finally {
+			provider.trackDocumentClose( documentPath.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+			provider.setUserSettings( savedSettings );
+			provider.setLanguageClient( null );
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	@Test
+	void handleConfigFileChangeRestoresDefaultDiagnosticsWhenLintConfigIsDeleted() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		UserSettings			savedSettings	= provider.getUserSettings();
+		RecordingLanguageClient	client			= new RecordingLanguageClient();
+
+		Path					workspaceRoot	= Files.createDirectories( tempDir.resolve( "workspace-lint-delete" ) );
+		Path					documentPath	= workspaceRoot.resolve( "RestoredAfterConfigDelete.bx" );
+		Path					lintConfig		= workspaceRoot.resolve( ".bxlint.json" );
+		String					source			= """
+		                                          class {
+		                                          	function demo() {
+		                                          		var unused = 1;
+		                                          	}
+		                                          }
+		                                          """;
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+
+		Files.writeString( documentPath, source );
+		Files.writeString( lintConfig, """
+		                               {
+		                                 "exclude": [
+		                                   "RestoredAfterConfigDelete.bx"
+		                                 ]
+		                               }
+		                               """ );
+		folder.setUri( workspaceRoot.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			provider.setUserSettings( new UserSettings() );
+			provider.setLanguageClient( client );
+			LintConfigLoader.invalidate();
+
+			provider.trackDocumentOpen( documentPath.toUri(), source );
+			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), List::isEmpty ).getDiagnostics() ).isEmpty();
+
+			Files.delete( lintConfig );
+			provider.handleConfigFileChange( lintConfig.toUri() );
+
+			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> !diagnostics.isEmpty() ).getDiagnostics() )
+			    .isNotEmpty();
+		} finally {
+			provider.trackDocumentClose( documentPath.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+			provider.setUserSettings( savedSettings );
+			provider.setLanguageClient( null );
 			LintConfigLoader.invalidate();
 		}
 	}
@@ -406,12 +735,18 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 
 	private static class RecordingLanguageClient extends NoOpLanguageClient {
 
-		private final java.util.ArrayList<RegistrationParams> registrationRequests = new java.util.ArrayList<>();
+		private final java.util.ArrayList<RegistrationParams>									registrationRequests	= new java.util.ArrayList<>();
+		private final java.util.concurrent.ConcurrentHashMap<String, PublishDiagnosticsParams>	publishedDiagnostics	= new java.util.concurrent.ConcurrentHashMap<>();
 
 		@Override
 		public CompletableFuture<Void> registerCapability( RegistrationParams params ) {
 			registrationRequests.add( params );
 			return CompletableFuture.completedFuture( null );
+		}
+
+		@Override
+		public void publishDiagnostics( PublishDiagnosticsParams diagnostics ) {
+			publishedDiagnostics.put( diagnostics.getUri(), diagnostics );
 		}
 	}
 
@@ -419,5 +754,33 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 		JsonObject settings = new JsonObject();
 		settings.addProperty( "experimentalFormatterEnabled", experimentalFormatterEnabled );
 		return UserSettings.fromChangeConfigurationParams( new NoOpLanguageClient(), new DidChangeConfigurationParams( settings ) );
+	}
+
+	private static PublishDiagnosticsParams awaitPublishedDiagnostics(
+	    RecordingLanguageClient client,
+	    String uri,
+	    java.util.function.Predicate<List<org.eclipse.lsp4j.Diagnostic>> matcher ) throws InterruptedException {
+		for ( int attempt = 0; attempt < 20; attempt++ ) {
+			PublishDiagnosticsParams params = client.publishedDiagnostics.get( uri );
+			if ( params != null && matcher.test( params.getDiagnostics() ) ) {
+				return params;
+			}
+			Thread.sleep( 25 );
+		}
+		throw new AssertionError( "Timed out waiting for diagnostics publish for " + uri );
+	}
+
+	private static boolean awaitCachedDiagnostic( ProjectContextProvider provider, java.net.URI uri, String diagnosticCode ) throws InterruptedException {
+		for ( int attempt = 0; attempt < 20; attempt++ ) {
+			boolean found = provider.getCachedDiagnosticReports().stream()
+			    .filter( report -> uri.equals( report.getFileURI() ) )
+			    .flatMap( report -> report.getDiagnostics().stream() )
+			    .anyMatch( diagnostic -> diagnostic.getCode() != null && diagnosticCode.equals( diagnostic.getCode().getLeft() ) );
+			if ( found ) {
+				return true;
+			}
+			Thread.sleep( 25 );
+		}
+		return false;
 	}
 }

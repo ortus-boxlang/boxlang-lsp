@@ -179,8 +179,30 @@ public class ProjectContextProvider {
 		profile.analyzeCheckNanos.add( System.nanoTime() - startNanos );
 		if ( !shouldAnalyze ) {
 			profile.skippedByLint.increment();
+			if ( isDiagnosticPass( profile ) ) {
+				App.logger.info( "Skipping parse for {} because it is excluded by lint config", candidate.path() );
+			}
 		}
 		return shouldAnalyze;
+	}
+
+	private boolean isDiagnosticPass( WorkspaceScanPassProfile profile ) {
+		WorkspaceScanProfile activeProfile = this.activeWorkspaceScanProfile;
+		return activeProfile != null && profile == activeProfile.diagnosticPass;
+	}
+
+	private void logDiagnosticParseDecision( URI docUri ) {
+		if ( this.openDocuments.containsKey( docUri ) ) {
+			App.logger.info( "Using open document parse cache for {}", docUri );
+			return;
+		}
+
+		if ( this.parsedFiles.containsKey( docUri ) ) {
+			App.logger.info( "Using cached filesystem parse for {}", docUri );
+			return;
+		}
+
+		App.logger.info( "Parsing {} from filesystem", docUri );
 	}
 
 	private int getWorkspaceScanParallelism() {
@@ -472,6 +494,10 @@ public class ProjectContextProvider {
 	}
 
 	public void parseWorkspace() {
+		parseWorkspace( false );
+	}
+
+	private void parseWorkspace( boolean force ) {
 		CompletableFuture.runAsync( () -> {
 			System.out.println( "Generating workspace diagnostic report" );
 			ProjectContextProvider					provider	= ProjectContextProvider.getInstance();
@@ -481,10 +507,12 @@ public class ProjectContextProvider {
 
 			if ( provider.getWorkspaceFolders() == null
 			    || provider.getWorkspaceFolders().isEmpty() ) {
+				App.logger.info( "Skipping workspace parse because no workspace folders are set" );
 				return;
 			}
 
-			if ( !this.userSettings.isEnableBackgroundParsing() ) {
+			if ( !force && !this.userSettings.isEnableBackgroundParsing() ) {
+				App.logger.info( "Skipping workspace parse because background parsing is disabled" );
 				return;
 			}
 
@@ -544,7 +572,8 @@ public class ProjectContextProvider {
 						processWorkspaceScanCandidates( diagnosticCandidates, "LSP_diag", candidate -> {
 							try {
 								profile.diagnosticPass.analyzedFiles.increment();
-								URI					fileUri				= candidate.uri();
+								URI fileUri = candidate.uri();
+								logDiagnosticParseDecision( fileUri );
 								long				getDiagnosticsStart	= System.nanoTime();
 								List<Diagnostic>	diagnostics			= provider.getFileDiagnostics( fileUri );
 								profile.diagnosticPass.getDiagnosticsNanos.add( System.nanoTime() - getDiagnosticsStart );
@@ -552,6 +581,7 @@ public class ProjectContextProvider {
 								profile.diagnosticPass.diagnosticsProduced.add( diagnostics.size() );
 
 								cacheDiagnostics( fileUri, diagnostics );
+								publishDiagnostics( fileUri );
 							} catch ( Exception e ) {
 								profile.diagnosticPass.errors.increment();
 								e.printStackTrace();
@@ -584,7 +614,6 @@ public class ProjectContextProvider {
 				workspaceParseRunning.set( false );
 			}
 		} );
-
 	}
 
 	public Map<String, Path> getMappings() {
@@ -766,6 +795,7 @@ public class ProjectContextProvider {
 		}
 
 		recomputeAndPublishDiagnosticsForOpenDocuments();
+		invalidateClosedDocumentDiagnostics();
 
 		if ( workspaceFolders == null || workspaceFolders.isEmpty() ) {
 			return;
@@ -773,7 +803,7 @@ public class ProjectContextProvider {
 
 		try {
 			clearExcludedDiagnostics();
-			parseWorkspace();
+			parseWorkspace( true );
 		} catch ( Exception e ) {
 			App.logger.warn( "Failed to re-parse workspace after lint config change", e );
 		}
@@ -783,6 +813,16 @@ public class ProjectContextProvider {
 		if ( formatterConfigResolver != null ) {
 			formatterConfigResolver.invalidate( changedFile );
 		}
+	}
+
+	private void invalidateClosedDocumentDiagnostics() {
+		this.parsedFiles.keySet().stream()
+		    .filter( uri -> !this.openDocuments.containsKey( uri ) )
+		    .toList()
+		    .forEach( uri -> {
+			    this.parsedFiles.remove( uri );
+			    this.cachedDiagnosticReports.remove( uri );
+		    } );
 	}
 
 	private Path getWorkspaceRootPath() {
@@ -968,6 +1008,7 @@ public class ProjectContextProvider {
 	 * This performs the expensive parsing and diagnostic operations.
 	 */
 	private void processDocumentUpdate( URI docUri, String content ) {
+		App.logger.info( "Parsing updated document {}", docUri );
 		FileParseResult fpr = FileParseResult.fromSourceString( docUri, content );
 		this.parsedFiles.remove( docUri );
 		this.openDocuments.put( docUri, fpr );
@@ -990,6 +1031,7 @@ public class ProjectContextProvider {
 			}
 		}
 
+		App.logger.info( "Parsing saved document {}", docUri );
 		FileParseResult fpr = FileParseResult.fromSourceString( docUri, fileContent );
 		this.parsedFiles.remove( docUri );
 		this.openDocuments.put( docUri, fpr );
@@ -1015,6 +1057,7 @@ public class ProjectContextProvider {
 		ensureWorkspaceIndexSeeded();
 
 		// Parse immediately on open (no debouncing)
+		App.logger.info( "Parsing opened document {}", docUri );
 		FileParseResult fpr = FileParseResult.fromSourceString( docUri, text );
 		this.parsedFiles.remove( docUri );
 		this.openDocuments.put( docUri, fpr );
@@ -4484,22 +4527,17 @@ public class ProjectContextProvider {
 	}
 
 	private void publishDiagnostics( URI docURI ) {
-		if ( this.client == null ) {
-			return;
-		}
-
 		publishDebouncer.scheduleProcessing( docURI, () -> {
-			if ( this.client == null ) {
+			LanguageClient client = this.client;
+			if ( client == null ) {
 				return;
 			}
 
 			PublishDiagnosticsParams diagnosticParams = new PublishDiagnosticsParams();
 			diagnosticParams.setUri( docURI.toString() );
-			List<Diagnostic> diagnostics = getLatestFileParseResult( docURI )
-			    .map( res -> res.getDiagnostics() )
-			    .orElseGet( () -> new ArrayList<Diagnostic>() );
+			List<Diagnostic> diagnostics = getFileDiagnostics( docURI );
 			diagnosticParams.setDiagnostics( diagnostics );
-			this.client.publishDiagnostics( diagnosticParams );
+			client.publishDiagnostics( diagnosticParams );
 		} );
 	}
 
@@ -4668,6 +4706,7 @@ public class ProjectContextProvider {
 
 			if ( !lc.shouldAnalyze( relativePath.toString() ) ) {
 				report.setDiagnostics( new ArrayList<Diagnostic>() );
+				publishDiagnostics( uri );
 			}
 		} );
 		// this.cachedDiagnosticReports.forEach( dr -> {
