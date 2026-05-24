@@ -98,7 +98,6 @@ public class UserSettings {
 			if ( mappingsElement == null ) {
 				return Map.of();
 			}
-
 			if ( !mappingsElement.isJsonObject() ) {
 				this.client.logMessage( new MessageParams( MessageType.Error, "Unable to parse boxlang.mappings setting, defaulting to empty map" ) );
 				return Map.of();

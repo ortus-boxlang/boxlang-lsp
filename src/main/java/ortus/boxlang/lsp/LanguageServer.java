@@ -88,6 +88,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			capabilities.setTypeDefinitionProvider( true );
 			capabilities.setImplementationProvider( true );
 			capabilities.setHoverProvider( true );
+			capabilities.setDocumentFormattingProvider( formattingCapabilityCoordinator.shouldAdvertiseFormattingStatically() );
 			CompletionOptions completionOptions = new CompletionOptions();
 			capabilities.setReferencesProvider( true );
 
