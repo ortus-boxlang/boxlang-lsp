@@ -629,6 +629,60 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertThat( unusedImport ).isNull();
 	}
 
+	@Test
+	void testStaticMethodAccessNotUnused() throws Exception {
+		// BoxLang supports ClassName::method() for static access
+		String	code		= """
+		                      import java:java.util.ArrayList;
+
+		                      class {
+		                          function void doSomething() {
+		                              var result = ArrayList::of( 1, 2, 3 );
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "StaticMethodAccess.bx", code );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic unusedImport = diagnostics.stream()
+		    .filter( d -> d.getMessage().toLowerCase().contains( "arraylist" ) && d.getMessage().toLowerCase().contains( "never used" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( unusedImport ).isNull();
+	}
+
+	@Test
+	void testQualifiedStaticMethodAccessNotUnused() throws Exception {
+		// Ensures FQN static access (package.ClassName::method()) is recognized
+		String	code		= """
+		                      import java:java.util.ArrayList;
+
+		                      class {
+		                          function void doSomething() {
+		                              var result = java.util.ArrayList::of( 1, 2, 3 );
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "QualifiedStaticAccess.bx", code );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic unusedImport = diagnostics.stream()
+		    .filter( d -> d.getMessage().toLowerCase().contains( "arraylist" ) && d.getMessage().toLowerCase().contains( "never used" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( unusedImport ).isNull();
+	}
+
 	// ============ Interface Method Tests ============
 
 	@Test

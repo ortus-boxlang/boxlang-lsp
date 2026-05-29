@@ -460,6 +460,29 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 				className = fqn;
 			}
 			usedIdentifiers.add( className.toLowerCase() );
+
+			// Handle static access patterns: ClassName::method() or ClassName.method()
+			// Extract the class name before the separator if it looks like a class (starts with uppercase)
+			if ( lastSeparator > 0 ) {
+				String beforeSeparator = fqn.substring( 0, lastSeparator ).trim();
+
+				// Handle :: syntax (double colon): extract text before the :: operator
+				if ( fqn.contains( "::" ) ) {
+					int colonPairStart = fqn.indexOf( "::" );
+					beforeSeparator = fqn.substring( 0, colonPairStart ).trim();
+				}
+
+				// Extract just the class name part (after any package path)
+				int classNameStart = Math.max( beforeSeparator.lastIndexOf( '.' ), beforeSeparator.lastIndexOf( ' ' ) ) + 1;
+				if ( classNameStart >= 0 && classNameStart < beforeSeparator.length() ) {
+					String staticClassName = beforeSeparator.substring( classNameStart );
+
+					// Only add if it looks like a class name (starts with uppercase letter)
+					if ( !staticClassName.isEmpty() && Character.isUpperCase( staticClassName.charAt( 0 ) ) ) {
+						usedIdentifiers.add( staticClassName.toLowerCase() );
+					}
+				}
+			}
 		}
 	}
 

@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Unused imports ignoring static call sites.
+
+### Added
+
+- Updated very old `build.gradle` to use modern Gradle features and dependencies
+- Updated to use boxlang formatter
+- New `AGENTS.md` to support opencode and more.
+
 ## [1.10.0] - 2026-04-27
 
 ## [1.9.0] - 2026-04-02
