@@ -141,7 +141,7 @@ public class DebouncedDocumentProcessor {
 	 * Checks if a document has pending processing.
 	 *
 	 * @param uri The document URI
-	 * 
+	 *
 	 * @return true if processing is pending
 	 */
 	public boolean hasPendingProcessing( URI uri ) {

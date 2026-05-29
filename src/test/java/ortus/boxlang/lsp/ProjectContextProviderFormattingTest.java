@@ -184,10 +184,8 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			                               }
 			                               """ );
 
-			provider.handleConfigFileChange( lintConfig.toUri() );
-
-			// Wait for async workspace parse to complete
-			assertThat( provider.awaitWorkspaceParseComplete( 5000 ) ).isTrue();
+			// Synchronously wait for the lint config change (including workspace parse) to complete
+			provider.handleConfigFileChange( lintConfig.toUri() ).get( 10, java.util.concurrent.TimeUnit.SECONDS );
 			// Flush any pending debounced publishes
 			provider.flushPublishDebouncer();
 
@@ -247,16 +245,14 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			                               }
 			                               """ );
 
-			provider.handleConfigFileChange( lintConfig.toUri() );
-
-			// Wait for async workspace parse to complete
-			assertThat( provider.awaitWorkspaceParseComplete( 5000 ) ).isTrue();
+			// Synchronously wait for the lint config change (including workspace parse) to complete
+			provider.handleConfigFileChange( lintConfig.toUri() ).get( 10, java.util.concurrent.TimeUnit.SECONDS );
 			// Flush any pending debounced publishes
 			provider.flushPublishDebouncer();
 
 			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
 			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).getDiagnostics() )
-			    .isNotEmpty();
+			        .isNotEmpty();
 		} finally {
 			provider.remove( documentPath.toUri() );
 			provider.setWorkspaceFolders( savedFolders );
@@ -459,10 +455,8 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			                               }
 			                               """ );
 
-			provider.handleConfigFileChange( lintConfig.toUri() );
-
-			// Wait for async workspace parse to complete
-			assertThat( provider.awaitWorkspaceParseComplete( 5000 ) ).isTrue();
+			// Synchronously wait for the lint config change (including workspace parse) to complete
+			provider.handleConfigFileChange( lintConfig.toUri() ).get( 10, java.util.concurrent.TimeUnit.SECONDS );
 			// Flush any pending debounced publishes
 			provider.flushPublishDebouncer();
 

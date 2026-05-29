@@ -272,6 +272,7 @@ public class ProjectContextProvider {
 	private boolean								shouldPublishDiagnostics	= false;
 	private final AtomicBoolean					workspaceParseRunning		= new AtomicBoolean( false );
 	private final AtomicLong					workspaceParseSequence		= new AtomicLong( 0 );
+	private volatile CompletableFuture<Void>	latestWorkspaceParseFuture	= null;
 	private volatile WorkspaceScanProfile		activeWorkspaceScanProfile;
 	private ProjectIndex						projectIndex;
 	private final DebouncedDocumentProcessor	documentProcessor			= new DebouncedDocumentProcessor( 300 );
@@ -493,16 +494,16 @@ public class ProjectContextProvider {
 		return WorkspaceDiagnosticReportId;
 	}
 
-	public void parseWorkspace() {
-		parseWorkspace( false );
+	public CompletableFuture<Void> parseWorkspace() {
+		return parseWorkspace( false );
 	}
 
 	/**
 	 * Waits for any in-progress workspace parse to complete.
 	 * Useful for testing to ensure async operations have finished.
-	 * 
+	 *
 	 * @param timeoutMs maximum time to wait in milliseconds
-	 * 
+	 *
 	 * @return true if workspace parse completed, false if timeout elapsed
 	 */
 	public boolean awaitWorkspaceParseComplete( long timeoutMs ) {
@@ -529,8 +530,8 @@ public class ProjectContextProvider {
 		publishDebouncer.flushAll();
 	}
 
-	private void parseWorkspace( boolean force ) {
-		CompletableFuture.runAsync( () -> {
+	private CompletableFuture<Void> parseWorkspace( boolean force ) {
+		CompletableFuture<Void> future = CompletableFuture.runAsync( () -> {
 			System.out.println( "Generating workspace diagnostic report" );
 			ProjectContextProvider					provider	= ProjectContextProvider.getInstance();
 			WorkspaceDiagnosticReport				report		= new WorkspaceDiagnosticReport();
@@ -646,6 +647,8 @@ public class ProjectContextProvider {
 				workspaceParseRunning.set( false );
 			}
 		} );
+		this.latestWorkspaceParseFuture = future;
+		return future;
 	}
 
 	public Map<String, Path> getMappings() {
@@ -717,23 +720,23 @@ public class ProjectContextProvider {
 	 *
 	 * @param fileUri the URI of the saved / changed file
 	 */
-	public void handleConfigFileChange( URI fileUri ) {
+	public CompletableFuture<Void> handleConfigFileChange( URI fileUri ) {
 		if ( fileUri == null ) {
-			return;
+			return CompletableFuture.completedFuture( null );
 		}
 
 		Path changedFile;
 		try {
 			changedFile = Paths.get( fileUri );
 		} catch ( Exception e ) {
-			return;
+			return CompletableFuture.completedFuture( null );
 		}
 
 		String	fileName		= changedFile.getFileName().toString();
 		Path	workspaceRoot	= getWorkspaceRootPath();
 
 		if ( fileName.equalsIgnoreCase( LintConfigLoader.CONFIG_FILENAME ) ) {
-			handleLintConfigChange();
+			return handleLintConfigChange();
 		} else if ( fileName.equalsIgnoreCase( ".bxformat.json" ) || fileName.equalsIgnoreCase( ".cfformat.json" ) ) {
 			handleFormatterConfigChange( changedFile );
 		} else if ( fileName.equalsIgnoreCase( "boxlang.json" ) ) {
@@ -743,6 +746,7 @@ public class ProjectContextProvider {
 			handleApplicationBxChange( changedFile, workspaceRoot );
 		}
 		// All other files: no-op
+		return CompletableFuture.completedFuture( null );
 	}
 
 	private void handleBoxlangJsonChange( Path workspaceRoot ) {
@@ -803,7 +807,7 @@ public class ProjectContextProvider {
 		projectIndex.indexExternalDirs( newConfig );
 	}
 
-	private void handleLintConfigChange() {
+	private CompletableFuture<Void> handleLintConfigChange() {
 		LintConfigLoader.invalidate();
 		LintConfig	lintConfig		= LintConfigLoader.get();
 		Path		workspaceRoot	= getWorkspaceRootPath();
@@ -830,14 +834,15 @@ public class ProjectContextProvider {
 		invalidateClosedDocumentDiagnostics();
 
 		if ( workspaceFolders == null || workspaceFolders.isEmpty() ) {
-			return;
+			return CompletableFuture.completedFuture( null );
 		}
 
 		try {
 			clearExcludedDiagnostics();
-			parseWorkspace( true );
+			return parseWorkspace( true );
 		} catch ( Exception e ) {
 			App.logger.warn( "Failed to re-parse workspace after lint config change", e );
+			return CompletableFuture.completedFuture( null );
 		}
 	}
 
@@ -1171,7 +1176,7 @@ public class ProjectContextProvider {
 	 * Public accessor for getLatestFileParseResult, used for testing.
 	 *
 	 * @param docUri The document URI
-	 * 
+	 *
 	 * @return Optional containing the FileParseResult if found
 	 */
 	public Optional<FileParseResult> getLatestFileParseResultPublic( URI docUri ) {
@@ -1182,7 +1187,7 @@ public class ProjectContextProvider {
 	 * Gets the current version of a document.
 	 *
 	 * @param docUri The document URI
-	 * 
+	 *
 	 * @return The document version, or -1 if the document is not tracked
 	 */
 	public int getDocumentVersion( URI docUri ) {
@@ -1194,7 +1199,7 @@ public class ProjectContextProvider {
 	 * Gets the document model for a URI.
 	 *
 	 * @param docUri The document URI
-	 * 
+	 *
 	 * @return The DocumentModel, or null if not found
 	 */
 	public DocumentModel getDocumentModel( URI docUri ) {
