@@ -4,13 +4,13 @@ import static com.google.common.truth.Truth.assertThat;
 
 import java.nio.file.Path;
 
-import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.junit.jupiter.api.Test;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 
 public class HoverTest extends BaseTest {
 
@@ -199,9 +199,15 @@ public class HoverTest extends BaseTest {
 
 	@Test
 	void testCrossFileMethodHover() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		ProjectIndex			index			= new ProjectIndex();
+		Path					workspaceRoot	= java.nio.file.Paths.get( "src/test/resources/files" ).toAbsolutePath();
+		index.reinitialize( workspaceRoot, null );
+		provider.setIndex( index );
+
 		// First, index the class with the documented function
 		Path classWithDocFunc = java.nio.file.Paths.get( "src/test/resources/files/ClassWithDocFunc.bx" );
-		ProjectContextProvider.getInstance().getIndex().indexFile( classWithDocFunc.toUri() );
+		index.indexFile( classWithDocFunc.toUri() );
 
 		// Now open the file that uses the documented function
 		Path						classThatUsesDocFunc	= java.nio.file.Paths.get( "src/test/resources/files/ClassThatUsesDocFunc.bx" );

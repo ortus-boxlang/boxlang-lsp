@@ -2,17 +2,18 @@ package ortus.boxlang.lsp;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import org.eclipse.lsp4j.DefinitionParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextDocumentItem;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
@@ -36,9 +37,9 @@ public class InheritanceDefinitionTest extends BaseTest {
 		svc			= new BoxLangTextDocumentService();
 		provider	= ProjectContextProvider.getInstance();
 		index		= new ProjectIndex();
-		index.initialize( Paths.get( "src/test/resources/files/inheritanceTest" ) );
+		testDir		= Paths.get( "src/test/resources/files/inheritanceTest" ).toAbsolutePath();
+		index.reinitialize( testDir, null );
 		provider.setIndex( index );
-		testDir = Paths.get( "src/test/resources/files/inheritanceTest" );
 
 		// Index all test files
 		for ( Path file : Files.list( testDir ).filter( p -> p.toString().endsWith( ".bx" ) ).toList() ) {
@@ -50,6 +51,11 @@ public class InheritanceDefinitionTest extends BaseTest {
 			svc.didOpen( new DidOpenTextDocumentParams(
 			    new TextDocumentItem( file.toUri().toString(), "boxlang", 1, Files.readString( file ) ) ) );
 		}
+	}
+
+	@AfterEach
+	void tearDown() {
+		provider.setIndex( new ProjectIndex() );
 	}
 
 	/**
