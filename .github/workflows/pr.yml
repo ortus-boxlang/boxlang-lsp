@@ -15,7 +15,7 @@ on:
 jobs:
   tests:
     uses: ./.github/workflows/tests.yml
-    permissions: 
+    permissions:
       checks: write
       issues: read
       pull-requests: write
@@ -42,7 +42,6 @@ jobs:
 
       - name: Verify Code Formatting
         run: |
-          chmod +x ./gradlew
           ./gradlew spotlessCheck
 
   # Verify generated docs are up to date
@@ -61,7 +60,6 @@ jobs:
 
       - name: Generate Config Docs And Lint Schema
         run: |
-          chmod +x ./gradlew
           ./gradlew generateConfigDocs generateLintSchema
 
       - name: Fail if docs differ from checked-in version

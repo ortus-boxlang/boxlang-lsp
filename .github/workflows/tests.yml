@@ -9,7 +9,6 @@ on:
 
 env:
   MODULE_ID: ${{ github.event.repository.name }}
-  GRADLE_VERSION: 8.7
 
 jobs:
   tests:
@@ -22,17 +21,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu-latest", "windows-latest" ]
-        jdkVersion: [ "21" ]
+        os: ["ubuntu-latest", "windows-latest"]
+        jdkVersion: ["21"]
         experimental: [false]
         #include:
-          #- jdkVersion: "17"
-          #  os: "windows-latest"
-          #  experimental: true
-          # Disabled for now until we can figure out the gradle matrix
-          #- jdkVersion: "17"
-          #  os: "ubuntu-latest"
-          #  experimental: true
+        #- jdkVersion: "17"
+        #  os: "windows-latest"
+        #  experimental: true
+        # Disabled for now until we can figure out the gradle matrix
+        #- jdkVersion: "17"
+        #  os: "ubuntu-latest"
+        #  experimental: true
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
@@ -42,11 +41,6 @@ jobs:
         with:
           distribution: "temurin"
           java-version: ${{ matrix.jdkVersion }}
-
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v3
-        with:
-          gradle-version: ${{ env.GRADLE_VERSION }}
 
       # - name: Setup Database and Fixtures
       #   run: |
@@ -74,9 +68,9 @@ jobs:
 
       - name: Test Module
         run: |
-          gradle downloadBoxLang
+          ./gradlew downloadBoxLang
           # this is done in order to build the module structure before testing
-          gradle shadowJar test --stacktrace --console=plain
+          ./gradlew shadowJar test --stacktrace --console=plain
 
       - name: Upload Test Results
         if: always()

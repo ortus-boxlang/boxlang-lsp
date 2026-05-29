@@ -48,7 +48,6 @@ jobs:
 
       - name: Format Java Source
         run: |
-          chmod +x ./gradlew
           ./gradlew spotlessApply --stacktrace
 
       - name: Commit Format Changes
