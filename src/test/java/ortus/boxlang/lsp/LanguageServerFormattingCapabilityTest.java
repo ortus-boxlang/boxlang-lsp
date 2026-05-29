@@ -216,7 +216,7 @@ class LanguageServerFormattingCapabilityTest extends BaseTest {
 			server.initialize( params ).get();
 
 			// Wait for any pending async operations from initialize() to settle
-			Thread.sleep( 100 );
+			Thread.sleep( 500 );
 
 			assertThat( client.getPrematureConfigurationRequests() ).isEqualTo( 0 );
 			assertThat( client.getPrematureDiagnosticPublishes() ).isEqualTo( 0 );
@@ -226,7 +226,7 @@ class LanguageServerFormattingCapabilityTest extends BaseTest {
 
 			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
 			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).getDiagnostics() )
-			    .isNotEmpty();
+			        .isNotEmpty();
 			assertThat( client.getConfigurationRequests() ).isEqualTo( 1 );
 		} finally {
 			provider.remove( documentPath.toUri() );
@@ -271,7 +271,7 @@ class LanguageServerFormattingCapabilityTest extends BaseTest {
 
 			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
 			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).getDiagnostics() )
-			    .isNotEmpty();
+			        .isNotEmpty();
 		} finally {
 			provider.remove( documentPath.toUri() );
 			provider.setWorkspaceFolders( savedFolders );
@@ -327,7 +327,7 @@ class LanguageServerFormattingCapabilityTest extends BaseTest {
 
 			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
 			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).getDiagnostics() )
-			    .isNotEmpty();
+			        .isNotEmpty();
 		} finally {
 			configFuture.complete( List.<Object>of( createLspSettings( true ), new JsonObject() ) );
 			executor.shutdownNow();
