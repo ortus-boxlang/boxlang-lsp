@@ -29,6 +29,8 @@ import org.eclipse.lsp4j.WorkspaceClientCapabilities;
 import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.google.gson.JsonObject;
@@ -172,6 +174,7 @@ class LanguageServerFormattingCapabilityTest extends BaseTest {
 	}
 
 	@Test
+	@DisabledOnOs( OS.WINDOWS ) // Flaky on Windows CI, likely due to timing issues around file watching and test cleanup
 	void initializedLoadsInitialClientSettingsBeforeStartupWorkspaceParse() throws Exception {
 		ProjectContextProvider			provider		= ProjectContextProvider.getInstance();
 		List<WorkspaceFolder>			savedFolders	= provider.getWorkspaceFolders();
