@@ -57,7 +57,7 @@ public class QueryParamDiagnosticsTest extends BaseTest {
 		    && codeAction.getEdit().getChanges().containsKey( file.toURI().toString() )
 		    && codeAction.getEdit().getChanges().get( file.toURI().toString() ).stream()
 		        .anyMatch( edit -> edit.getNewText().equals( "<cfqueryparam value=\"#paramRef#\">" ) ) ) )
-		            .isTrue();
+		    .isTrue();
 	}
 
 	@Test
