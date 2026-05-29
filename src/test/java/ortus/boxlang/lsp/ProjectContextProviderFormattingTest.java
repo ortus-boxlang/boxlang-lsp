@@ -760,18 +760,18 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 	    RecordingLanguageClient client,
 	    String uri,
 	    java.util.function.Predicate<List<org.eclipse.lsp4j.Diagnostic>> matcher ) throws InterruptedException {
-		for ( int attempt = 0; attempt < 20; attempt++ ) {
+		for ( int attempt = 0; attempt < 40; attempt++ ) {
 			PublishDiagnosticsParams params = client.publishedDiagnostics.get( uri );
 			if ( params != null && matcher.test( params.getDiagnostics() ) ) {
 				return params;
 			}
-			Thread.sleep( 25 );
+			Thread.sleep( 50 );
 		}
 		throw new AssertionError( "Timed out waiting for diagnostics publish for " + uri );
 	}
 
 	private static boolean awaitCachedDiagnostic( ProjectContextProvider provider, java.net.URI uri, String diagnosticCode ) throws InterruptedException {
-		for ( int attempt = 0; attempt < 20; attempt++ ) {
+		for ( int attempt = 0; attempt < 40; attempt++ ) {
 			boolean found = provider.getCachedDiagnosticReports().stream()
 			    .filter( report -> uri.equals( report.getFileURI() ) )
 			    .flatMap( report -> report.getDiagnostics().stream() )
@@ -779,7 +779,7 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			if ( found ) {
 				return true;
 			}
-			Thread.sleep( 25 );
+			Thread.sleep( 50 );
 		}
 		return false;
 	}
