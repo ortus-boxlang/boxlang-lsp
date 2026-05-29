@@ -62,7 +62,7 @@ dependencies {
 	}
 
 	// This dependency is used by the application.
-    implementation "com.google.guava:guava:33.5.0-jre"
+    implementation "com.google.guava:guava:33.6.0-jre"
 	// JSON parsing for diagnostic configuration - use older version compatible with BoxLang jackson-jr
 	implementation "com.fasterxml.jackson.core:jackson-databind:2.21.0"
 
