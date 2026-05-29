@@ -37,6 +37,12 @@ public class CompletionContext {
 	    Pattern.CASE_INSENSITIVE );
 	private static final Pattern		TEMPLATE_EXPR_PATTERN	= Pattern.compile( "#(\\w*)$" );
 	private static final Pattern		IDENTIFIER_PATTERN		= Pattern.compile( "(\\w+)$" );
+	private static final String			SINGLE_LINE_COMMENT		= "//";
+	private static final String			TEMPLATE_COMMENT		= "<!--";
+	private static final Pattern		BXLINT_COMMENT_PATTERN	= Pattern.compile(
+	    "^\\s*(?://\\s*|<!---?\\s*)bxlint(?::|-)(?:disable|enable|disable-for-function|disable-for-class|enable-for-function|enable-for-class)(?:\\s+(.*?))?\\s*(?:--+>)?$",
+	    Pattern.CASE_INSENSITIVE
+	);
 
 	// Instance fields
 	private final CompletionContextKind	kind;
@@ -79,16 +85,22 @@ public class CompletionContext {
 	 * @return A CompletionContext describing the current context
 	 */
 	public static CompletionContext analyze( FileParseResult fileParseResult, CompletionParams params ) {
-		Position	cursorPosition			= params.getPosition();
-		String		lineText				= fileParseResult.readLine( cursorPosition.getLine() );
-		int			cursorCol				= cursorPosition.getCharacter();
-		String		textBeforeCursor		= lineText.substring( 0, Math.min( cursorCol, lineText.length() ) );
+		Position			cursorPosition			= params.getPosition();
+		String				lineText				= fileParseResult.readLine( cursorPosition.getLine() );
+		int					cursorCol				= cursorPosition.getCharacter();
+		String				textBeforeCursor		= lineText.substring( 0, Math.min( cursorCol, lineText.length() ) );
 
 		// Find containing method and class from AST
-		String		containingMethodName	= findContainingMethodName( fileParseResult, cursorPosition );
-		String		containingClassName		= findContainingClassName( fileParseResult, cursorPosition );
+		String				containingMethodName	= findContainingMethodName( fileParseResult, cursorPosition );
+		String				containingClassName		= findContainingClassName( fileParseResult, cursorPosition );
 
 		// Check if we're in a context where completion shouldn't be offered
+		CompletionContext	bxlintCommentContext	= analyzeBxlintComment( lineText, cursorCol, containingMethodName, containingClassName, cursorPosition,
+		    fileParseResult );
+		if ( bxlintCommentContext != null ) {
+			return bxlintCommentContext;
+		}
+
 		if ( isInsideStringLiteral( textBeforeCursor ) || isInsideComment( lineText, cursorCol ) ) {
 			return new CompletionContext(
 			    CompletionContextKind.NONE,
@@ -470,11 +482,15 @@ public class CompletionContext {
 	 */
 	private static boolean isInsideComment( String lineText, int cursorCol ) {
 		// Check for single-line comment
-		int singleLineComment = lineText.indexOf( "//" );
-		if ( singleLineComment >= 0 && singleLineComment < cursorCol ) {
-			// Make sure // is not inside a string
-			String beforeComment = lineText.substring( 0, singleLineComment );
-			if ( !isInsideStringLiteral( beforeComment ) ) {
+		int singleLineComment = findCommentStart( lineText, cursorCol, SINGLE_LINE_COMMENT );
+		if ( singleLineComment >= 0 ) {
+			return true;
+		}
+
+		int templateComment = findCommentStart( lineText, cursorCol, TEMPLATE_COMMENT );
+		if ( templateComment >= 0 ) {
+			int templateCommentEnd = lineText.indexOf( "-->", templateComment + TEMPLATE_COMMENT.length() );
+			if ( templateCommentEnd < 0 || templateCommentEnd + 3 > cursorCol ) {
 				return true;
 			}
 		}
@@ -492,6 +508,96 @@ public class CompletionContext {
 		}
 
 		return false;
+	}
+
+	private static CompletionContext analyzeBxlintComment(
+	    String lineText,
+	    int cursorCol,
+	    String containingMethodName,
+	    String containingClassName,
+	    Position cursorPosition,
+	    FileParseResult fileParseResult ) {
+		int	singleLineComment	= findCommentStart( lineText, cursorCol, SINGLE_LINE_COMMENT );
+		int	templateComment		= findCommentStart( lineText, cursorCol, TEMPLATE_COMMENT );
+		int	commentStart		= nearestCommentStart( singleLineComment, templateComment );
+		if ( commentStart < 0 ) {
+			return null;
+		}
+
+		if ( templateComment >= 0 && commentStart == templateComment ) {
+			int templateCommentEnd = lineText.indexOf( "-->", templateComment + TEMPLATE_COMMENT.length() );
+			if ( templateCommentEnd >= 0 && templateCommentEnd + 3 <= cursorCol ) {
+				return null;
+			}
+		}
+
+		String beforeComment = lineText.substring( 0, commentStart );
+		if ( isInsideStringLiteral( beforeComment ) ) {
+			return null;
+		}
+
+		String	commentBeforeCursor	= lineText.substring( commentStart, Math.min( cursorCol, lineText.length() ) );
+		Matcher	matcher				= BXLINT_COMMENT_PATTERN.matcher( commentBeforeCursor );
+		if ( !matcher.matches() ) {
+			return null;
+		}
+
+		String triggerText = extractBxlintRuleTrigger( matcher.group( 1 ) );
+		return new CompletionContext(
+		    CompletionContextKind.BXLINT_RULE_COMMENT,
+		    triggerText,
+		    null,
+		    containingMethodName,
+		    containingClassName,
+		    -1,
+		    cursorPosition,
+		    fileParseResult
+		);
+	}
+
+	private static int findCommentStart( String lineText, int cursorCol, String commentPrefix ) {
+		int commentStart = lineText.indexOf( commentPrefix );
+		if ( commentStart < 0 || commentStart >= cursorCol ) {
+			return -1;
+		}
+
+		String beforeComment = lineText.substring( 0, commentStart );
+		return isInsideStringLiteral( beforeComment ) ? -1 : commentStart;
+	}
+
+	private static int nearestCommentStart( int firstCommentStart, int secondCommentStart ) {
+		if ( firstCommentStart < 0 ) {
+			return secondCommentStart;
+		}
+
+		if ( secondCommentStart < 0 ) {
+			return firstCommentStart;
+		}
+
+		return Math.min( firstCommentStart, secondCommentStart );
+	}
+
+	private static String extractBxlintRuleTrigger( String rawRuleText ) {
+		if ( rawRuleText == null ) {
+			return "";
+		}
+
+		String withoutReason = stripReason( rawRuleText );
+		if ( withoutReason.isBlank() ) {
+			return "";
+		}
+
+		String[] tokens = withoutReason.split( "," );
+		return tokens[ tokens.length - 1 ].trim();
+	}
+
+	private static String stripReason( String rawRuleText ) {
+		int reasonIndex = rawRuleText.indexOf( "--" );
+		if ( reasonIndex < 0 ) {
+			return rawRuleText;
+		}
+
+		return rawRuleText.substring( 0, reasonIndex ).trim();
 	}
 
 	// ==================== GETTERS ====================

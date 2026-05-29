@@ -74,6 +74,14 @@ public class ConfigDocGeneratorTest {
 	}
 
 	@Test
+	void markdownIncludesLintRuleDescriptionsFromSharedCatalog() throws IOException {
+		ConfigDocGenerator.main( new String[] { tempDir.toString() } );
+		String md = Files.readString( tempDir.resolve( "config-reference.md" ) );
+		assertTrue( md.contains( "Flags local variables that are declared but never used in the code." ),
+		    "md must include lint rule descriptions from the shared lint metadata" );
+	}
+
+	@Test
 	void markdownContainsConfigSettingFields() throws IOException {
 		ConfigDocGenerator.main( new String[] { tempDir.toString() } );
 		String md = Files.readString( tempDir.resolve( "config-reference.md" ) );

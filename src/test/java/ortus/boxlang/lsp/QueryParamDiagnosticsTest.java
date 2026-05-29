@@ -147,4 +147,34 @@ public class QueryParamDiagnosticsTest extends BaseTest {
 			LintConfigLoader.invalidate();
 		}
 	}
+
+	@Test
+	void testSuppressesMissingQueryParamCfsqltypeViaTemplateBxlintComment() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+
+		Path					workspaceRoot	= Files.createDirectories( tempDir.resolve( "query-template-comment-disable" ) );
+		Path					documentPath	= workspaceRoot.resolve( "missing-type.cfm" );
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+
+		Files.writeString( documentPath, """
+		                                 <!--- bxlint-disable missingQueryParamCfsqltype --->
+		                                 <cfquery>
+		                                  	<cfqueryparam value="#paramRef#">
+		                                 </cfquery>
+		                                 """ );
+		folder.setUri( workspaceRoot.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			LintConfigLoader.invalidate();
+
+			assertThat( provider.getFileDiagnostics( documentPath.toUri() ).stream().anyMatch( candidate -> candidate.getCode() != null
+			    && "missingQueryParamCfsqltype".equals( candidate.getCode().getLeft() ) ) ).isFalse();
+		} finally {
+			provider.remove( documentPath.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+			LintConfigLoader.invalidate();
+		}
+	}
 }

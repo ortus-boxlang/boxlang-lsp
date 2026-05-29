@@ -67,6 +67,12 @@ public enum CompletionContextKind {
 	TEMPLATE_EXPRESSION,
 
 	/**
+	 * Inside a bxlint directive comment where rule IDs are expected.
+	 * Complete with: known lint rule names
+	 */
+	BXLINT_RULE_COMMENT,
+
+	/**
 	 * General identifier context - no specific trigger
 	 * Complete with: keywords, variables, functions, classes
 	 */

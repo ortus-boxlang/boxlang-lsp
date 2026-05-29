@@ -126,6 +126,23 @@ public class FileParseResult {
 		return lineStream.skip( lineNumber ).findFirst().orElse( "" );
 	}
 
+	List<String> readAllLines() {
+		if ( this.isOpen ) {
+			List<String> lines = new ArrayList<>();
+			for ( String line : this.source.split( "\n", -1 ) ) {
+				lines.add( line.replace( "\r", "" ) );
+			}
+			return lines;
+		}
+
+		try ( Stream<String> lineStream = Files.lines( Path.of( this.uri ) ) ) {
+			return lineStream.map( line -> line.replace( "\r", "" ) ).toList();
+		} catch ( IOException e ) {
+			e.printStackTrace();
+			return List.of();
+		}
+	}
+
 	public boolean isTemplate() {
 		return uri.toString().endsWith( ".bxm" );
 	}
@@ -239,7 +256,7 @@ public class FileParseResult {
 				fileCodeActions.addAll( visitor.getCodeActions() );
 			}
 
-			DiagnosticSuppressionFilter suppressionFilter = DiagnosticSuppressionFilter.fromAst( astRoot );
+			DiagnosticSuppressionFilter suppressionFilter = DiagnosticSuppressionFilter.fromAst( astRoot, readAllLines() );
 			fileDiagnostics	= new ArrayList<>( suppressionFilter.filterDiagnostics( fileDiagnostics ) );
 			fileCodeActions	= new ArrayList<>( suppressionFilter.filterCodeActions( fileCodeActions ) );
 		}

@@ -1,0 +1,15 @@
+<bx:script>
+// bxlint:enable
+queryExecute("SELECT * FROM Employee WHERE EmployeeID = #url.id#");
+</bx:script>
+
+<!--- bxlint:disable unescapedQueryParam --->      
+<bx:query>
+	#url.id#
+</bx:query>
+<!--- bxlint:enable unescapedQueryParam --->      
+
+
+<bx:query>
+	#url.id#
+</bx:query>

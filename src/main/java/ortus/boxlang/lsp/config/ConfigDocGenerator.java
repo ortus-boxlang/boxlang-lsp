@@ -16,47 +16,16 @@ import com.google.gson.GsonBuilder;
 import ortus.boxlang.lsp.UserSettings;
 import ortus.boxlang.lsp.config.annotation.ConfigGroup;
 import ortus.boxlang.lsp.config.annotation.ConfigSetting;
-import ortus.boxlang.lsp.config.annotation.LintRule;
 import ortus.boxlang.lsp.lint.LintConfig;
-import ortus.boxlang.lsp.lint.rules.DuplicateMethodRule;
-import ortus.boxlang.lsp.lint.rules.DuplicatePropertyRule;
-import ortus.boxlang.lsp.lint.rules.EmptyCatchBlockRule;
-import ortus.boxlang.lsp.lint.rules.InvalidExtendsRule;
-import ortus.boxlang.lsp.lint.rules.InvalidImplementsRule;
-import ortus.boxlang.lsp.lint.rules.MissingQueryParamCfsqltypeRule;
-import ortus.boxlang.lsp.lint.rules.MissingReturnStatementRule;
-import ortus.boxlang.lsp.lint.rules.ShadowedVariableRule;
-import ortus.boxlang.lsp.lint.rules.UnescapedQueryParamRule;
-import ortus.boxlang.lsp.lint.rules.UnreachableCodeRule;
-import ortus.boxlang.lsp.lint.rules.UnscopedVariableRule;
-import ortus.boxlang.lsp.lint.rules.UnusedImportRule;
-import ortus.boxlang.lsp.lint.rules.UnusedPrivateMethodRule;
-import ortus.boxlang.lsp.lint.rules.UnusedVariableRule;
+import ortus.boxlang.lsp.lint.LintRuleCatalog;
 import ortus.boxlang.lsp.workspace.MappingConfig;
 
 public class ConfigDocGenerator {
 
-	private static final List<Class<?>>	CONFIG_GROUP_CLASSES	= List.of(
+	private static final List<Class<?>> CONFIG_GROUP_CLASSES = List.of(
 	    UserSettings.class,
 	    LintConfig.class,
 	    MappingConfig.class
-	);
-
-	static final List<Class<?>>			LINT_RULE_CLASSES		= List.of(
-	    UnusedVariableRule.class,
-	    UnscopedVariableRule.class,
-	    DuplicateMethodRule.class,
-	    DuplicatePropertyRule.class,
-	    EmptyCatchBlockRule.class,
-	    InvalidExtendsRule.class,
-	    InvalidImplementsRule.class,
-	    MissingReturnStatementRule.class,
-	    ShadowedVariableRule.class,
-	    UnreachableCodeRule.class,
-	    UnusedImportRule.class,
-	    UnusedPrivateMethodRule.class,
-	    UnescapedQueryParamRule.class,
-	    MissingQueryParamCfsqltypeRule.class
 	);
 
 	public static void main( String[] args ) throws IOException {
@@ -94,14 +63,9 @@ public class ConfigDocGenerator {
 	}
 
 	static List<LintRuleEntry> collectLintRules() {
-		List<LintRuleEntry> result = new ArrayList<>();
-		for ( Class<?> clazz : LINT_RULE_CLASSES ) {
-			if ( !clazz.isAnnotationPresent( LintRule.class ) )
-				continue;
-			LintRule annotation = clazz.getAnnotation( LintRule.class );
-			result.add( new LintRuleEntry( annotation.id(), annotation.defaultSeverity(), annotation.since(), annotation.description() ) );
-		}
-		return result;
+		return LintRuleCatalog.all().stream()
+		    .map( rule -> new LintRuleEntry( rule.id(), rule.defaultSeverity(), rule.since(), rule.description() ) )
+		    .toList();
 	}
 
 	// --- Markdown generation ---
