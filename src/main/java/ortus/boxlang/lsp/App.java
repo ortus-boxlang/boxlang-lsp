@@ -23,8 +23,10 @@ import ortus.boxlang.lsp.lint.rules.DuplicatePropertyRule;
 import ortus.boxlang.lsp.lint.rules.EmptyCatchBlockRule;
 import ortus.boxlang.lsp.lint.rules.InvalidExtendsRule;
 import ortus.boxlang.lsp.lint.rules.InvalidImplementsRule;
+import ortus.boxlang.lsp.lint.rules.MissingQueryParamCfsqltypeRule;
 import ortus.boxlang.lsp.lint.rules.MissingReturnStatementRule;
 import ortus.boxlang.lsp.lint.rules.ShadowedVariableRule;
+import ortus.boxlang.lsp.lint.rules.UnescapedQueryParamRule;
 import ortus.boxlang.lsp.lint.rules.UnreachableCodeRule;
 import ortus.boxlang.lsp.lint.rules.UnscopedVariableRule;
 import ortus.boxlang.lsp.lint.rules.UnusedImportRule;
@@ -69,6 +71,8 @@ public class App {
 		DiagnosticRuleRegistry.getInstance().register( new MissingReturnStatementRule() );
 		DiagnosticRuleRegistry.getInstance().register( new UnusedPrivateMethodRule() );
 		DiagnosticRuleRegistry.getInstance().register( new UnusedImportRule() );
+		DiagnosticRuleRegistry.getInstance().register( new UnescapedQueryParamRule() );
+		DiagnosticRuleRegistry.getInstance().register( new MissingQueryParamCfsqltypeRule() );
 		BoxRuntime.getInstance().announce( "LSPRegisterVisitors", Struct.of( "sourceCodeVisitorService", SourceCodeVisitorService.getInstance() ) );
 		startConfigWatcher();
 	}

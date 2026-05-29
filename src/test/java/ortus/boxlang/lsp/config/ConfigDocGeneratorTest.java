@@ -54,7 +54,7 @@ public class ConfigDocGeneratorTest {
 	}
 
 	@Test
-	void markdownListsAllTwelveLintRules() throws IOException {
+	void markdownListsAllKnownLintRules() throws IOException {
 		ConfigDocGenerator.main( new String[] { tempDir.toString() } );
 		String md = Files.readString( tempDir.resolve( "config-reference.md" ) );
 		assertTrue( md.contains( "unusedVariable" ), "md must list unusedVariable rule" );
@@ -69,6 +69,8 @@ public class ConfigDocGeneratorTest {
 		assertTrue( md.contains( "unreachableCode" ), "md must list unreachableCode rule" );
 		assertTrue( md.contains( "unusedImport" ), "md must list unusedImport rule" );
 		assertTrue( md.contains( "unusedPrivateMethod" ), "md must list unusedPrivateMethod rule" );
+		assertTrue( md.contains( "unescapedQueryParam" ), "md must list unescapedQueryParam rule" );
+		assertTrue( md.contains( "missingQueryParamCfsqltype" ), "md must list missingQueryParamCfsqltype rule" );
 	}
 
 	@Test

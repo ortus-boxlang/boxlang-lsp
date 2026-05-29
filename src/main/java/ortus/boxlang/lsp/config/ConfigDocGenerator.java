@@ -23,8 +23,10 @@ import ortus.boxlang.lsp.lint.rules.DuplicatePropertyRule;
 import ortus.boxlang.lsp.lint.rules.EmptyCatchBlockRule;
 import ortus.boxlang.lsp.lint.rules.InvalidExtendsRule;
 import ortus.boxlang.lsp.lint.rules.InvalidImplementsRule;
+import ortus.boxlang.lsp.lint.rules.MissingQueryParamCfsqltypeRule;
 import ortus.boxlang.lsp.lint.rules.MissingReturnStatementRule;
 import ortus.boxlang.lsp.lint.rules.ShadowedVariableRule;
+import ortus.boxlang.lsp.lint.rules.UnescapedQueryParamRule;
 import ortus.boxlang.lsp.lint.rules.UnreachableCodeRule;
 import ortus.boxlang.lsp.lint.rules.UnscopedVariableRule;
 import ortus.boxlang.lsp.lint.rules.UnusedImportRule;
@@ -52,7 +54,9 @@ public class ConfigDocGenerator {
 	    ShadowedVariableRule.class,
 	    UnreachableCodeRule.class,
 	    UnusedImportRule.class,
-	    UnusedPrivateMethodRule.class
+	    UnusedPrivateMethodRule.class,
+	    UnescapedQueryParamRule.class,
+	    MissingQueryParamCfsqltypeRule.class
 	);
 
 	public static void main( String[] args ) throws IOException {

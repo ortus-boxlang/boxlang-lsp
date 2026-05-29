@@ -56,6 +56,8 @@ Place boxlang.json at the workspace root (or any ancestor directory) to define v
 | `unreachableCode` | warning |  | Flags code appearing after control-flow statements like return, throw, or break that can never be executed. |
 | `unusedImport` | warning |  | Flags import statements for classes or packages that are never referenced in the file. |
 | `unusedPrivateMethod` | warning |  | Flags private methods that are never called within the class, indicating dead code. |
+| `unescapedQueryParam` | warning |  | Flags query string interpolations that should be wrapped in <cfqueryparam>. |
+| `missingQueryParamCfsqltype` | warning |  | Flags <cfqueryparam> tags that are missing a cfsqltype attribute. |
 
 ### Rule settings
 

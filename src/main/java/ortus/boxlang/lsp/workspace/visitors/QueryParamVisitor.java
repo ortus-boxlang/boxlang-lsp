@@ -23,6 +23,10 @@ import ortus.boxlang.compiler.ast.expression.BoxStringInterpolation;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.component.BoxComponent;
 import ortus.boxlang.lsp.SourceCodeVisitor;
+import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
+import ortus.boxlang.lsp.lint.LintConfigLoader;
+import ortus.boxlang.lsp.lint.rules.MissingQueryParamCfsqltypeRule;
+import ortus.boxlang.lsp.lint.rules.UnescapedQueryParamRule;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.runtime.types.QueryColumnType;
 
@@ -36,7 +40,6 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 	private final Map<String, Map<String, CodeAction>>	sqlTypeRefactors				= new HashMap<>();
 
 	private CodeAction									refactorAll;
-	private QueryInfoExtractor							queryInfo;
 
 	private record OperatorContext(
 	    boolean list,
@@ -50,17 +53,40 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 
 	@Override
 	public List<CodeAction> getCodeActions() {
-		return codeActions;
+		List<CodeAction> enabledActions = new ArrayList<>();
+
+		for ( CodeAction action : codeActions ) {
+			if ( action.getDiagnostics() == null || action.getDiagnostics().isEmpty() ) {
+				enabledActions.add( action );
+				continue;
+			}
+
+			List<Diagnostic> enabledDiagnostics = action.getDiagnostics().stream()
+			    .filter( this::isDiagnosticEnabled )
+			    .toList();
+
+			if ( enabledDiagnostics.isEmpty() ) {
+				continue;
+			}
+
+			action.setDiagnostics( new ArrayList<>( enabledDiagnostics ) );
+			enabledActions.add( action );
+		}
+
+		return enabledActions;
 	}
 
 	@Override
 	public List<Diagnostic> getDiagnostics() {
-		return diagnostics;
+		return diagnostics.stream()
+		    .filter( this::isDiagnosticEnabled )
+		    .peek( this::applyConfiguredSeverity )
+		    .toList();
 	}
 
+	@Override
 	public void visit( BoxComponent node ) {
 		if ( node.getName().equalsIgnoreCase( "query" ) ) {
-			queryInfo = new QueryInfoExtractor( node );
 			node.getBody().forEach( this::checkNode );
 		} else if ( node.getName().equalsIgnoreCase( "queryparam" ) ) {
 			diagnoseQueryParam( node );
@@ -85,7 +111,8 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 		    ProjectContextProvider.positionToRange( node.getPosition() ),
 		    "Missing cfsqltype attribute: " + valueAttr.map( value -> value.getSourceText() ).orElse( node.getSourceText() ),
 		    DiagnosticSeverity.Warning,
-		    "boxlang" );
+		    "boxlang",
+		    MissingQueryParamCfsqltypeRule.ID );
 		diagnostic.setData( Map.of( "id", UUID.randomUUID().toString() ) );
 
 		diagnostics.add( diagnostic );
@@ -134,7 +161,8 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 				    ProjectContextProvider.positionToRange( node.getPosition() ),
 				    "Possible unescaped query param: " + node.getSourceText(),
 				    DiagnosticSeverity.Warning,
-				    "boxlang" );
+				    "boxlang",
+				    UnescapedQueryParamRule.ID );
 				diagnostic.setData( Map.of( "id", UUID.randomUUID().toString() ) );
 				diagnostics.add( diagnostic );
 
@@ -324,6 +352,27 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 
 		param.append( ">" );
 		return param.toString();
+	}
+
+	private boolean isDiagnosticEnabled( Diagnostic diagnostic ) {
+		String ruleId = getRuleId( diagnostic );
+		return ruleId == null || DiagnosticRuleRegistry.getInstance().isEnabled( ruleId, true );
+	}
+
+	private void applyConfiguredSeverity( Diagnostic diagnostic ) {
+		String ruleId = getRuleId( diagnostic );
+		if ( ruleId == null ) {
+			return;
+		}
+
+		var settings = LintConfigLoader.get().forRule( ruleId );
+		if ( settings != null ) {
+			diagnostic.setSeverity( settings.toSeverityOr( DiagnosticSeverity.Warning ) );
+		}
+	}
+
+	private String getRuleId( Diagnostic diagnostic ) {
+		return diagnostic.getCode() != null ? diagnostic.getCode().getLeft() : null;
 	}
 
 	private String determineSQLType( BoxNode node, OperatorContext operatorContext ) {

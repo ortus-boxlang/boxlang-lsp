@@ -138,6 +138,18 @@
         "defaultSeverity": "warning",
         "since": "",
         "description": "Flags private methods that are never called within the class, indicating dead code."
+      },
+      {
+        "id": "unescapedQueryParam",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags query string interpolations that should be wrapped in \u003ccfqueryparam\u003e."
+      },
+      {
+        "id": "missingQueryParamCfsqltype",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags \u003ccfqueryparam\u003e tags that are missing a cfsqltype attribute."
       }
     ]
   },

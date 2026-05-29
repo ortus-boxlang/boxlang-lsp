@@ -46,5 +46,7 @@ public class LintSchemaGeneratorTest {
 		assertTrue( json.contains( "\"unusedVariable\"" ), "schema must enumerate unusedVariable" );
 		assertTrue( json.contains( "\"unreachableCode\"" ), "schema must enumerate unreachableCode" );
 		assertTrue( json.contains( "\"unusedPrivateMethod\"" ), "schema must enumerate unusedPrivateMethod" );
+		assertTrue( json.contains( "\"unescapedQueryParam\"" ), "schema must enumerate unescapedQueryParam" );
+		assertTrue( json.contains( "\"missingQueryParamCfsqltype\"" ), "schema must enumerate missingQueryParamCfsqltype" );
 	}
 }

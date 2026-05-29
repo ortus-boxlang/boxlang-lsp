@@ -11,8 +11,10 @@ import ortus.boxlang.lsp.lint.rules.DuplicatePropertyRule;
 import ortus.boxlang.lsp.lint.rules.EmptyCatchBlockRule;
 import ortus.boxlang.lsp.lint.rules.InvalidExtendsRule;
 import ortus.boxlang.lsp.lint.rules.InvalidImplementsRule;
+import ortus.boxlang.lsp.lint.rules.MissingQueryParamCfsqltypeRule;
 import ortus.boxlang.lsp.lint.rules.MissingReturnStatementRule;
 import ortus.boxlang.lsp.lint.rules.ShadowedVariableRule;
+import ortus.boxlang.lsp.lint.rules.UnescapedQueryParamRule;
 import ortus.boxlang.lsp.lint.rules.UnreachableCodeRule;
 import ortus.boxlang.lsp.lint.rules.UnscopedVariableRule;
 import ortus.boxlang.lsp.lint.rules.UnusedImportRule;
@@ -89,5 +91,15 @@ public class LintRuleAnnotationsTest {
 	@Test
 	void unusedPrivateMethodRule_hasLintRule() {
 		assertLintRule( UnusedPrivateMethodRule.class, "unusedPrivateMethod", "warning" );
+	}
+
+	@Test
+	void unescapedQueryParamRule_hasLintRule() {
+		assertLintRule( UnescapedQueryParamRule.class, "unescapedQueryParam", "warning" );
+	}
+
+	@Test
+	void missingQueryParamCfsqltypeRule_hasLintRule() {
+		assertLintRule( MissingQueryParamCfsqltypeRule.class, "missingQueryParamCfsqltype", "warning" );
 	}
 }

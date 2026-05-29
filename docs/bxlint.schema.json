@@ -14,8 +14,10 @@
           "emptyCatchBlock",
           "invalidExtends",
           "invalidImplements",
+          "missingQueryParamCfsqltype",
           "missingReturnStatement",
           "shadowedVariable",
+          "unescapedQueryParam",
           "unreachableCode",
           "unscopedVariable",
           "unusedImport",
@@ -62,8 +64,8 @@
           "additionalProperties": false,
           "properties": {
             "enabled": {
-              "type": "boolean",
-              "description": "Enables the experimental formatter for the workspace when present."
+              "description": "Enables the experimental formatter for the workspace when present.",
+              "type": "boolean"
             }
           }
         }
@@ -77,26 +79,26 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "params": {
-          "additionalProperties": true,
-          "description": "Rule-specific parameters. Supported keys depend on the rule.",
-          "type": "object"
-        },
-        "enabled": {
-          "default": true,
-          "description": "Set to false to disable the rule entirely.",
-          "type": "boolean"
-        },
         "severity": {
+          "type": "string",
+          "description": "Overrides the diagnostic severity for the rule.",
           "enum": [
             "error",
             "warning",
             "information",
             "info",
             "hint"
-          ],
-          "description": "Overrides the diagnostic severity for the rule.",
-          "type": "string"
+          ]
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Set to false to disable the rule entirely.",
+          "default": true
+        },
+        "params": {
+          "type": "object",
+          "description": "Rule-specific parameters. Supported keys depend on the rule.",
+          "additionalProperties": true
         }
       }
     }
