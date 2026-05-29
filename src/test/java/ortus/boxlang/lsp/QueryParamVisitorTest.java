@@ -43,7 +43,7 @@ public class QueryParamVisitorTest extends BaseTest {
 
 		Diagnostic diagnostic = diagnosticIssues.getFirst();
 
-		assertThat( diagnostic.getMessage() ).isEqualTo( "Possible unescaped query param: #paramRef#" );
+		assertThat( diagnostic.getMessage().getLeft() ).isEqualTo( "Possible unescaped query param: #paramRef#" );
 
 		List<CodeAction>	codeActions	= visitor.getCodeActions();
 
@@ -259,7 +259,7 @@ public class QueryParamVisitorTest extends BaseTest {
 
 		Diagnostic diagnostic = diagnosticIssues.getFirst();
 
-		assertThat( diagnostic.getMessage() ).isEqualTo( "Possible unescaped query param: #paramRef#" );
+		assertThat( diagnostic.getMessage().getLeft() ).isEqualTo( "Possible unescaped query param: #paramRef#" );
 
 		List<CodeAction>	codeActions	= visitor.getCodeActions();
 		CodeAction			action		= codeActions.getFirst();
@@ -444,7 +444,7 @@ public class QueryParamVisitorTest extends BaseTest {
 
 		Diagnostic diagnostic = diagnosticIssues.getFirst();
 
-		assertThat( diagnostic.getMessage() ).isEqualTo( "Possible unescaped query param: #paramRef#" );
+		assertThat( diagnostic.getMessage().getLeft() ).isEqualTo( "Possible unescaped query param: #paramRef#" );
 
 		List<CodeAction>	codeActions	= visitor.getCodeActions();
 		CodeAction			action		= codeActions.getFirst();

@@ -37,7 +37,7 @@ public class QueryParamDiagnosticsTest extends BaseTest {
 		assertThat( diagnostics ).isNotEmpty();
 		assertThat( diagnostics.stream().anyMatch( diagnostic -> diagnostic.getCode() != null
 		    && "unescapedQueryParam".equals( diagnostic.getCode().getLeft() ) ) ).isTrue();
-		assertThat( diagnostics.stream().anyMatch( diagnostic -> diagnostic.getMessage().equals( "Possible unescaped query param: #paramRef#" ) ) )
+		assertThat( diagnostics.stream().anyMatch( diagnostic -> diagnostic.getMessage().getLeft().equals( "Possible unescaped query param: #paramRef#" ) ) )
 		    .isTrue();
 	}
 

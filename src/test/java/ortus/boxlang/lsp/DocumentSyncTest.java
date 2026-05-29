@@ -82,7 +82,6 @@ public class DocumentSyncTest extends BaseTest {
 		// So position 21 is right after the 'o' in "Hello", before the closing quote
 		TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent(
 		    new Range( new Position( 2, 21 ), new Position( 2, 21 ) ),
-		    0,
 		    " World"
 		);
 
@@ -124,7 +123,6 @@ public class DocumentSyncTest extends BaseTest {
 		// "Hello" starts at column 16 and ends at column 21
 		TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent(
 		    new Range( new Position( 2, 16 ), new Position( 2, 21 ) ),
-		    5,
 		    "Goodbye"
 		);
 
@@ -167,7 +165,6 @@ public class DocumentSyncTest extends BaseTest {
 		// " World" starts at column 21 and ends at column 27
 		TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent(
 		    new Range( new Position( 2, 21 ), new Position( 2, 27 ) ),
-		    6,
 		    ""
 		);
 
@@ -209,7 +206,6 @@ public class DocumentSyncTest extends BaseTest {
 		// Line 1-2: " function a() {}" and " function b() {}"
 		TextDocumentContentChangeEvent	change		= new TextDocumentContentChangeEvent(
 		    new Range( new Position( 1, 4 ), new Position( 2, 19 ) ),
-		    0,
 		    "function combined() { return 1; }"
 		);
 
@@ -605,7 +601,6 @@ public class DocumentSyncTest extends BaseTest {
 		List<TextDocumentContentChangeEvent>	changes		= List.of(
 		    new TextDocumentContentChangeEvent(
 		        new Range( new Position( 1, 12 ), new Position( 1, 13 ) ),
-		        1,
 		        "100"
 		    )
 		);

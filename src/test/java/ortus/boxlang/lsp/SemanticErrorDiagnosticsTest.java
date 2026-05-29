@@ -84,7 +84,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic invalidExtends = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "NonExistentClass" ) && d.getMessage().toLowerCase().contains( "not found" ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "NonExistentClass" ) && d.getMessage().getLeft().toLowerCase().contains( "not found" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -107,7 +107,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic invalidExtends = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "NonExistentClass" ) && d.getMessage().toLowerCase().contains( "not found" ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "NonExistentClass" ) && d.getMessage().getLeft().toLowerCase().contains( "not found" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -148,7 +148,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 
 		// Should not have any "not found" errors for ParentClass
 		Diagnostic invalidExtends = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "ParentClass" ) && d.getMessage().toLowerCase().contains( "not found" ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "ParentClass" ) && d.getMessage().getLeft().toLowerCase().contains( "not found" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -172,7 +172,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic invalidImplements = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "NonExistentInterface" ) && d.getMessage().toLowerCase().contains( "not found" ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "NonExistentInterface" ) && d.getMessage().getLeft().toLowerCase().contains( "not found" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -205,7 +205,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 
 		// Should not have any "not found" errors for MyInterface
 		Diagnostic invalidImplements = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "MyInterface" ) && d.getMessage().toLowerCase().contains( "not found" ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "MyInterface" ) && d.getMessage().getLeft().toLowerCase().contains( "not found" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -228,7 +228,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 
 		// Should have errors for all three non-existent interfaces
 		long interfaceNotFoundCount = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "not found" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "not found" ) )
 		    .count();
 
 		assertThat( interfaceNotFoundCount ).isAtLeast( 3 );
@@ -257,7 +257,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic duplicateMethod = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "duplicate" ) && d.getMessage().toLowerCase().contains( "method" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "duplicate" ) && d.getMessage().getLeft().toLowerCase().contains( "method" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -286,7 +286,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic duplicateMethod = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "duplicate" ) && d.getMessage().toLowerCase().contains( "method" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "duplicate" ) && d.getMessage().getLeft().toLowerCase().contains( "method" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -311,7 +311,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic duplicateProperty = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "duplicate" ) && d.getMessage().toLowerCase().contains( "property" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "duplicate" ) && d.getMessage().getLeft().toLowerCase().contains( "property" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -335,7 +335,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic duplicateProperty = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "duplicate" ) && d.getMessage().toLowerCase().contains( "property" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "duplicate" ) && d.getMessage().getLeft().toLowerCase().contains( "property" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -360,7 +360,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic invalidExtends = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "NonExistentClass" ) && d.getMessage().toLowerCase().contains( "not found" ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "NonExistentClass" ) && d.getMessage().getLeft().toLowerCase().contains( "not found" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -383,7 +383,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic invalidExtends = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "NonExistentClass" ) && d.getMessage().toLowerCase().contains( "not found" ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "NonExistentClass" ) && d.getMessage().getLeft().toLowerCase().contains( "not found" ) )
 		    .findFirst()
 		    .orElse( null );
 

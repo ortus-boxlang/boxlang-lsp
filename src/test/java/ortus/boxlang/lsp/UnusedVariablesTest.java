@@ -34,11 +34,11 @@ public class UnusedVariablesTest {
 		// File now generates 2 diagnostics: unused variable + unreachable code after return
 		assertEquals( 2, diagnostics.size(), "Diagnostics should contain 2 items (unused variable + unreachable code)." );
 		Diagnostic unusedVar = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "bar" ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "bar" ) )
 		    .findFirst()
 		    .orElse( null );
 		assertNotNull( unusedVar, "Should have unused variable diagnostic" );
-		assertEquals( "Variable [bar] is declared but never used.", unusedVar.getMessage() );
+		assertEquals( "Variable [bar] is declared but never used.", unusedVar.getMessage().getLeft() );
 	}
 
 	@Test
@@ -55,7 +55,7 @@ public class UnusedVariablesTest {
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 
 		Diagnostic unusedVariables = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [theUnusedVar] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [theUnusedVar] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -76,7 +76,7 @@ public class UnusedVariablesTest {
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 
 		Diagnostic unusedVariables = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [usedVar] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [usedVar] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -97,7 +97,7 @@ public class UnusedVariablesTest {
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 
 		Diagnostic unusedVariables = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [usedByX] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [usedByX] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -118,7 +118,7 @@ public class UnusedVariablesTest {
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 
 		Diagnostic unusedVariables = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [theUnusedArg] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [theUnusedArg] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -139,7 +139,7 @@ public class UnusedVariablesTest {
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 
 		Diagnostic unusedVariables = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [theUnusedArg] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [theUnusedArg] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -161,14 +161,14 @@ public class UnusedVariablesTest {
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 
 		Diagnostic theStruct = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [theStruct] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [theStruct] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
 		assertThat( theStruct ).isNull();
 
 		Diagnostic theKey = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [theKey] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [theKey] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -191,7 +191,7 @@ public class UnusedVariablesTest {
 
 		// Variable x should NOT be reported as unused because it has a reassignment
 		Diagnostic xUnused = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [x] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [x] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -214,7 +214,7 @@ public class UnusedVariablesTest {
 		// The variable x should NOT be reported as unused because it has a reassignment
 		// This test verifies the exact example from the issue description
 		Diagnostic xUnused = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [x] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [x] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -235,7 +235,7 @@ public class UnusedVariablesTest {
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 
 		Diagnostic whatUnused = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [what] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [what] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -256,14 +256,14 @@ public class UnusedVariablesTest {
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 
 		Diagnostic whatUnused = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [what] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [what] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
 		assertThat( whatUnused ).isNull();
 
 		Diagnostic thingUnused = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [thing] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [thing] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -286,7 +286,7 @@ public class UnusedVariablesTest {
 		// The variable x should NOT be reported as unused because it has a reassignment
 		// This test verifies the exact example from the issue description
 		Diagnostic argAUnused = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [argA] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [argA] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -306,9 +306,9 @@ public class UnusedVariablesTest {
 
 		// Abstract interface method arguments (getName, getCount, doSomething) must not be flagged
 		boolean abstractArgWarned = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "is declared but never used." ) )
-		    .anyMatch( d -> d.getMessage().contains( "prefix" ) || d.getMessage().contains( "limit" )
-		        || d.getMessage().contains( "filter" ) || d.getMessage().contains( "value" ) );
+		    .filter( d -> d.getMessage().getLeft().contains( "is declared but never used." ) )
+		    .anyMatch( d -> d.getMessage().getLeft().contains( "prefix" ) || d.getMessage().getLeft().contains( "limit" )
+		        || d.getMessage().getLeft().contains( "filter" ) || d.getMessage().getLeft().contains( "value" ) );
 
 		assertFalse( abstractArgWarned, "Abstract interface method arguments should not produce unused-argument warnings." );
 	}
@@ -326,7 +326,7 @@ public class UnusedVariablesTest {
 
 		// publicMethodWithIssues declares 'arg' but never uses it — should be flagged
 		Diagnostic unusedArg = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [arg] is declared but never used." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [arg] is declared but never used." ) )
 		    .findFirst()
 		    .orElse( null );
 

@@ -59,7 +59,7 @@ class FormattingCapabilityCoordinatorTest {
 
 		DocumentFormattingRegistrationOptions options = ( DocumentFormattingRegistrationOptions ) registration.getRegisterOptions();
 		assertThat( options.getDocumentSelector() ).isNotEmpty();
-		assertThat( options.getDocumentSelector().stream().map( filter -> filter.getPattern() ).toList() )
+		assertThat( options.getDocumentSelector().stream().map( filter -> filter.getPattern().getLeft() ).toList() )
 		    .contains( "**/*.{bx,bxs,bxm,cfc,cfs,cfm}" );
 	}
 

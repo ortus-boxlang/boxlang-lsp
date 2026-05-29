@@ -196,7 +196,7 @@ public class ProjectDiagnosticsTest extends BaseTest {
 		// Filter for error-level diagnostics related to class resolution
 		List<Diagnostic> classNotFoundErrors = diagnostics.stream()
 		    .filter( d -> d.getSeverity() == DiagnosticSeverity.Error )
-		    .filter( d -> d.getMessage().contains( "not found" ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "not found" ) )
 		    .toList();
 
 		// BaseType.bx uses relative class reference "subsubpackage.EvenBaserType"
@@ -431,7 +431,7 @@ public class ProjectDiagnosticsTest extends BaseTest {
 		List<Diagnostic>	diagnostics			= provider.getFileDiagnostics( carChildFile.toUri() );
 
 		boolean				hasCarNotFoundError	= diagnostics.stream()
-		    .anyMatch( d -> d.getMessage().contains( "Car" ) && d.getMessage().contains( "not found" ) );
+		    .anyMatch( d -> d.getMessage().getLeft().contains( "Car" ) && d.getMessage().getLeft().contains( "not found" ) );
 
 		assertFalse( hasCarNotFoundError,
 		    "Car.bx is a sibling of CarChild.bx — LSP should find it without pre-indexing.\n"

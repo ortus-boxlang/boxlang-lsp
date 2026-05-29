@@ -92,7 +92,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic emptyCatch = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "empty catch" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "empty catch" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -121,7 +121,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic emptyCatch = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "empty catch" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "empty catch" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -148,7 +148,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unreachable = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "unreachable" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -175,7 +175,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unreachable = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "unreachable" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -204,7 +204,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unreachable = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "unreachable" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -233,7 +233,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unreachable = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "unreachable" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -264,7 +264,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unreachable = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "unreachable" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -291,7 +291,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unreachable = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "unreachable" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -319,7 +319,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unreachable = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "unreachable" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -348,7 +348,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unreachable = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "unreachable" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -375,7 +375,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic shadowed = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "shadow" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "shadow" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -401,7 +401,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic shadowed = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "shadow" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "shadow" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -427,9 +427,9 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic missingReturn = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "may not return a value" ) ||
-		        d.getMessage().toLowerCase().contains( "missing return" ) ||
-		        d.getMessage().toLowerCase().contains( "return statement" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "may not return a value" ) ||
+		        d.getMessage().getLeft().toLowerCase().contains( "missing return" ) ||
+		        d.getMessage().getLeft().toLowerCase().contains( "return statement" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -454,7 +454,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic missingReturn = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "missing return" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "missing return" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -478,7 +478,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic missingReturn = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "missing return" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "missing return" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -508,7 +508,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unusedPrivate = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "private" ) && d.getMessage().toLowerCase().contains( "never" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "private" ) && d.getMessage().getLeft().toLowerCase().contains( "never" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -538,7 +538,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unusedPrivate = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "helpermethod" ) && d.getMessage().toLowerCase().contains( "never" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "helpermethod" ) && d.getMessage().getLeft().toLowerCase().contains( "never" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -566,7 +566,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unusedPrivate = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "helpermethod" ) && d.getMessage().toLowerCase().contains( "never" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "helpermethod" ) && d.getMessage().getLeft().toLowerCase().contains( "never" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -594,7 +594,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unusedImport = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "import" ) && d.getMessage().toLowerCase().contains( "never used" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "import" ) && d.getMessage().getLeft().toLowerCase().contains( "never used" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -622,7 +622,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unusedImport = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "arraylist" ) && d.getMessage().toLowerCase().contains( "never used" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "arraylist" ) && d.getMessage().getLeft().toLowerCase().contains( "never used" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -649,7 +649,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unusedImport = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "arraylist" ) && d.getMessage().toLowerCase().contains( "never used" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "arraylist" ) && d.getMessage().getLeft().toLowerCase().contains( "never used" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -676,7 +676,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unusedImport = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "arraylist" ) && d.getMessage().toLowerCase().contains( "never used" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "arraylist" ) && d.getMessage().getLeft().toLowerCase().contains( "never used" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -701,9 +701,9 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic missingReturn = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "may not return a value" ) ||
-		        d.getMessage().toLowerCase().contains( "missing return" ) ||
-		        d.getMessage().toLowerCase().contains( "return statement" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "may not return a value" ) ||
+		        d.getMessage().getLeft().toLowerCase().contains( "missing return" ) ||
+		        d.getMessage().getLeft().toLowerCase().contains( "return statement" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -727,9 +727,9 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic missingReturn = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "may not return a value" ) ||
-		        d.getMessage().toLowerCase().contains( "missing return" ) ||
-		        d.getMessage().toLowerCase().contains( "return statement" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "may not return a value" ) ||
+		        d.getMessage().getLeft().toLowerCase().contains( "missing return" ) ||
+		        d.getMessage().getLeft().toLowerCase().contains( "return statement" ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -756,7 +756,7 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertNotNull( diagnostics );
 
 		Diagnostic unreachable = diagnostics.stream()
-		    .filter( d -> d.getMessage().toLowerCase().contains( "unreachable" ) )
+		    .filter( d -> d.getMessage().getLeft().toLowerCase().contains( "unreachable" ) )
 		    .findFirst()
 		    .orElse( null );
 

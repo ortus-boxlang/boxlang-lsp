@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Unused imports incorrectly flagging static method call sites.
+- Circular dependency between `assemble`, `shadowJar`, and `build` tasks.
 
 ### Added
 
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Updates
 
+- Upgraded LSP4J from 0.24.0 to 1.0.0
 - Upgraded Guava from 33.5.0-jre to 33.6.0-jre
 - Upgraded Spotless from 8.4.0 to 8.6.0
 - Upgraded Shadow plugin from 9.4.1 to 9.4.2
