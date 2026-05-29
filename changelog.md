@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Unused imports ignoring static call sites.
+
 ### Added
 
 - Updated very old `build.gradle` to use modern Gradle features and dependencies
