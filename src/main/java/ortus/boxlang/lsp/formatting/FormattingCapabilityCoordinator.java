@@ -5,6 +5,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.eclipse.lsp4j.DocumentFilter;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.DocumentFormattingRegistrationOptions;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
@@ -106,7 +107,7 @@ public class FormattingCapabilityCoordinator {
 
 	private DocumentFormattingRegistrationOptions createRegistrationOptions() {
 		DocumentFormattingRegistrationOptions options = new DocumentFormattingRegistrationOptions();
-		options.setDocumentSelector( List.of( new DocumentFilter( null, "file", supportedGlobPattern() ) ) );
+		options.setDocumentSelector( List.of( new DocumentFilter( null, "file", Either.forLeft( supportedGlobPattern() ) ) ) );
 		return options;
 	}
 

@@ -52,7 +52,7 @@ public class UnscopedVariablesTest {
 		assertFalse( diagnostics.isEmpty(), "Diagnostics should not be empty." );
 
 		Diagnostic unscopedVariable = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [foo] is not scoped." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [foo] is not scoped." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -73,7 +73,7 @@ public class UnscopedVariablesTest {
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 
 		Diagnostic unscopedVariable = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [isAProperty] is not scoped." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [isAProperty] is not scoped." ) )
 		    .findFirst()
 		    .orElse( null );
 
@@ -93,7 +93,7 @@ public class UnscopedVariablesTest {
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 
 		long c = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "Variable [multiple] is not scoped." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [multiple] is not scoped." ) )
 		    .count();
 
 		assertThat( c ).isEqualTo( 1 );
@@ -112,7 +112,7 @@ public class UnscopedVariablesTest {
 		assertNotNull( diagnostics, "Diagnostics should not be null." );
 
 		long c = diagnostics.stream()
-		    .filter( d -> d.getMessage().contains( "] is not scoped." ) )
+		    .filter( d -> d.getMessage().getLeft().contains( "] is not scoped." ) )
 		    .count();
 
 		assertThat( c ).isEqualTo( 0 );
@@ -132,8 +132,8 @@ public class UnscopedVariablesTest {
 
 		long c = diagnostics.stream()
 		    .filter( d -> {
-			    return d.getMessage().contains( "Variable [inVariables" )
-			        && d.getMessage().contains( "] is not scoped." );
+			    return d.getMessage().getLeft().contains( "Variable [inVariables" )
+			        && d.getMessage().getLeft().contains( "] is not scoped." );
 		    } )
 		    .count();
 
@@ -175,8 +175,8 @@ public class UnscopedVariablesTest {
 
 		long c = diagnostics.stream()
 		    .filter( d -> {
-			    return d.getMessage().contains( "Variable [hasBeenVard" )
-			        && d.getMessage().contains( "] is not scoped." );
+			    return d.getMessage().getLeft().contains( "Variable [hasBeenVard" )
+			        && d.getMessage().getLeft().contains( "] is not scoped." );
 		    } )
 		    .count();
 
@@ -197,8 +197,8 @@ public class UnscopedVariablesTest {
 
 		long c = diagnostics.stream()
 		    .filter( d -> {
-			    return d.getMessage().contains( "Variable [someArg" )
-			        && d.getMessage().contains( "] is not scoped." );
+			    return d.getMessage().getLeft().contains( "Variable [someArg" )
+			        && d.getMessage().getLeft().contains( "] is not scoped." );
 		    } )
 		    .count();
 

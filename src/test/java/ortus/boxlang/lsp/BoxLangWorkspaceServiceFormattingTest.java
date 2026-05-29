@@ -166,6 +166,7 @@ class BoxLangWorkspaceServiceFormattingTest extends BaseTest {
 		    .stream()
 		    .findFirst()
 		    .orElseThrow()
+		    .getLeft()
 		    .getNewText();
 	}
 

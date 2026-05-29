@@ -67,7 +67,7 @@ dependencies {
 	implementation "com.fasterxml.jackson.core:jackson-databind:2.21.0"
 
     // https://mvnrepository.com/artifact/org.eclipse.lsp4j/org.eclipse.lsp4j
-    implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:0.24.0"
+    implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:1.0.0"
     // cli
     implementation 'info.picocli:picocli:4.7.7'
 
@@ -111,7 +111,6 @@ compileTestJava{
 	// Make sure the service loaders are created before testing
 	dependsOn compileJava, serviceLoaderBuild
 }
-compileTestJava.finalizedBy( shadowJar )
 
 /**
  * Clean up
@@ -194,8 +193,6 @@ shadowJar {
     mergeServiceFiles()
     destinationDirectory = file( "build/libs" )
 }
-build.finalizedBy( shadowJar )
-
 /**
  * Source Code Formatting
  */

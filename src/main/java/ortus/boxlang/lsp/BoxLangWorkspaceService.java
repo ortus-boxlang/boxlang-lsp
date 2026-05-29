@@ -327,7 +327,8 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 		createFileOptions.setIgnoreIfExists( false );
 
 		CreateFile			createFile			= new CreateFile( configUri, createFileOptions );
-		TextEdit			initialContents		= new TextEdit( new Range( new Position( 0, 0 ), new Position( 0, 0 ) ), contents );
+		@SuppressWarnings( { "rawtypes", "unchecked" } )
+		Either				initialContents		= Either.forLeft( new TextEdit( new Range( new Position( 0, 0 ), new Position( 0, 0 ) ), contents ) );
 		TextDocumentEdit	textDocumentEdit	= new TextDocumentEdit( new VersionedTextDocumentIdentifier( configUri, null ), List.of( initialContents ) );
 		WorkspaceEdit		edit				= new WorkspaceEdit();
 
