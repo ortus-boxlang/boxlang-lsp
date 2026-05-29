@@ -150,6 +150,40 @@ public class DebouncedDocumentProcessor {
 	}
 
 	/**
+	 * Immediately processes all pending documents, cancelling any remaining debounce delays.
+	 * Useful for testing to ensure all pending operations complete synchronously.
+	 */
+	public void flushAll() {
+		// Get a snapshot of all pending URIs
+		var pendingUris = new java.util.ArrayList<>( pendingTasks.keySet() );
+		
+		// Process each one immediately
+		for ( URI uri : pendingUris ) {
+			// Cancel the scheduled task
+			ScheduledFuture<?> existingTask = pendingTasks.remove( uri );
+			if ( existingTask != null ) {
+				existingTask.cancel( false );
+			}
+			
+			// Execute the custom action if present, otherwise use the default callback
+			Runnable action = pendingActions.remove( uri );
+			if ( action != null ) {
+				try {
+					action.run();
+				} catch ( Exception e ) {
+					App.logger.error( "Error flushing document action: " + uri, e );
+				}
+			} else if ( onProcessDocument != null ) {
+				try {
+					onProcessDocument.accept( uri );
+				} catch ( Exception e ) {
+					App.logger.error( "Error processing document immediately: " + uri, e );
+				}
+			}
+		}
+	}
+
+	/**
 	 * Gets the debounce delay in milliseconds.
 	 *
 	 * @return The debounce delay

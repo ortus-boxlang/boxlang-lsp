@@ -497,6 +497,37 @@ public class ProjectContextProvider {
 		parseWorkspace( false );
 	}
 
+	/**
+	 * Waits for any in-progress workspace parse to complete.
+	 * Useful for testing to ensure async operations have finished.
+	 * 
+	 * @param timeoutMs maximum time to wait in milliseconds
+	 * @return true if workspace parse completed, false if timeout elapsed
+	 */
+	public boolean awaitWorkspaceParseComplete( long timeoutMs ) {
+		long	startTime	= System.currentTimeMillis();
+		while ( workspaceParseRunning.get() ) {
+			if ( System.currentTimeMillis() - startTime > timeoutMs ) {
+				return false;
+			}
+			try {
+				Thread.sleep( 10 );
+			} catch ( InterruptedException e ) {
+				Thread.currentThread().interrupt();
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Flushes the publish debouncer, immediately executing all pending publish operations.
+	 * Useful for testing to ensure diagnostics are published without debounce delay.
+	 */
+	public void flushPublishDebouncer() {
+		publishDebouncer.flushAll();
+	}
+
 	private void parseWorkspace( boolean force ) {
 		CompletableFuture.runAsync( () -> {
 			System.out.println( "Generating workspace diagnostic report" );
@@ -2419,28 +2450,12 @@ public class ProjectContextProvider {
 		String	propertyName	= identifier.getName();
 
 		// Check if this identifier is the access part of a BoxDotAccess (e.g., 'foo' in 'a.foo')
-		// In that case, we should only resolve if the receiver is 'variables' or 'this'
-		// (which is handled by findPropertyDefinitionAtPosition)
-		BoxNode	parent			= identifier.getParent();
+		// In that case, we should NOT try to resolve it as a class name - it's a property/method access
+		BoxNode parent = identifier.getParent();
 		if ( parent instanceof BoxDotAccess dotAccess && dotAccess.getAccess() == identifier ) {
-			// Check if the receiver is 'variables' or 'this'
-			BoxNode	context		= dotAccess.getContext();
-			String	scopeName	= null;
-			if ( context instanceof BoxScope scope ) {
-				scopeName = scope.getName();
-			} else if ( context instanceof BoxIdentifier scopeId ) {
-				scopeName = scopeId.getName();
-			}
-
-			// Only allow property lookup if the receiver is 'variables' or 'this'
-			if ( scopeName == null ) {
-				return new ArrayList<>();
-			}
-			String lowerScopeName = scopeName.toLowerCase();
-			if ( !lowerScopeName.equals( "variables" ) && !lowerScopeName.equals( "this" ) ) {
-				// Unknown receiver - can't determine the type, so don't resolve
-				return new ArrayList<>();
-			}
+			// This identifier is the accessed member of a dot expression
+			// Don't try to resolve it as a class name
+			return new ArrayList<>();
 		}
 
 		// First, look for property in the same file
@@ -2628,7 +2643,7 @@ public class ProjectContextProvider {
 	 * Handles import statements like `import ClassName;` and `import package.ClassName;`
 	 *
 	 * Note: Java imports (e.g., `import java:java.util.ArrayList;`) return empty
-	 * since there's no source file to navigate to.
+	 * since there's no source to navigate to.
 	 *
 	 * For package-qualified imports (e.g., `import subpackage.Item;`), looks up by FQN only.
 	 * This ensures that `import subpackage.Item;` does NOT match `Item.bx` in the root folder.

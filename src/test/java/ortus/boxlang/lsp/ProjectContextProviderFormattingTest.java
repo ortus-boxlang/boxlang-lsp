@@ -185,6 +185,11 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			                               """ );
 
 			provider.handleConfigFileChange( lintConfig.toUri() );
+			
+			// Wait for async workspace parse to complete
+			assertThat( provider.awaitWorkspaceParseComplete( 5000 ) ).isTrue();
+			// Flush any pending debounced publishes
+			provider.flushPublishDebouncer();
 
 			assertThat( awaitCachedDiagnostic( provider, documentPath.toUri(), "invalidExtends" ) ).isTrue();
 		} finally {
@@ -243,6 +248,11 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			                               """ );
 
 			provider.handleConfigFileChange( lintConfig.toUri() );
+			
+			// Wait for async workspace parse to complete
+			assertThat( provider.awaitWorkspaceParseComplete( 5000 ) ).isTrue();
+			// Flush any pending debounced publishes
+			provider.flushPublishDebouncer();
 
 			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
 			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).getDiagnostics() )
@@ -450,6 +460,11 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			                               """ );
 
 			provider.handleConfigFileChange( lintConfig.toUri() );
+			
+			// Wait for async workspace parse to complete
+			assertThat( provider.awaitWorkspaceParseComplete( 5000 ) ).isTrue();
+			// Flush any pending debounced publishes
+			provider.flushPublishDebouncer();
 
 			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), List::isEmpty ).getDiagnostics() ).isEmpty();
 		} finally {

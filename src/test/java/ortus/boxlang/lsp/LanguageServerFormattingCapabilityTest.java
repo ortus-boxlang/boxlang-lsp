@@ -214,6 +214,10 @@ class LanguageServerFormattingCapabilityTest extends BaseTest {
 			params.setWorkspaceFolders( List.of( folder ) );
 
 			server.initialize( params ).get();
+			
+			// Wait for any pending async operations from initialize() to settle
+			Thread.sleep( 100 );
+			
 			assertThat( client.getPrematureConfigurationRequests() ).isEqualTo( 0 );
 			assertThat( client.getPrematureDiagnosticPublishes() ).isEqualTo( 0 );
 
