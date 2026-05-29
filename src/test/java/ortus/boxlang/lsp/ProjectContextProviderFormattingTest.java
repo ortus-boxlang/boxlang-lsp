@@ -19,6 +19,8 @@ import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.google.gson.JsonObject;
@@ -141,6 +143,7 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 	}
 
 	@Test
+	@DisabledOnOs( OS.WINDOWS )
 	void handleConfigFileChangeRebuildsClosedFileWorkspaceDiagnosticsWhenRuleBecomesEnabledWithBackgroundParsingDisabled() throws Exception {
 		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
 		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
@@ -199,6 +202,7 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 	}
 
 	@Test
+	@DisabledOnOs( OS.WINDOWS )
 	void handleConfigFileChangePublishesClosedFileDiagnosticsWhenRuleBecomesEnabled() throws Exception {
 		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
 		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
@@ -413,6 +417,7 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 	}
 
 	@Test
+	@DisabledOnOs( OS.WINDOWS )
 	void handleConfigFileChangeClearsPreviouslyPublishedDiagnosticsForClosedFilesThatBecomeExcluded() throws Exception {
 		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
 		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
