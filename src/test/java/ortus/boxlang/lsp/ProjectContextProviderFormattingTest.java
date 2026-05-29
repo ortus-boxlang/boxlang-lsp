@@ -185,7 +185,7 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			                               """ );
 
 			provider.handleConfigFileChange( lintConfig.toUri() );
-			
+
 			// Wait for async workspace parse to complete
 			assertThat( provider.awaitWorkspaceParseComplete( 5000 ) ).isTrue();
 			// Flush any pending debounced publishes
@@ -248,7 +248,7 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			                               """ );
 
 			provider.handleConfigFileChange( lintConfig.toUri() );
-			
+
 			// Wait for async workspace parse to complete
 			assertThat( provider.awaitWorkspaceParseComplete( 5000 ) ).isTrue();
 			// Flush any pending debounced publishes
@@ -460,7 +460,7 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			                               """ );
 
 			provider.handleConfigFileChange( lintConfig.toUri() );
-			
+
 			// Wait for async workspace parse to complete
 			assertThat( provider.awaitWorkspaceParseComplete( 5000 ) ).isTrue();
 			// Flush any pending debounced publishes

@@ -156,7 +156,7 @@ public class DebouncedDocumentProcessor {
 	public void flushAll() {
 		// Get a snapshot of all pending URIs
 		var pendingUris = new java.util.ArrayList<>( pendingTasks.keySet() );
-		
+
 		// Process each one immediately
 		for ( URI uri : pendingUris ) {
 			// Cancel the scheduled task
@@ -164,7 +164,7 @@ public class DebouncedDocumentProcessor {
 			if ( existingTask != null ) {
 				existingTask.cancel( false );
 			}
-			
+
 			// Execute the custom action if present, otherwise use the default callback
 			Runnable action = pendingActions.remove( uri );
 			if ( action != null ) {

@@ -502,10 +502,11 @@ public class ProjectContextProvider {
 	 * Useful for testing to ensure async operations have finished.
 	 * 
 	 * @param timeoutMs maximum time to wait in milliseconds
+	 * 
 	 * @return true if workspace parse completed, false if timeout elapsed
 	 */
 	public boolean awaitWorkspaceParseComplete( long timeoutMs ) {
-		long	startTime	= System.currentTimeMillis();
+		long startTime = System.currentTimeMillis();
 		while ( workspaceParseRunning.get() ) {
 			if ( System.currentTimeMillis() - startTime > timeoutMs ) {
 				return false;
@@ -2451,7 +2452,7 @@ public class ProjectContextProvider {
 
 		// Check if this identifier is the access part of a BoxDotAccess (e.g., 'foo' in 'a.foo')
 		// In that case, we should NOT try to resolve it as a class name - it's a property/method access
-		BoxNode parent = identifier.getParent();
+		BoxNode	parent			= identifier.getParent();
 		if ( parent instanceof BoxDotAccess dotAccess && dotAccess.getAccess() == identifier ) {
 			// This identifier is the accessed member of a dot expression
 			// Don't try to resolve it as a class name
