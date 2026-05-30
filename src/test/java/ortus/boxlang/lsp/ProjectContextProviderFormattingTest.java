@@ -256,7 +256,7 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 
 			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
 			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).getDiagnostics() )
-			        .isNotEmpty();
+			    .isNotEmpty();
 		} finally {
 			provider.remove( documentPath.toUri() );
 			provider.setWorkspaceFolders( savedFolders );
