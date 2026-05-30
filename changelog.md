@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-05-30
+
 ### Added
 
 - Commands to generate a starter `.bxlint.json`, create a `.bxformat.json`, and convert existing `.cfformat.json` or `.cfconfig.json` files into BoxLang formatter settings from the IDE
@@ -137,7 +139,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverted LSP to be a BoxLang module
 - BLIDE-96 Added version info
 
-[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.10.0...HEAD
+[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.6.0...v1.9.0
 [1.5.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.3.0...v1.5.0
