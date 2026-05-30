@@ -9,20 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Unused imports incorrectly flagging static method call sites.
-- Circular dependency between `assemble`, `shadowJar`, and `build` tasks.
-
 ### Added
 
-- Updated `build.gradle` to use modern Gradle features and dependencies
-- Updated to use the BoxLang formatter
+- Commands to generate a starter `.bxlint.json`, create a `.bxformat.json`, and convert existing `.cfformat.json` or `.cfconfig.json` files into BoxLang formatter settings from the IDE
+- Rule ID completions for `bxlint:disable` and `bxlint:enable` comments, with inline documentation for each available lint rule
+- Comment-based `bxlint` suppression directives with class- and function-scoped enable/disable support
+- Query parameter diagnostics that flag unescaped interpolations and missing `cfsqltype` attributes on `<cfqueryparam>`, with quick fixes and refactor actions
+- Shared `.bxlint.json` workspace settings for mappings and experimental formatter enablement, with generated schema and config reference docs
 - New `AGENTS.md` to support opencode and AI coding assistants
 - New Gradle wrapper
 
+### Fixed
+
+- Invalid `extends` diagnostics now surface likely mapping matches and offer quick fixes that add mappings to `Application.bx`, `boxlang.json`, or `.bxlint.json`
+- `.bxlint.json` changes now refresh mappings, indexing, formatting capabilities, and diagnostics without requiring a restart
+- Unused import diagnostics no longer flag imports that are only referenced through static method call sites
+- Circular dependency between `assemble`, `shadowJar`, and `build` tasks
+
 ### Updates
 
+- Updated `build.gradle` to use modern Gradle features and dependencies
+- Updated to use the BoxLang formatter runtime
 - Upgraded LSP4J from 0.24.0 to 1.0.0
 - Upgraded Guava from 33.5.0-jre to 33.6.0-jre
 - Upgraded Spotless from 8.4.0 to 8.6.0
