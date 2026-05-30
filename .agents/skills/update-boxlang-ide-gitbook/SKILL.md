@@ -1,5 +1,5 @@
 ---
-name: update-gitbook-docs
+name: update-boxlang-ide-gitbook
 description: Use this skill to update GitBook documentation with the latest changes and improvements.
 ---
 
@@ -9,7 +9,7 @@ This project's documentation is hosted at https://boxlang-ide.ortusbooks.com.
 
 The git repo for the gitbook is git@github.com:ortus-docs/boxlang-ide.git.
 
-If you need to you can clone the gitbook repo into `./boxlang-ide`. If it is already cloned, you can pull the latest changes.
+If you need to you can clone the gitbook repo into this repo under `boxlang-ide`. If it is already cloned, you can pull the latest changes. This folder we be ignored by git and is only for the purpose of updating the documentation. You can make changes to the documentation files in this folder and then commit those changes to the gitbook repo.
 
 To update the documentation, you can follow these steps:
 
