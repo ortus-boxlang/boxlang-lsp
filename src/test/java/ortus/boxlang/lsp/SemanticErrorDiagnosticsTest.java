@@ -24,9 +24,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
+import org.eclipse.lsp4j.MessageActionItem;
+import org.eclipse.lsp4j.MessageParams;
+import org.eclipse.lsp4j.PublishDiagnosticsParams;
+import org.eclipse.lsp4j.ShowMessageRequestParams;
+import org.eclipse.lsp4j.services.LanguageClient;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -121,6 +127,69 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		// The end character should be at or before the opening brace position
 		// "class extends="NonExistentClass" {" - brace is at position 35
 		assertThat( invalidExtends.getRange().getEnd().getCharacter() ).isAtMost( 36 );
+	}
+
+	@Test
+	void testInvalidExtendsRangeOnlyCoversTemplateOpeningTag() throws Exception {
+		ProjectContextProvider	provider	= ProjectContextProvider.getInstance();
+		Path					projectRoot	= Path.of( "src/test/resources/test-bx-project" ).toAbsolutePath();
+		Path					sourceFile	= Path.of( "src/test/resources/test-bx-project/InvalidExtendsTemplate.cfm" );
+		assertThat( Files.exists( sourceFile ) ).isTrue();
+
+		String sourceText = Files.readString( sourceFile );
+		index.reinitialize( projectRoot, null );
+		provider.setIndex( index );
+
+		provider.trackDocumentOpen( sourceFile.toAbsolutePath().toUri(), sourceText );
+		List<Diagnostic> diagnostics;
+		try {
+			diagnostics = provider.getFileDiagnostics( sourceFile.toAbsolutePath().toUri() );
+			assertNotNull( diagnostics );
+
+			Diagnostic invalidExtends = diagnostics.stream()
+			    .filter( d -> d.getMessage().getLeft().contains( "waht" ) && d.getMessage().getLeft().toLowerCase().contains( "not found" ) )
+			    .findFirst()
+			    .orElse( null );
+
+			assertThat( invalidExtends ).isNotNull();
+
+			int openingTagEnd = sourceText.indexOf( '>' );
+			assertThat( openingTagEnd ).isAtLeast( 0 );
+
+			assertThat( invalidExtends.getRange().getStart().getLine() ).isEqualTo( 0 );
+			assertThat( invalidExtends.getRange().getEnd().getLine() ).isEqualTo( 0 );
+			assertThat( invalidExtends.getRange().getEnd().getCharacter() ).isAtMost( openingTagEnd + 1 );
+		} finally {
+			provider.trackDocumentClose( sourceFile.toAbsolutePath().toUri() );
+		}
+	}
+
+	@Test
+	void testPublishedDiagnosticsForInvalidExtendsTemplateStayOnOpeningTag() throws Exception {
+		ProjectContextProvider	provider	= ProjectContextProvider.getInstance();
+		Path					projectRoot	= Path.of( "src/test/resources/test-bx-project" ).toAbsolutePath();
+		Path					sourceFile	= Path.of( "src/test/resources/test-bx-project/InvalidExtendsTemplate.cfm" );
+		RecordingLanguageClient	client		= new RecordingLanguageClient();
+		assertThat( Files.exists( sourceFile ) ).isTrue();
+
+		String sourceText = Files.readString( sourceFile );
+		index.reinitialize( projectRoot, null );
+		provider.setIndex( index );
+		provider.setLanguageClient( client );
+
+		provider.trackDocumentOpen( sourceFile.toAbsolutePath().toUri(), sourceText );
+		try {
+			provider.flushPublishDebouncer();
+			PublishDiagnosticsParams params = client.awaitPublished( sourceFile.toAbsolutePath().toUri().toString() );
+			assertThat( params.getDiagnostics() ).isNotEmpty();
+
+			for ( Diagnostic diagnostic : params.getDiagnostics() ) {
+				assertThat( diagnostic.getRange().getEnd().getLine() ).isEqualTo( 0 );
+			}
+		} finally {
+			provider.trackDocumentClose( sourceFile.toAbsolutePath().toUri() );
+			provider.setLanguageClient( null );
+		}
 	}
 
 	@Test
@@ -396,5 +465,43 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		Path testFile = tempDir.resolve( fileName );
 		Files.writeString( testFile, content );
 		return testFile;
+	}
+
+	private static class RecordingLanguageClient implements LanguageClient {
+
+		private final java.util.concurrent.ConcurrentHashMap<String, PublishDiagnosticsParams> publishedDiagnostics = new java.util.concurrent.ConcurrentHashMap<>();
+
+		@Override
+		public void telemetryEvent( Object object ) {
+		}
+
+		@Override
+		public void publishDiagnostics( PublishDiagnosticsParams diagnostics ) {
+			publishedDiagnostics.put( diagnostics.getUri(), diagnostics );
+		}
+
+		@Override
+		public void showMessage( MessageParams messageParams ) {
+		}
+
+		@Override
+		public CompletableFuture<MessageActionItem> showMessageRequest( ShowMessageRequestParams requestParams ) {
+			return CompletableFuture.completedFuture( null );
+		}
+
+		@Override
+		public void logMessage( MessageParams message ) {
+		}
+
+		private PublishDiagnosticsParams awaitPublished( String uri ) throws InterruptedException {
+			for ( int attempt = 0; attempt < 40; attempt++ ) {
+				PublishDiagnosticsParams params = publishedDiagnostics.get( uri );
+				if ( params != null ) {
+					return params;
+				}
+				Thread.sleep( 50 );
+			}
+			throw new AssertionError( "Timed out waiting for diagnostics publish for " + uri );
+		}
 	}
 }

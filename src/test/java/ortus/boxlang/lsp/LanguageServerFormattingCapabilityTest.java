@@ -17,6 +17,7 @@ import java.util.concurrent.TimeoutException;
 import org.eclipse.lsp4j.ClientCapabilities;
 import org.eclipse.lsp4j.ConfigurationParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
+import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.InitializedParams;
@@ -24,6 +25,7 @@ import org.eclipse.lsp4j.MessageActionItem;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.ShowMessageRequestParams;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextDocumentItem;
 import org.eclipse.lsp4j.WorkspaceClientCapabilities;
 import org.eclipse.lsp4j.WorkspaceFolder;
@@ -275,6 +277,115 @@ class LanguageServerFormattingCapabilityTest extends BaseTest {
 			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
 			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).getDiagnostics() )
 			    .isNotEmpty();
+		} finally {
+			provider.remove( documentPath.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+			provider.setUserSettings( savedSettings );
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	@Test
+	void openTemplateAfterInitializationPublishesInvalidExtendsOnOpeningTagOnly() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		UserSettings			savedSettings	= provider.getUserSettings();
+		Path					workspaceRoot	= Files.createDirectories( tempDir.resolve( "workspace-open-template-after-initialize" ) );
+		Path					documentPath	= workspaceRoot.resolve( "InvalidExtendsTemplate.cfm" );
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+		RecordingLanguageClient	client			= new RecordingLanguageClient( createLspSettings( true ) );
+		LanguageServer			server			= new LanguageServer();
+
+		Files.writeString( documentPath, """
+		                                 <cfcomponent extends=\"waht\">
+
+		                                 </cfcomponent>
+		                                 """ );
+		folder.setUri( workspaceRoot.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of() );
+			provider.setUserSettings( new UserSettings() );
+			LintConfigLoader.invalidate();
+
+			server.connect( client );
+
+			InitializeParams			params					= new InitializeParams();
+			ClientCapabilities			clientCapabilities		= new ClientCapabilities();
+			WorkspaceClientCapabilities	workspaceCapabilities	= new WorkspaceClientCapabilities();
+			workspaceCapabilities.setConfiguration( true );
+			clientCapabilities.setWorkspace( workspaceCapabilities );
+			params.setCapabilities( clientCapabilities );
+			params.setWorkspaceFolders( List.of( folder ) );
+
+			server.initialize( params ).get();
+			server.initialized( new InitializedParams() );
+			server.getTextDocumentService().didOpen( new DidOpenTextDocumentParams(
+			    new TextDocumentItem( documentPath.toUri().toString(), "boxlang", 1, Files.readString( documentPath ) ) ) );
+
+			provider.flushPublishDebouncer();
+			PublishDiagnosticsParams paramsPublished = awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
+			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) );
+
+			assertThat( paramsPublished.getDiagnostics() ).isNotEmpty();
+			assertThat( paramsPublished.getDiagnostics().stream().allMatch( diagnostic -> diagnostic.getRange().getEnd().getLine() == 0 ) ).isTrue();
+		} finally {
+			provider.remove( documentPath.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+			provider.setUserSettings( savedSettings );
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	@Test
+	void saveTemplateAfterOpenPublishesInvalidExtendsOnOpeningTagOnly() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		UserSettings			savedSettings	= provider.getUserSettings();
+		Path					workspaceRoot	= Files.createDirectories( tempDir.resolve( "workspace-save-template-after-open" ) );
+		Path					documentPath	= workspaceRoot.resolve( "InvalidExtendsTemplate.cfm" );
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+		RecordingLanguageClient	client			= new RecordingLanguageClient( createLspSettings( true ) );
+		LanguageServer			server			= new LanguageServer();
+
+		Files.writeString( documentPath, """
+		                                 <cfcomponent extends=\"waht\">
+
+		                                 </cfcomponent>
+		                                 """ );
+		folder.setUri( workspaceRoot.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of() );
+			provider.setUserSettings( new UserSettings() );
+			LintConfigLoader.invalidate();
+
+			server.connect( client );
+
+			InitializeParams			params					= new InitializeParams();
+			ClientCapabilities			clientCapabilities		= new ClientCapabilities();
+			WorkspaceClientCapabilities	workspaceCapabilities	= new WorkspaceClientCapabilities();
+			workspaceCapabilities.setConfiguration( true );
+			clientCapabilities.setWorkspace( workspaceCapabilities );
+			params.setCapabilities( clientCapabilities );
+			params.setWorkspaceFolders( List.of( folder ) );
+
+			server.initialize( params ).get();
+			server.initialized( new InitializedParams() );
+			server.getTextDocumentService().didOpen( new DidOpenTextDocumentParams(
+			    new TextDocumentItem( documentPath.toUri().toString(), "boxlang", 1, Files.readString( documentPath ) ) ) );
+			client.publishedDiagnostics.clear();
+
+			DidSaveTextDocumentParams saveParams = new DidSaveTextDocumentParams();
+			saveParams.setTextDocument( new TextDocumentIdentifier( documentPath.toUri().toString() ) );
+			server.getTextDocumentService().didSave( saveParams );
+
+			provider.flushPublishDebouncer();
+			PublishDiagnosticsParams paramsPublished = awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
+			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) );
+
+			assertThat( paramsPublished.getDiagnostics() ).isNotEmpty();
+			assertThat( paramsPublished.getDiagnostics().stream().allMatch( diagnostic -> diagnostic.getRange().getEnd().getLine() == 0 ) ).isTrue();
 		} finally {
 			provider.remove( documentPath.toUri() );
 			provider.setWorkspaceFolders( savedFolders );

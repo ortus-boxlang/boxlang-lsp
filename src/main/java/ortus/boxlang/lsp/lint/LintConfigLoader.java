@@ -21,6 +21,7 @@ public class LintConfigLoader {
 	public static final String							CONFIG_FILENAME	= ".bxlint.json";
 	private static final ObjectMapper					MAPPER			= new ObjectMapper();
 	private static final AtomicReference<LintConfig>	CACHE			= new AtomicReference<>( new LintConfig() );
+	private static final AtomicReference<Path>			CACHED_ROOT		= new AtomicReference<>( null );
 	private static volatile long						lastLoad		= 0L;
 	private static final long							TTL_MS			= 5_000; // simple debounce until we add file watch
 	private static final BoxLangLogger					LOGGER			= BoxRuntime.getInstance().getLoggingService().getLogger( "lsp.lint" );
@@ -40,12 +41,13 @@ public class LintConfigLoader {
 	}
 
 	public static LintConfig get( Path workspaceRoot ) {
-		long now = System.currentTimeMillis();
-		if ( now - lastLoad < TTL_MS ) {
+		long	now			= System.currentTimeMillis();
+		Path	root		= workspaceRoot == null ? null : workspaceRoot.toAbsolutePath().normalize();
+		Path	cachedRoot	= CACHED_ROOT.get();
+		if ( root != null && root.equals( cachedRoot ) && now - lastLoad < TTL_MS ) {
 			LOGGER.trace( "Lint config cache hit (TTL window)." );
 			return CACHE.get();
 		}
-		Path root = workspaceRoot == null ? null : workspaceRoot.toAbsolutePath().normalize();
 		if ( root == null ) {
 			LOGGER.debug( "No workspace root detected; using existing lint config cache." );
 			return new LintConfig();
@@ -54,6 +56,7 @@ public class LintConfigLoader {
 		if ( !Files.exists( cfgPath ) ) {
 			LOGGER.trace( ".bxlint.json not found at " + cfgPath + "; resetting to defaults." );
 			CACHE.set( new LintConfig() );
+			CACHED_ROOT.set( root );
 			lastLoad = now;
 			return CACHE.get();
 		}
@@ -77,6 +80,7 @@ public class LintConfigLoader {
 				    .toList();
 			}
 			CACHE.set( lc );
+			CACHED_ROOT.set( root );
 			LOGGER.info( "Lint config loaded: rules=" + lc.diagnostics.keySet() + " include=" + lc.include + " exclude=" + lc.exclude );
 		} catch ( IOException e ) {
 			LOGGER.error( "Failed to load lint config; keeping previous configuration", e );
@@ -90,6 +94,7 @@ public class LintConfigLoader {
 	/** Force the next get() call to reload from disk immediately. */
 	public static void invalidate() {
 		LOGGER.debug( "Lint config cache invalidated." );
+		CACHED_ROOT.set( null );
 		lastLoad = 0L;
 	}
 }

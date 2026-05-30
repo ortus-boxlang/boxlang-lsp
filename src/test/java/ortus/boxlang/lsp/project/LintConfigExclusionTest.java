@@ -179,11 +179,11 @@ public class LintConfigExclusionTest extends BaseTest {
 	}
 
 	@Test
-	void testExperimentalFormattingToggleLoadsFromLintConfig() {
+	void testExperimentalFormattingToggleLoadsDisabledFromLintConfig() {
 		var config = LintConfigLoader.get();
 
 		assertNotNull( config, "LintConfig should be loaded" );
-		assertThat( config.formatting.experimental.enabled ).isTrue();
+		assertThat( config.formatting.experimental.enabled ).isFalse();
 	}
 
 	@Test

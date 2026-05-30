@@ -33,6 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import ortus.boxlang.lsp.lint.rules.UnreachableCodeRule;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 import ortus.boxlang.runtime.BoxRuntime;
@@ -209,6 +210,25 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		    .orElse( null );
 
 		assertThat( unreachable ).isNotNull();
+	}
+
+	@Test
+	void testNoUnreachableCodeAfterBreakTagAtEndOfBxmFunction() throws Exception {
+		Path sourceFile = Path.of( "src/test/resources/test-bx-project/break.bxm" );
+		assertThat( Files.exists( sourceFile ) ).isTrue();
+
+		Path testFile = createTestFile( "break.bxm", Files.readString( sourceFile ) );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic unreachable = diagnostics.stream()
+		    .filter( d -> d.getCode() != null && d.getCode().isLeft() && UnreachableCodeRule.ID.equals( d.getCode().getLeft() ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( unreachable ).isNull();
 	}
 
 	@Test

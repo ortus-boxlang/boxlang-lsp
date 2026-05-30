@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
@@ -202,10 +203,11 @@ public class FileParseResult {
 
 		try {
 			if ( this.isOpen ) {
+				String extension = Parser.getFileExtension( this.uri.toString() ).orElse( "bxs" );
 				return parser.parse(
 				    this.source,
 				    Parser.detectFile( new File( this.uri ) ),
-				    Parser.getFileExtension( this.uri.toString() ).orElseGet( () -> "bxs" ).matches( "cfc|bx" ),
+				    shouldParseAsClassLikeSource( extension ),
 				    false );
 			}
 
@@ -216,6 +218,34 @@ public class FileParseResult {
 		} finally {
 			PARSE_SOURCE_NANOS.add( System.nanoTime() - startNanos );
 		}
+	}
+
+	private boolean shouldParseAsClassLikeSource( String extension ) {
+		if ( extension.matches( "cfc|bx" ) ) {
+			return true;
+		}
+
+		if ( source == null ) {
+			return false;
+		}
+
+		String remaining = source.stripLeading();
+		while ( remaining.startsWith( "<!---" ) || remaining.startsWith( "<!--" ) ) {
+			String	closingDelimiter	= remaining.startsWith( "<!---" ) ? "--->" : "-->";
+			int		closingIndex		= remaining.indexOf( closingDelimiter );
+			if ( closingIndex < 0 ) {
+				return false;
+			}
+			remaining = remaining.substring( closingIndex + closingDelimiter.length() ).stripLeading();
+		}
+
+		String normalized = remaining.toLowerCase( Locale.ROOT );
+		return normalized.startsWith( "component" )
+		    || normalized.startsWith( "interface" )
+		    || normalized.startsWith( "<cfcomponent" )
+		    || normalized.startsWith( "<cfinterface" )
+		    || normalized.startsWith( "<bx:component" )
+		    || normalized.startsWith( "<bx:interface" );
 	}
 
 	private List<Diagnostic> generateDiagnostics() {

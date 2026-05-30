@@ -57,4 +57,50 @@ public class OutlineTest extends BaseTest {
 		assertThat( children.get( 3 ).getKind() ).isEqualTo( SymbolKind.Method );
 		assertThat( children.get( 4 ).getKind() ).isEqualTo( SymbolKind.Method );
 	}
+
+	@Test
+	void testItShouldGenerateAnOutlineForOpenReportedCfmFile() throws Exception {
+		ProjectContextProvider	provider	= ProjectContextProvider.getInstance();
+		Path					p			= Path.of( "src/test/resources/files/reportedUnreachableCodeFalsePositive.cfm" );
+		String					source		= """
+		                                      <cfcomponent displayname="staff" extends="ccc.cciDatabase">
+
+		                                      	<cffunction name="editorList" access="public" returntype="query" output="false">
+		                                      		<cfreturn queryNew( "" )>
+		                                      	</cffunction>
+
+		                                      	<cffunction name="createTables" access="private" returntype="string" output="false">
+		                                      		<cfreturn "Tables created successfully.">
+		                                      	</cffunction>
+
+		                                      	<cffunction name="allClients" access="public" output="false" returntype="query">
+		                                      		<cfreturn queryNew( "" )>
+		                                      	</cffunction>
+
+		                                      	<cffunction name="getLinks" access="public" output="false" returntype="query">
+		                                      		<cfreturn queryNew( "" )>
+		                                      	</cffunction>
+
+		                                      	<cffunction name="setContract" access="public" output="false" returntype="numeric">
+		                                      		<cfreturn 1>
+		                                      	</cffunction>
+		                                      </cfcomponent>
+		                                      """;
+
+		provider.trackDocumentOpen( p.toAbsolutePath().toUri(), source );
+		try {
+			Optional<List<Either<SymbolInformation, DocumentSymbol>>> symbols = provider.getDocumentSymbols( p.toAbsolutePath().toUri() );
+
+			assertThat( symbols.isPresent() ).isTrue();
+			assertThat( symbols.get() ).isNotEmpty();
+			assertThat( symbols.get().getFirst().getRight().getKind() ).isEqualTo( SymbolKind.Class );
+
+			var children = symbols.get().getFirst().getRight().getChildren();
+			assertThat( children ).isNotEmpty();
+			assertThat( children.stream().map( DocumentSymbol::getName ).toList() )
+			    .containsAtLeast( "editorList", "createTables", "allClients", "getLinks", "setContract" );
+		} finally {
+			provider.trackDocumentClose( p.toAbsolutePath().toUri() );
+		}
+	}
 }

@@ -239,14 +239,13 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 			return ProjectContextProvider.positionToRange( node.getPosition() );
 		}
 
-		// Find the opening brace position in the source text
-		int braceIndex = sourceText.indexOf( '{' );
-		if ( braceIndex < 0 ) {
-			// No brace found, use full range
+		int declarationEndOffset = findDeclarationEndOffset( sourceText );
+		if ( declarationEndOffset < 0 ) {
+			// No opening brace or template tag end found, use full range
 			return ProjectContextProvider.positionToRange( node.getPosition() );
 		}
 
-		// Calculate the end position (at the opening brace)
+		// Calculate the end position at the declaration boundary.
 		ortus.boxlang.compiler.ast.Position	nodePos		= node.getPosition();
 		ortus.boxlang.compiler.ast.Point	startPoint	= nodePos.getStart();
 
@@ -254,7 +253,7 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 		int									line		= startPoint.getLine();
 		int									column		= startPoint.getColumn();
 
-		for ( int i = 0; i < braceIndex; i++ ) {
+		for ( int i = 0; i < declarationEndOffset; i++ ) {
 			char c = sourceText.charAt( i );
 			if ( c == '\n' ) {
 				line++;
@@ -269,6 +268,40 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 		    new Position( startPoint.getLine() - 1, startPoint.getColumn() ),
 		    new Position( line - 1, column )
 		);
+	}
+
+	private int findDeclarationEndOffset( String sourceText ) {
+		int braceIndex = sourceText.indexOf( '{' );
+		if ( braceIndex >= 0 ) {
+			return braceIndex;
+		}
+
+		if ( !sourceText.startsWith( "<" ) ) {
+			return -1;
+		}
+
+		boolean	inSingleQuote	= false;
+		boolean	inDoubleQuote	= false;
+
+		for ( int i = 1; i < sourceText.length(); i++ ) {
+			char c = sourceText.charAt( i );
+
+			if ( c == '\'' && !inDoubleQuote ) {
+				inSingleQuote = !inSingleQuote;
+				continue;
+			}
+
+			if ( c == '"' && !inSingleQuote ) {
+				inDoubleQuote = !inDoubleQuote;
+				continue;
+			}
+
+			if ( c == '>' && !inSingleQuote && !inDoubleQuote ) {
+				return i + 1;
+			}
+		}
+
+		return -1;
 	}
 
 	private void validateExtendsReference( String className, BoxNode node ) {

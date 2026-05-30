@@ -1,0 +1,7 @@
+<bx:function name="test">
+    <bx:break />
+</bx:function>
+
+<bx:function name="test2">
+    <bx:return />
+</bx:function>

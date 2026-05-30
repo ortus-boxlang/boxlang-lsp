@@ -1,7 +1,7 @@
 {
     "formatting": {
         "experimental": {
-            "enabled": true
+            "enabled": false
         }
     },
     "exclude": [

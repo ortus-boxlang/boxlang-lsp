@@ -43,6 +43,7 @@ import ortus.boxlang.compiler.ast.statement.BoxAccessModifier;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxBreak;
+import ortus.boxlang.compiler.ast.statement.BoxBufferOutput;
 import ortus.boxlang.compiler.ast.statement.BoxContinue;
 import ortus.boxlang.compiler.ast.statement.BoxDocumentationAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
@@ -206,13 +207,8 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 
 			if ( isInTryBody && nodeIndexInTry >= 0 && nodeIndexInTry < tryBody.size() - 1 ) {
 				// Check only for siblings within the try body (not finally body)
-				BoxNode nextNode = tryBody.get( nodeIndexInTry + 1 );
-
-				// Don't warn about catch blocks, annotations, comments, or documentation that follow
-				if ( nextNode instanceof BoxTryCatch
-				    || nextNode instanceof BoxAnnotation
-				    || nextNode instanceof BoxComment
-				    || nextNode instanceof BoxDocumentationAnnotation ) {
+				BoxNode nextNode = findNextExecutableSibling( tryBody, nodeIndexInTry );
+				if ( nextNode == null ) {
 					return;
 				}
 
@@ -241,18 +237,8 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 		}
 
 		if ( nodeIndex >= 0 && nodeIndex < siblings.size() - 1 ) {
-			// There are statements after this terminal statement
-			BoxNode nextNode = siblings.get( nodeIndex + 1 );
-
-			// Don't warn about catch blocks, annotations, comments, or documentation that follow
-			if ( nextNode instanceof BoxTryCatch
-			    || nextNode instanceof BoxAnnotation
-			    || nextNode instanceof BoxComment
-			    || nextNode instanceof BoxDocumentationAnnotation ) {
-				return;
-			}
-
-			if ( nextNode.getPosition() == null ) {
+			BoxNode nextNode = findNextExecutableSibling( siblings, nodeIndex );
+			if ( nextNode == null ) {
 				return;
 			}
 
@@ -267,6 +253,39 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 			diagnostic.setTags( List.of( DiagnosticTag.Unnecessary ) );
 			diagnostics.add( diagnostic );
 		}
+	}
+
+	private BoxNode findNextExecutableSibling( List<BoxNode> siblings, int nodeIndex ) {
+		for ( int i = nodeIndex + 1; i < siblings.size(); i++ ) {
+			BoxNode candidate = siblings.get( i );
+			if ( isIgnorableUnreachableSibling( candidate ) ) {
+				continue;
+			}
+
+			if ( candidate.getPosition() == null ) {
+				continue;
+			}
+
+			return candidate;
+		}
+
+		return null;
+	}
+
+	private boolean isIgnorableUnreachableSibling( BoxNode node ) {
+		if ( node instanceof BoxTryCatch
+		    || node instanceof BoxAnnotation
+		    || node instanceof BoxComment
+		    || node instanceof BoxDocumentationAnnotation ) {
+			return true;
+		}
+
+		if ( node instanceof BoxBufferOutput ) {
+			String sourceText = node.getSourceText();
+			return sourceText == null || sourceText.isBlank();
+		}
+
+		return false;
 	}
 
 	// ============ Shadowed Variable Detection ============
