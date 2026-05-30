@@ -256,7 +256,7 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 
 			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
 			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).getDiagnostics() )
-			    .isNotEmpty();
+			        .isNotEmpty();
 		} finally {
 			provider.remove( documentPath.toUri() );
 			provider.setWorkspaceFolders( savedFolders );
@@ -267,7 +267,7 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 	}
 
 	@Test
-	void watchLspConfigRegistersFormatterConfigWatchers() throws Exception {
+	void watchLspConfigRegistersConfigWatchers() throws Exception {
 		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
 		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
 		RecordingLanguageClient	client			= new RecordingLanguageClient();
@@ -286,7 +286,7 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			DidChangeWatchedFilesRegistrationOptions options = ( DidChangeWatchedFilesRegistrationOptions ) client.registrationRequests.getFirst()
 			    .getRegistrations().getFirst().getRegisterOptions();
 			assertThat( options.getWatchers().stream().map( watcher -> watcher.getGlobPattern().getLeft() ).toList() )
-			    .containsAtLeast( ".bxlint.json", "**/.bxformat.json", "**/.cfformat.json" );
+			    .containsAtLeast( ".bxlint.json", "boxlang.json", "**/.bxformat.json", "**/.cfformat.json" );
 		} finally {
 			provider.setWorkspaceFolders( savedFolders );
 			provider.setLanguageClient( null );

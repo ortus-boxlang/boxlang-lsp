@@ -1,6 +1,8 @@
 {
     "mappings": {
-        "/ext": "./mock-external"
+        "/ext": "./mock-external",
+        "/models": "src/models",
+        "/boxlangjsonMapping": "src/boxlangjsonMapping"
     },
     "classPaths": [
         "./class-paths"

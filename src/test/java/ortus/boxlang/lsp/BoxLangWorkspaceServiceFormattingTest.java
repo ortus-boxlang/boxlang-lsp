@@ -81,6 +81,22 @@ class BoxLangWorkspaceServiceFormattingTest extends BaseTest {
 	}
 
 	@Test
+	void executeCommandShowsDocumentWhenRequestedDirectly() throws Exception {
+		BoxLangWorkspaceService			service		= new BoxLangWorkspaceService();
+		RecordingCommandLanguageClient	client		= new RecordingCommandLanguageClient();
+		String							expectedUri	= tempDir.resolve( "target.json" ).toUri().toString();
+
+		service.setLanguageClient( client );
+
+		Object result = service
+		    .executeCommand( new ExecuteCommandParams( BoxLangWorkspaceService.SHOW_DOCUMENT_COMMAND, List.of( expectedUri ) ) )
+		    .get();
+
+		assertThat( result ).isEqualTo( expectedUri );
+		assertThat( client.lastShowDocumentUri ).isEqualTo( expectedUri );
+	}
+
+	@Test
 	void executeCommandAppliesWorkspaceEditForFormatterConfigWhenRuntimeSupported() throws Exception {
 		RecordingFormattingCapabilityCoordinator coordinator = new RecordingFormattingCapabilityCoordinator();
 		coordinator.runtimeSupported = true;

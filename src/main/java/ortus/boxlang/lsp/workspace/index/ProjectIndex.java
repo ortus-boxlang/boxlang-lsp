@@ -33,6 +33,7 @@ import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlang.lsp.App;
 import ortus.boxlang.lsp.workspace.MappingConfig;
+import ortus.boxlang.lsp.workspace.MappingResolver;
 import ortus.boxlang.runtime.BoxRuntime;
 
 /**
@@ -455,6 +456,16 @@ public class ProjectIndex {
 			}
 		}
 
+		// Context-aware mapping fallback: resolve through the effective mappings for
+		// the referencing file, even when the candidate file has not been globally
+		// indexed with that mapping configuration yet.
+		if ( className.contains( "." ) && contextFileUri != null && workspaceRoot != null ) {
+			result = findClassByMappedPath( className, contextFileUri );
+			if ( result.isPresent() ) {
+				return result;
+			}
+		}
+
 		// Filesystem fallback: resolve dot-path as a file path
 		if ( className.contains( "." ) && workspaceRoot != null ) {
 			result = findClassByFileSystemPath( className, contextFileUri );
@@ -465,6 +476,88 @@ public class ProjectIndex {
 
 		// Final fallback: bxmodule.* prefix resolution
 		return findClassByBxModuleFqn( className );
+	}
+
+	private Optional<IndexedClass> findClassByMappedPath( String className, URI contextFileUri ) {
+		if ( className == null || className.isEmpty() || contextFileUri == null || workspaceRoot == null ) {
+			return Optional.empty();
+		}
+
+		try {
+			Path			contextFilePath	= Paths.get( contextFileUri ).toAbsolutePath().normalize();
+			MappingConfig	effectiveConfig	= MappingResolver.resolveForFile( contextFilePath, workspaceRoot );
+			if ( effectiveConfig == null || effectiveConfig.getMappings().isEmpty() ) {
+				return Optional.empty();
+			}
+
+			Optional<Map.Entry<String, Path>> bestMatch = effectiveConfig.getMappings().entrySet().stream()
+			    .filter( entry -> mappingKeyMatches( className, entry.getKey() ) )
+			    .max( java.util.Comparator.comparingInt( entry -> normalizeMappingKey( entry.getKey() ).length() ) );
+
+			if ( bestMatch.isEmpty() ) {
+				return Optional.empty();
+			}
+
+			String	normalizedKey	= normalizeMappingKey( bestMatch.get().getKey() );
+			String	remainder		= className.substring( normalizedKey.length() );
+			if ( remainder.startsWith( "." ) ) {
+				remainder = remainder.substring( 1 );
+			}
+			if ( remainder.isEmpty() ) {
+				return Optional.empty();
+			}
+
+			String	subPath		= remainder.replace( '.', java.io.File.separatorChar );
+			Path	mappedRoot	= bestMatch.get().getValue().toAbsolutePath().normalize();
+
+			for ( String ext : ortus.boxlang.lsp.LSPTools.BOXLANG_EXTENSIONS ) {
+				Path candidate = mappedRoot.resolve( subPath + ext ).normalize();
+				if ( !Files.isRegularFile( candidate ) ) {
+					continue;
+				}
+
+				Optional<IndexedClass> resolved = parseIndexedClassWithConfig( candidate.toUri(), effectiveConfig, className );
+				if ( resolved.isPresent() ) {
+					return resolved;
+				}
+			}
+		} catch ( Exception e ) {
+			App.logger.warn( "Mapped class resolution failed for '" + className + "' from " + contextFileUri, e );
+		}
+
+		return Optional.empty();
+	}
+
+	private Optional<IndexedClass> parseIndexedClassWithConfig( URI fileUri, MappingConfig effectiveConfig, String expectedClassName ) {
+		try {
+			Parser			parser	= new Parser();
+			ParsingResult	result	= parser.parse( Paths.get( fileUri ).toFile(), false );
+
+			if ( result == null || result.getRoot() == null ) {
+				return Optional.empty();
+			}
+
+			ProjectIndexVisitor visitor = new ProjectIndexVisitor( fileUri, workspaceRoot, effectiveConfig );
+			result.getRoot().accept( visitor );
+
+			return visitor.getIndexedClasses().stream()
+			    .filter( indexedClass -> indexedClass.fullyQualifiedName() != null && indexedClass.fullyQualifiedName().equalsIgnoreCase( expectedClassName ) )
+			    .findFirst()
+			    .or( () -> visitor.getIndexedClasses().stream().findFirst() );
+		} catch ( Exception e ) {
+			App.logger.warn( "Failed to parse mapped class candidate: " + fileUri, e );
+			return Optional.empty();
+		}
+	}
+
+	private boolean mappingKeyMatches( String className, String mappingKey ) {
+		String normalizedKey = normalizeMappingKey( mappingKey );
+		return !normalizedKey.isEmpty()
+		    && ( className.equalsIgnoreCase( normalizedKey ) || className.regionMatches( true, 0, normalizedKey + ".", 0, normalizedKey.length() + 1 ) );
+	}
+
+	private String normalizeMappingKey( String mappingKey ) {
+		return mappingKey == null ? "" : mappingKey.replaceAll( "^/+", "" ).replace( '/', '.' );
 	}
 
 	/**

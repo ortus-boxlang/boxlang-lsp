@@ -1,0 +1,4 @@
+// This file should not report a warning as the mapping is defined in the .bxlint.json file and should be properly resolved.
+class extends="bxlintMapping.Base" {
+
+}

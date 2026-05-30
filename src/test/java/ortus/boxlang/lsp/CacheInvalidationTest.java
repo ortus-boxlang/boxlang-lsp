@@ -11,7 +11,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import org.eclipse.lsp4j.Diagnostic;
+import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.FileChangeType;
 import org.eclipse.lsp4j.FileEvent;
 import org.eclipse.lsp4j.WorkspaceFolder;
@@ -225,5 +228,56 @@ public class CacheInvalidationTest extends BaseTest {
 		// After: OldExternalClass should be gone from the index
 		assertFalse( tempIndex.findClassByName( "OldExternalClass" ).isPresent(),
 		    "OldExternalClass should be removed from index after its mapping was deleted from boxlang.json" );
+	}
+
+	@Test
+	void savingApplicationBxReparsesOpenDocumentsThatDependOnMappings( @TempDir Path tempDir ) throws Exception {
+		Path workspaceRoot = tempDir.resolve( "workspace" );
+		Files.createDirectories( workspaceRoot.resolve( "mappingTests" ) );
+		Files.createDirectories( workspaceRoot.resolve( "src/potentialMapping" ) );
+
+		Path	applicationBx	= workspaceRoot.resolve( "Application.bx" );
+		Path	potentialFile	= workspaceRoot.resolve( "mappingTests/PotentialMapping.bx" );
+		Path	baseFile		= workspaceRoot.resolve( "src/potentialMapping/Base.bx" );
+
+		Files.writeString( applicationBx, "class {\n}\n" );
+		Files.writeString( potentialFile,
+		    "class extends=\"potentialMapping.Base\" {\n}\n" );
+		Files.writeString( baseFile, "class {\n}\n" );
+
+		MappingResolver.invalidate( workspaceRoot );
+		ProjectIndex tempIndex = new ProjectIndex();
+		tempIndex.initialize( workspaceRoot, MappingResolver.resolve( workspaceRoot ) );
+		provider.setIndex( tempIndex );
+
+		WorkspaceFolder tempFolder = new WorkspaceFolder();
+		tempFolder.setUri( workspaceRoot.toUri().toString() );
+		tempFolder.setName( "temp-workspace" );
+		provider.setWorkspaceFolders( List.of( tempFolder ) );
+
+		String potentialSource = Files.readString( potentialFile );
+		provider.trackDocumentOpen( potentialFile.toUri(), potentialSource );
+		try {
+			Diagnostic before = provider.getFileDiagnostics( potentialFile.toUri() ).stream()
+			    .filter( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) )
+			    .findFirst()
+			    .orElse( null );
+
+			assertNotNull( before );
+			assertTrue( before.getSeverity() == DiagnosticSeverity.Warning || before.getSeverity() == DiagnosticSeverity.Error );
+
+			Files.writeString( applicationBx, "class {\n\tthis.mappings[ \"potentialMapping\" ] = \"src/potentialMapping\";\n}\n" );
+
+			provider.handleConfigFileChange( applicationBx.toUri() ).get( 10, TimeUnit.SECONDS );
+
+			Diagnostic after = provider.getFileDiagnostics( potentialFile.toUri() ).stream()
+			    .filter( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) )
+			    .findFirst()
+			    .orElse( null );
+
+			assertTrue( after == null, "Application.bx mapping changes should reparse open documents and clear invalidExtends diagnostics" );
+		} finally {
+			provider.trackDocumentClose( potentialFile.toUri() );
+		}
 	}
 }

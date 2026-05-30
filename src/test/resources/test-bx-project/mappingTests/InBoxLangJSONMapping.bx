@@ -1,0 +1,4 @@
+// This should not report a warning as the mapping is setup in boxlang.json
+class extends="boxlangjsonMapping.Base" {
+
+}

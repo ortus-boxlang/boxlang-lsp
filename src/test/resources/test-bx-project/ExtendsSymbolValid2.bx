@@ -1,0 +1,4 @@
+// valid through .bxlint.json
+class extends="models.BaseThroughAppMapping" {
+
+}

@@ -1,0 +1,4 @@
+// This file should produce an error because there is no possible match
+class extends="models.Nothing" {
+
+}

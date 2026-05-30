@@ -9,4 +9,5 @@ class {
 	// Dynamic entry — should be silently ignored
 	this.mappings[ "/appdynamic" ] = expandPath( "./dynamic" );
 
+	this.mappings[ "/applicationMapping" ] = "src/applicationMapping";
 }

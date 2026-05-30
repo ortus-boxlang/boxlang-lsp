@@ -109,7 +109,10 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			    CodeActionKind.SourceFixAll,
 			    CodeActionKind.RefactorRewrite
 			) ) );
-			List<String> executeCommands = new ArrayList<>( List.of( BoxLangWorkspaceService.CREATE_BXLINT_CONFIG_COMMAND ) );
+			List<String> executeCommands = new ArrayList<>( List.of(
+			    BoxLangWorkspaceService.CREATE_BXLINT_CONFIG_COMMAND,
+			    BoxLangWorkspaceService.SHOW_DOCUMENT_COMMAND
+			) );
 			if ( formattingCapabilityCoordinator.isRuntimeSupported() ) {
 				executeCommands.add( BoxLangWorkspaceService.CREATE_FORMATTER_CONFIG_COMMAND );
 				executeCommands.add( BoxLangWorkspaceService.CONVERT_CFFORMAT_CONFIG_COMMAND );

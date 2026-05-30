@@ -6,5 +6,9 @@
     },
     "exclude": [
         "ignored-folder/**"
-    ]
+    ],
+    "mappings": {
+        "models": "src/models",
+        "bxlintMapping": "src/bxlintMapping"
+    }
 }

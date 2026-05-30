@@ -1,0 +1,4 @@
+// this should not report a warning as the mapping is setup in Application.bx
+class extends="applicationMapping.Base" {
+
+}

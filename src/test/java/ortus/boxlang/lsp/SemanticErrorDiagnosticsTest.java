@@ -23,21 +23,35 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.CodeActionContext;
+import org.eclipse.lsp4j.CodeActionParams;
+import org.eclipse.lsp4j.CreateFile;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.MessageActionItem;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.ShowMessageRequestParams;
+import org.eclipse.lsp4j.TextDocumentEdit;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
+import org.eclipse.lsp4j.WorkspaceEdit;
+import org.eclipse.lsp4j.WorkspaceFolder;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.google.gson.JsonObject;
+
+import ortus.boxlang.lsp.workspace.MappingResolver;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 import ortus.boxlang.runtime.BoxRuntime;
@@ -222,6 +236,144 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		    .orElse( null );
 
 		assertThat( invalidExtends ).isNull();
+	}
+
+	@Test
+	void testInvalidExtendsPossibleMatchCreatesWarningAndQuickFixes() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+		folder.setName( "temp-workspace" );
+		folder.setUri( tempDir.toUri().toString() );
+
+		Path	applicationFile	= tempDir.resolve( "Application.bx" );
+		Path	vehicleFile		= tempDir.resolve( "src/models/machines/Vehicle.bx" );
+		Files.createDirectories( vehicleFile.getParent() );
+		Files.writeString( applicationFile, "class {\n}\n" );
+		Files.writeString( vehicleFile, "class {\n}\n" );
+
+		Path carFile = createTestFile(
+		    "Car.bx",
+		    """
+		    class extends=\"models.machines.Vehicle\" {
+		        function init() { return this; }
+		    }
+		    """ );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			index.reinitialize( tempDir, null );
+			provider.setIndex( index );
+			index.indexFile( vehicleFile.toUri() );
+			index.indexFile( carFile.toUri() );
+
+			List<Diagnostic>	diagnostics		= provider.getFileDiagnostics( carFile.toUri() );
+			Diagnostic			invalidExtends	= diagnostics.stream()
+			    .filter( d -> d.getMessage().getLeft().contains( "possible match" ) )
+			    .findFirst()
+			    .orElse( null );
+
+			assertThat( invalidExtends ).isNotNull();
+			assertThat( invalidExtends.getSeverity() ).isEqualTo( DiagnosticSeverity.Warning );
+
+			List<CodeAction> actions = getAvailableCodeActions( provider, carFile, invalidExtends );
+			assertThat( actions ).isNotEmpty();
+			assertThat( actions.stream().map( CodeAction::getTitle ).toList() )
+			    .contains( "Add mapping to Application.bx: models -> " + tempDir.resolve( "src/models" ).toString().replace( '\\', '/' ) );
+			assertThat( actions.stream().map( CodeAction::getTitle ).toList() )
+			    .contains( "Add mapping to boxlang.json: models -> " + tempDir.resolve( "src/models" ).toString().replace( '\\', '/' ) );
+			assertThat( actions.stream().map( CodeAction::getTitle ).toList() )
+			    .contains( "Add mapping to .bxlint.json: models -> " + tempDir.resolve( "src/models" ).toString().replace( '\\', '/' ) );
+
+			CodeAction applicationAction = actions.stream()
+			    .filter( action -> action.getTitle().startsWith( "Add mapping to Application.bx" ) )
+			    .findFirst()
+			    .orElseThrow();
+			assertThat( applicationAction.getCommand() ).isNotNull();
+			assertThat( applicationAction.getCommand().getCommand() ).isEqualTo( BoxLangWorkspaceService.SHOW_DOCUMENT_COMMAND );
+			assertThat( applicationAction.getCommand().getArguments() ).containsExactly( applicationFile.toUri().toString() );
+			assertThat( getEditedText( applicationAction.getEdit(), applicationFile.toUri().toString() ) )
+			    .contains( "this.mappings[ \"models\" ] = \"src/models\";" );
+
+			CodeAction boxlangAction = actions.stream()
+			    .filter( action -> action.getTitle().startsWith( "Add mapping to boxlang.json" ) )
+			    .findFirst()
+			    .orElseThrow();
+			assertThat( boxlangAction.getCommand() ).isNotNull();
+			assertThat( boxlangAction.getCommand().getCommand() ).isEqualTo( BoxLangWorkspaceService.SHOW_DOCUMENT_COMMAND );
+			assertThat( boxlangAction.getCommand().getArguments() ).containsExactly( tempDir.resolve( "boxlang.json" ).toUri().toString() );
+			assertThat( getCreateFileUri( boxlangAction.getEdit() ) ).isEqualTo( tempDir.resolve( "boxlang.json" ).toUri().toString() );
+			assertThat( getCreatedFileContents( boxlangAction.getEdit() ) ).contains( "\"models\"" );
+			assertThat( getCreatedFileContents( boxlangAction.getEdit() ) ).contains( "\"src/models\"" );
+		} finally {
+			provider.setWorkspaceFolders( savedFolders );
+		}
+	}
+
+	@Test
+	void testInvalidExtendsPossibleMatchesAreSortedByLongestSuffix() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+		folder.setName( "temp-workspace" );
+		folder.setUri( tempDir.toUri().toString() );
+
+		Path	bestMatch		= tempDir.resolve( "src/models/machines/Vehicle.bx" );
+		Path	shorterMatch	= tempDir.resolve( "shared/machines/Vehicle.bx" );
+		Files.createDirectories( bestMatch.getParent() );
+		Files.createDirectories( shorterMatch.getParent() );
+		Files.writeString( tempDir.resolve( "Application.bx" ), "class {\n}\n" );
+		Files.writeString( bestMatch, "class {\n}\n" );
+		Files.writeString( shorterMatch, "class {\n}\n" );
+
+		Path carFile = createTestFile(
+		    "Car.bx",
+		    """
+		    class extends=\"models.machines.Vehicle\" {
+		        function init() { return this; }
+		    }
+		    """ );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			index.reinitialize( tempDir, null );
+			provider.setIndex( index );
+			index.indexFile( bestMatch.toUri() );
+			index.indexFile( shorterMatch.toUri() );
+			index.indexFile( carFile.toUri() );
+
+			List<Diagnostic>	diagnostics		= provider.getFileDiagnostics( carFile.toUri() );
+			Diagnostic			invalidExtends	= diagnostics.stream()
+			    .filter( d -> d.getMessage().getLeft().contains( "possible matches" ) )
+			    .findFirst()
+			    .orElse( null );
+			assertThat( invalidExtends ).isNotNull();
+
+			List<CodeAction> actions = provider.getFileCodeActions( carFile.toUri() ).stream()
+			    .filter( action -> action.getTitle().startsWith( "Add mapping to boxlang.json" ) )
+			    .toList();
+
+			assertThat( actions ).hasSize( 2 );
+			assertThat( actions.get( 0 ).getTitle() ).contains( "models -> " + tempDir.resolve( "src/models" ).toString().replace( '\\', '/' ) );
+			assertThat( actions.get( 1 ).getTitle() ).contains( "models.machines -> " + tempDir.resolve( "shared/machines" ).toString().replace( '\\', '/' ) );
+		} finally {
+			provider.setWorkspaceFolders( savedFolders );
+		}
+	}
+
+	@Test
+	void testMappedExtendsInApplicationFixtureDoesNotWarn() throws Exception {
+		assertNoInvalidExtendsForProjectFixture( "mappingTests/InApplication.bx" );
+	}
+
+	@Test
+	void testMappedExtendsInBoxlangJsonFixtureDoesNotWarn() throws Exception {
+		assertNoInvalidExtendsForProjectFixture( "mappingTests/InBoxLangJSONMapping.bx" );
+	}
+
+	@Test
+	void testMappedExtendsInBxlintFixtureDoesNotWarn() throws Exception {
+		assertNoInvalidExtendsForProjectFixture( "mappingTests/InBXLintMappings.bx" );
 	}
 
 	// ============ Invalid Implements Tests ============
@@ -463,8 +615,104 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 
 	private Path createTestFile( String fileName, String content ) throws Exception {
 		Path testFile = tempDir.resolve( fileName );
+		if ( testFile.getParent() != null ) {
+			Files.createDirectories( testFile.getParent() );
+		}
 		Files.writeString( testFile, content );
 		return testFile;
+	}
+
+	private void assertNoInvalidExtendsForProjectFixture( String relativePath ) throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		Path					projectRoot		= Path.of( "src/test/resources/test-bx-project" ).toAbsolutePath();
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+		folder.setName( "test-bx-project" );
+		folder.setUri( projectRoot.toUri().toString() );
+
+		Path	sourceFile	= projectRoot.resolve( relativePath );
+		String	sourceText	= Files.readString( sourceFile );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			MappingResolver.invalidate( projectRoot );
+			index.reinitialize( projectRoot, MappingResolver.resolve( projectRoot ) );
+			provider.setIndex( index );
+
+			provider.trackDocumentOpen( sourceFile.toUri(), sourceText );
+			List<Diagnostic>	diagnostics		= provider.getFileDiagnostics( sourceFile.toUri() );
+
+			Diagnostic			invalidExtends	= diagnostics.stream()
+			    .filter( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) )
+			    .findFirst()
+			    .orElse( null );
+
+			assertThat( invalidExtends ).isNull();
+		} finally {
+			provider.trackDocumentClose( sourceFile.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+		}
+	}
+
+	private List<CodeAction> getAvailableCodeActions( ProjectContextProvider provider, Path documentPath, Diagnostic diagnostic ) {
+		CodeActionParams params = new CodeActionParams();
+		params.setTextDocument( new TextDocumentIdentifier( documentPath.toUri().toString() ) );
+		params.setRange( diagnostic.getRange() );
+		params.setContext( new CodeActionContext( List.of( toClientDiagnostic( diagnostic ) ) ) );
+
+		List<CodeAction> actions = new ArrayList<>();
+		for ( Either<org.eclipse.lsp4j.Command, CodeAction> result : provider.getAvailableCodeActions( documentPath.toUri(), params ) ) {
+			if ( result.isRight() ) {
+				actions.add( result.getRight() );
+			}
+		}
+		return actions;
+	}
+
+	private Diagnostic toClientDiagnostic( Diagnostic diagnostic ) {
+		Diagnostic clientDiagnostic = new Diagnostic(
+		    diagnostic.getRange(),
+		    diagnostic.getMessage().getLeft(),
+		    diagnostic.getSeverity(),
+		    diagnostic.getSource(),
+		    null
+		);
+		clientDiagnostic.setCode( diagnostic.getCode() );
+		if ( diagnostic.getData() instanceof Map<?, ?> dataMap && dataMap.get( "id" ) != null ) {
+			JsonObject data = new JsonObject();
+			data.addProperty( "id", dataMap.get( "id" ).toString() );
+			clientDiagnostic.setData( data );
+		}
+		return clientDiagnostic;
+	}
+
+	private static String getCreateFileUri( WorkspaceEdit edit ) {
+		return edit.getDocumentChanges().stream()
+		    .filter( Either::isRight )
+		    .map( Either::getRight )
+		    .filter( CreateFile.class::isInstance )
+		    .map( CreateFile.class::cast )
+		    .findFirst()
+		    .orElseThrow()
+		    .getUri();
+	}
+
+	private static String getCreatedFileContents( WorkspaceEdit edit ) {
+		return edit.getDocumentChanges().stream()
+		    .filter( Either::isLeft )
+		    .map( Either::getLeft )
+		    .filter( TextDocumentEdit.class::isInstance )
+		    .map( TextDocumentEdit.class::cast )
+		    .findFirst()
+		    .orElseThrow()
+		    .getEdits()
+		    .getFirst()
+		    .getLeft()
+		    .getNewText();
+	}
+
+	private static String getEditedText( WorkspaceEdit edit, String uri ) {
+		return edit.getChanges().get( uri ).getFirst().getNewText();
 	}
 
 	private static class RecordingLanguageClient implements LanguageClient {

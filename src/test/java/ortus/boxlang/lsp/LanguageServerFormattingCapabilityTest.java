@@ -231,7 +231,7 @@ class LanguageServerFormattingCapabilityTest extends BaseTest {
 
 			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
 			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).getDiagnostics() )
-			    .isNotEmpty();
+			        .isNotEmpty();
 			assertThat( client.getConfigurationRequests() ).isEqualTo( 1 );
 		} finally {
 			provider.remove( documentPath.toUri() );
@@ -276,7 +276,7 @@ class LanguageServerFormattingCapabilityTest extends BaseTest {
 
 			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
 			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).getDiagnostics() )
-			    .isNotEmpty();
+			        .isNotEmpty();
 		} finally {
 			provider.remove( documentPath.toUri() );
 			provider.setWorkspaceFolders( savedFolders );
@@ -395,6 +395,148 @@ class LanguageServerFormattingCapabilityTest extends BaseTest {
 	}
 
 	@Test
+	void saveApplicationBxAfterOpenRefreshesMappedExtendsDiagnosticsWithoutRestart() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		UserSettings			savedSettings	= provider.getUserSettings();
+		Path					workspaceRoot	= Files.createDirectories( tempDir.resolve( "workspace-save-application-mapping" ) );
+		Path					applicationPath	= workspaceRoot.resolve( "Application.bx" );
+		Path					mappedClassPath	= workspaceRoot.resolve( "src/potentialMapping/Base.bx" );
+		Path					potentialPath	= workspaceRoot.resolve( "mappingTests/PotentialMapping.bx" );
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+		RecordingLanguageClient	client			= new RecordingLanguageClient( createLspSettings( true ) );
+		LanguageServer			server			= new LanguageServer();
+
+		Files.createDirectories( mappedClassPath.getParent() );
+		Files.createDirectories( potentialPath.getParent() );
+		Files.writeString( applicationPath, "class {\n}\n" );
+		Files.writeString( mappedClassPath, "class {}\n" );
+		Files.writeString( potentialPath, "class extends=\"potentialMapping.Base\" {\n}\n" );
+		folder.setUri( workspaceRoot.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of() );
+			provider.setUserSettings( new UserSettings() );
+			LintConfigLoader.invalidate();
+
+			server.connect( client );
+
+			InitializeParams			params					= new InitializeParams();
+			ClientCapabilities			clientCapabilities		= new ClientCapabilities();
+			WorkspaceClientCapabilities	workspaceCapabilities	= new WorkspaceClientCapabilities();
+			workspaceCapabilities.setConfiguration( true );
+			clientCapabilities.setWorkspace( workspaceCapabilities );
+			params.setCapabilities( clientCapabilities );
+			params.setWorkspaceFolders( List.of( folder ) );
+
+			server.initialize( params ).get();
+			server.initialized( new InitializedParams() );
+			server.getTextDocumentService().didOpen( new DidOpenTextDocumentParams(
+			    new TextDocumentItem( potentialPath.toUri().toString(), "boxlang", 1, Files.readString( potentialPath ) ) ) );
+			server.getTextDocumentService().didOpen( new DidOpenTextDocumentParams(
+			    new TextDocumentItem( applicationPath.toUri().toString(), "boxlang", 1, Files.readString( applicationPath ) ) ) );
+
+			awaitPublishedDiagnostics( client, potentialPath.toUri().toString(), diagnostics -> diagnostics.stream()
+			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) );
+
+			Files.writeString( applicationPath, "class {\n\tthis.mappings[ \"potentialMapping\" ] = \"src/potentialMapping\";\n}\n" );
+
+			DidSaveTextDocumentParams saveParams = new DidSaveTextDocumentParams();
+			saveParams.setTextDocument( new TextDocumentIdentifier( applicationPath.toUri().toString() ) );
+			server.getTextDocumentService().didSave( saveParams );
+
+			provider.flushPublishDebouncer();
+			PublishDiagnosticsParams refreshed = awaitPublishedDiagnostics( client, potentialPath.toUri().toString(), diagnostics -> diagnostics.stream()
+			    .noneMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) );
+
+			assertThat( refreshed.getDiagnostics().stream()
+			    .noneMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).isTrue();
+		} finally {
+			provider.trackDocumentClose( potentialPath.toUri() );
+			provider.trackDocumentClose( applicationPath.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+			provider.setUserSettings( savedSettings );
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	@Test
+	void saveBoxlangJsonAfterOpenRefreshesMappedExtendsDiagnosticsWithoutRestart() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		UserSettings			savedSettings	= provider.getUserSettings();
+		Path					workspaceRoot	= Files.createDirectories( tempDir.resolve( "workspace-save-boxlang-mapping" ) );
+		Path					boxlangJsonPath	= workspaceRoot.resolve( "boxlang.json" );
+		Path					mappedClassPath	= workspaceRoot.resolve( "src/potentialMapping/Base.bx" );
+		Path					potentialPath	= workspaceRoot.resolve( "mappingTests/PotentialMapping.bx" );
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+		RecordingLanguageClient	client			= new RecordingLanguageClient( createLspSettings( true ) );
+		LanguageServer			server			= new LanguageServer();
+
+		Files.createDirectories( mappedClassPath.getParent() );
+		Files.createDirectories( potentialPath.getParent() );
+		Files.writeString( boxlangJsonPath, "{}\n" );
+		Files.writeString( mappedClassPath, "class {}\n" );
+		Files.writeString( potentialPath, "class extends=\"potentialMapping.Base\" {\n}\n" );
+		folder.setUri( workspaceRoot.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of() );
+			provider.setUserSettings( new UserSettings() );
+			LintConfigLoader.invalidate();
+
+			server.connect( client );
+
+			InitializeParams			params					= new InitializeParams();
+			ClientCapabilities			clientCapabilities		= new ClientCapabilities();
+			WorkspaceClientCapabilities	workspaceCapabilities	= new WorkspaceClientCapabilities();
+			workspaceCapabilities.setConfiguration( true );
+			clientCapabilities.setWorkspace( workspaceCapabilities );
+			params.setCapabilities( clientCapabilities );
+			params.setWorkspaceFolders( List.of( folder ) );
+
+			server.initialize( params ).get();
+			server.initialized( new InitializedParams() );
+			server.getTextDocumentService().didOpen( new DidOpenTextDocumentParams(
+			    new TextDocumentItem( potentialPath.toUri().toString(), "boxlang", 1, Files.readString( potentialPath ) ) ) );
+			server.getTextDocumentService().didOpen( new DidOpenTextDocumentParams(
+			    new TextDocumentItem( boxlangJsonPath.toUri().toString(), "json", 1, Files.readString( boxlangJsonPath ) ) ) );
+
+			awaitPublishedDiagnostics( client, potentialPath.toUri().toString(), diagnostics -> diagnostics.stream()
+			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) );
+
+			Files.writeString( boxlangJsonPath, "{\n  \"mappings\": {\n    \"/potentialMapping\": \"./src/potentialMapping\"\n  }\n}\n" );
+
+			DidSaveTextDocumentParams saveParams = new DidSaveTextDocumentParams();
+			saveParams.setTextDocument( new TextDocumentIdentifier( boxlangJsonPath.toUri().toString() ) );
+			server.getTextDocumentService().didSave( saveParams );
+
+			provider.flushPublishDebouncer();
+			PublishDiagnosticsParams refreshed = awaitPublishedDiagnostics( client, potentialPath.toUri().toString(), diagnostics -> diagnostics.stream()
+			    .noneMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) );
+
+			assertThat( refreshed.getDiagnostics().stream()
+			    .noneMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).isTrue();
+
+			Files.writeString( boxlangJsonPath, "{}\n" );
+			server.getTextDocumentService().didSave( saveParams );
+
+			provider.flushPublishDebouncer();
+			PublishDiagnosticsParams reverted = awaitPublishedDiagnostics( client, potentialPath.toUri().toString(), diagnostics -> diagnostics.stream()
+			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) );
+
+			assertThat( reverted.getDiagnostics().stream()
+			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).isTrue();
+		} finally {
+			provider.trackDocumentClose( potentialPath.toUri() );
+			provider.trackDocumentClose( boxlangJsonPath.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+			provider.setUserSettings( savedSettings );
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	@Test
 	void initializedDoesNotBlockWhileWaitingForInitialConfigurationResponse() throws Exception {
 		ProjectContextProvider				provider		= ProjectContextProvider.getInstance();
 		List<WorkspaceFolder>				savedFolders	= provider.getWorkspaceFolders();
@@ -441,7 +583,7 @@ class LanguageServerFormattingCapabilityTest extends BaseTest {
 
 			assertThat( awaitPublishedDiagnostics( client, documentPath.toUri().toString(), diagnostics -> diagnostics.stream()
 			    .anyMatch( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) ) ).getDiagnostics() )
-			    .isNotEmpty();
+			        .isNotEmpty();
 		} finally {
 			configFuture.complete( List.<Object>of( createLspSettings( true ), new JsonObject() ) );
 			executor.shutdownNow();

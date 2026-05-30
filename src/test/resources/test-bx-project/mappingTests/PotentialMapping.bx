@@ -1,0 +1,4 @@
+// This file should report a warning as there is no mapping but a potential match is possible
+class extends="potentialMapping.Base" {
+        
+}

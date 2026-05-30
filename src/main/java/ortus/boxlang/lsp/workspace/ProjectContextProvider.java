@@ -740,18 +740,18 @@ public class ProjectContextProvider {
 		} else if ( fileName.equalsIgnoreCase( ".bxformat.json" ) || fileName.equalsIgnoreCase( ".cfformat.json" ) ) {
 			handleFormatterConfigChange( changedFile );
 		} else if ( fileName.equalsIgnoreCase( "boxlang.json" ) ) {
-			handleBoxlangJsonChange( workspaceRoot );
+			return handleBoxlangJsonChange( workspaceRoot );
 		} else if ( fileName.equalsIgnoreCase( "Application.bx" ) ||
 		    fileName.equalsIgnoreCase( "Application.cfc" ) ) {
-			handleApplicationBxChange( changedFile, workspaceRoot );
+			return handleApplicationBxChange( changedFile, workspaceRoot );
 		}
 		// All other files: no-op
 		return CompletableFuture.completedFuture( null );
 	}
 
-	private void handleBoxlangJsonChange( Path workspaceRoot ) {
+	private CompletableFuture<Void> handleBoxlangJsonChange( Path workspaceRoot ) {
 		if ( workspaceRoot == null || projectIndex == null ) {
-			return;
+			return CompletableFuture.completedFuture( null );
 		}
 
 		// 1. Invalidate the workspace-level config cache
@@ -776,11 +776,13 @@ public class ProjectContextProvider {
 
 		// 5. Re-index external directories from new config
 		projectIndex.indexExternalDirs( newConfig );
+
+		return refreshDiagnosticsAfterMappingChange();
 	}
 
-	private void handleApplicationBxChange( Path appBxPath, Path workspaceRoot ) {
+	private CompletableFuture<Void> handleApplicationBxChange( Path appBxPath, Path workspaceRoot ) {
 		if ( workspaceRoot == null || projectIndex == null ) {
-			return;
+			return CompletableFuture.completedFuture( null );
 		}
 
 		// 1. Invalidate the per-file walk-up cache for this Application.bx
@@ -805,6 +807,19 @@ public class ProjectContextProvider {
 
 		// 5. Re-index external directories from new config
 		projectIndex.indexExternalDirs( newConfig );
+
+		return refreshDiagnosticsAfterMappingChange();
+	}
+
+	private CompletableFuture<Void> refreshDiagnosticsAfterMappingChange() {
+		recomputeAndPublishDiagnosticsForOpenDocuments();
+		invalidateClosedDocumentDiagnostics();
+
+		if ( workspaceFolders == null || workspaceFolders.isEmpty() ) {
+			return CompletableFuture.completedFuture( null );
+		}
+
+		return parseWorkspace( true );
 	}
 
 	private CompletableFuture<Void> handleLintConfigChange() {
@@ -4622,6 +4637,10 @@ public class ProjectContextProvider {
 			lintWatcher.setGlobPattern( ".bxlint.json" );
 			lintWatcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
 
+			FileSystemWatcher boxlangWatcher = new FileSystemWatcher();
+			boxlangWatcher.setGlobPattern( "boxlang.json" );
+			boxlangWatcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
+
 			FileSystemWatcher bxformatWatcher = new FileSystemWatcher();
 			bxformatWatcher.setGlobPattern( "**/.bxformat.json" );
 			bxformatWatcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
@@ -4631,11 +4650,11 @@ public class ProjectContextProvider {
 			cfformatWatcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
 
 			DidChangeWatchedFilesRegistrationOptions	options			= new DidChangeWatchedFilesRegistrationOptions(
-			    List.of( lintWatcher, bxformatWatcher, cfformatWatcher ) );
+			    List.of( lintWatcher, boxlangWatcher, bxformatWatcher, cfformatWatcher ) );
 			Registration								registration	= new Registration( UUID.randomUUID().toString(), "workspace/didChangeWatchedFiles",
 			    options );
 			client.registerCapability( new RegistrationParams( List.of( registration ) ) );
-			App.logger.info( "Registered dynamic file watchers for formatter and lint config files" );
+			App.logger.info( "Registered dynamic file watchers for mapping, formatter, and lint config files" );
 		} catch ( Exception e ) {
 			App.logger.warn( "Failed to register dynamic file watcher", e );
 		}
@@ -4666,7 +4685,7 @@ public class ProjectContextProvider {
 						}
 
 						if ( isWatchedConfigPath( changedPath ) ) {
-							App.logger.info( "Detected config change: " + changedPath + "; refreshing formatting/lint state." );
+							App.logger.info( "Detected config change: " + changedPath + "; refreshing mapping, formatting, and lint state." );
 							ortus.boxlang.lsp.workspace.ProjectContextProvider.getInstance().handleConfigFileChange( changedPath.toUri() );
 						}
 					}
@@ -4699,6 +4718,7 @@ public class ProjectContextProvider {
 	private boolean isWatchedConfigPath( Path changedPath ) {
 		String fileName = changedPath.getFileName() == null ? "" : changedPath.getFileName().toString();
 		return fileName.equalsIgnoreCase( LintConfigLoader.CONFIG_FILENAME )
+		    || fileName.equalsIgnoreCase( "boxlang.json" )
 		    || fileName.equalsIgnoreCase( ".bxformat.json" )
 		    || fileName.equalsIgnoreCase( ".cfformat.json" );
 	}

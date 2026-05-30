@@ -97,9 +97,11 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 
 	@Override
 	public void didSave( DidSaveTextDocumentParams params ) {
-		ProjectContextProvider.getInstance().trackDocumentSave(
-		    LSPTools.convertDocumentURI( params.getTextDocument().getUri() ),
-		    params.getText() );
+		URI						docUri		= LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
+		ProjectContextProvider	provider	= ProjectContextProvider.getInstance();
+
+		provider.trackDocumentSave( docUri, params.getText() );
+		provider.handleConfigFileChange( docUri );
 		App.logger.debug( "The file was saved" );
 		App.logger.debug( params.getTextDocument().getUri() );
 		// TODO Auto-generated method stub

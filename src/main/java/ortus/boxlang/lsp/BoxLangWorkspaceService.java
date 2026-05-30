@@ -59,6 +59,7 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 	public static final String						CREATE_BXLINT_CONFIG_COMMAND	= "boxlang.createBxlintConfig";
 	public static final String						CREATE_FORMATTER_CONFIG_COMMAND	= "boxlang.createFormatterConfig";
 	public static final String						CONVERT_CFFORMAT_CONFIG_COMMAND	= "boxlang.convertCFFormatConfig";
+	public static final String						SHOW_DOCUMENT_COMMAND			= "boxlang.showDocument";
 	private static final String						CREATE_BXLINT_CONFIG_LABEL		= "Create .bxlint.json";
 	private static final String						CREATE_FORMATTER_CONFIG_LABEL	= "Create .bxformat.json";
 	private static final String						CONVERT_CFFORMAT_CONFIG_LABEL	= "Convert .cfformat.json to .bxformat.json";
@@ -191,8 +192,26 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 			case CREATE_BXLINT_CONFIG_COMMAND -> executeCreateBxlintConfig( params );
 			case CREATE_FORMATTER_CONFIG_COMMAND -> executeCreateFormatterConfig( params );
 			case CONVERT_CFFORMAT_CONFIG_COMMAND -> executeConvertCFFormatConfig( params );
+			case SHOW_DOCUMENT_COMMAND -> executeShowDocument( params );
 			default -> CompletableFuture.failedFuture( new UnsupportedOperationException( "Unsupported command: " + params.getCommand() ) );
 		};
+	}
+
+	private CompletableFuture<Object> executeShowDocument( ExecuteCommandParams params ) {
+		String documentUri = extractDocumentUri( params.getArguments() );
+		if ( documentUri == null || documentUri.isBlank() ) {
+			return CompletableFuture.failedFuture( new IllegalArgumentException( "No document URI provided" ) );
+		}
+
+		ShowDocumentParams showDocumentParams = new ShowDocumentParams( documentUri );
+		showDocumentParams.setTakeFocus( true );
+
+		try {
+			return client.showDocument( showDocumentParams )
+			    .handle( ( ignored, throwable ) -> documentUri );
+		} catch ( UnsupportedOperationException e ) {
+			return CompletableFuture.completedFuture( documentUri );
+		}
 	}
 
 	private CompletableFuture<Object> executeCreateBxlintConfig( ExecuteCommandParams params ) {
@@ -304,6 +323,25 @@ public class BoxLangWorkspaceService implements WorkspaceService {
 
 	private static String resolveConfigUri( String workspaceUri, String fileName ) {
 		return Path.of( URI.create( workspaceUri ) ).resolve( fileName ).toUri().toString();
+	}
+
+	private static String extractDocumentUri( List<Object> arguments ) {
+		if ( arguments == null || arguments.isEmpty() || arguments.getFirst() == null ) {
+			return null;
+		}
+
+		Object firstArgument = arguments.getFirst();
+		if ( firstArgument instanceof String uri ) {
+			return uri;
+		}
+
+		JsonElement element = firstArgument instanceof JsonElement jsonElement ? jsonElement : GSON.toJsonTree( firstArgument );
+		if ( element == null || !element.isJsonObject() ) {
+			return null;
+		}
+
+		JsonObject jsonObject = element.getAsJsonObject();
+		return jsonObject.has( "uri" ) && !jsonObject.get( "uri" ).isJsonNull() ? jsonObject.get( "uri" ).getAsString() : null;
 	}
 
 	private static Path resolveCFFormatSourcePath( String workspaceUri ) {
