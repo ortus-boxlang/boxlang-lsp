@@ -44,20 +44,20 @@ Place boxlang.json at the workspace root (or any ancestor directory) to define v
 
 | Rule ID | Default Severity | Since | Description |
 | ------- | ---------------- | ----- | ----------- |
-| `unusedVariable` | hint |  | Flags local variables that are declared but never used in the code. |
-| `unscopedVariable` | warning |  | Flags variables that are used without an explicit scope prefix (e.g. variables.foo instead of foo). |
 | `duplicateMethod` | error |  | Flags multiple method definitions with the same name within the same class. |
 | `duplicateProperty` | error |  | Flags multiple property definitions with the same name within the same class. |
 | `emptyCatchBlock` | warning |  | Flags catch blocks that contain no executable code, which silently swallows exceptions. |
 | `invalidExtends` | error |  | Flags extends references to classes or interfaces that cannot be resolved. |
 | `invalidImplements` | error |  | Flags implements references to interfaces that cannot be resolved. |
+| `missingQueryParamCfsqltype` | warning |  | Flags <cfqueryparam> tags that are missing a cfsqltype attribute. |
 | `missingReturnStatement` | warning |  | Flags functions with a non-void return type that lack a return statement in all code paths. |
 | `shadowedVariable` | warning |  | Flags local variables that share the same name as a function parameter, shadowing it. |
+| `unescapedQueryParam` | warning |  | Flags query string interpolations that should be wrapped in <cfqueryparam>. |
 | `unreachableCode` | warning |  | Flags code appearing after control-flow statements like return, throw, or break that can never be executed. |
+| `unscopedVariable` | warning |  | Flags variables that are used without an explicit scope prefix (e.g. variables.foo instead of foo). |
 | `unusedImport` | warning |  | Flags import statements for classes or packages that are never referenced in the file. |
 | `unusedPrivateMethod` | warning |  | Flags private methods that are never called within the class, indicating dead code. |
-| `unescapedQueryParam` | warning |  | Flags query string interpolations that should be wrapped in <cfqueryparam>. |
-| `missingQueryParamCfsqltype` | warning |  | Flags <cfqueryparam> tags that are missing a cfsqltype attribute. |
+| `unusedVariable` | hint |  | Flags local variables that are declared but never used in the code. |
 
 ### Rule settings
 

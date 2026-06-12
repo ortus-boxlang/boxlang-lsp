@@ -68,18 +68,6 @@
     ],
     "rules": [
       {
-        "id": "unusedVariable",
-        "defaultSeverity": "hint",
-        "since": "",
-        "description": "Flags local variables that are declared but never used in the code."
-      },
-      {
-        "id": "unscopedVariable",
-        "defaultSeverity": "warning",
-        "since": "",
-        "description": "Flags variables that are used without an explicit scope prefix (e.g. variables.foo instead of foo)."
-      },
-      {
         "id": "duplicateMethod",
         "defaultSeverity": "error",
         "since": "",
@@ -110,6 +98,12 @@
         "description": "Flags implements references to interfaces that cannot be resolved."
       },
       {
+        "id": "missingQueryParamCfsqltype",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags \u003ccfqueryparam\u003e tags that are missing a cfsqltype attribute."
+      },
+      {
         "id": "missingReturnStatement",
         "defaultSeverity": "warning",
         "since": "",
@@ -122,10 +116,22 @@
         "description": "Flags local variables that share the same name as a function parameter, shadowing it."
       },
       {
+        "id": "unescapedQueryParam",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags query string interpolations that should be wrapped in \u003ccfqueryparam\u003e."
+      },
+      {
         "id": "unreachableCode",
         "defaultSeverity": "warning",
         "since": "",
         "description": "Flags code appearing after control-flow statements like return, throw, or break that can never be executed."
+      },
+      {
+        "id": "unscopedVariable",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags variables that are used without an explicit scope prefix (e.g. variables.foo instead of foo)."
       },
       {
         "id": "unusedImport",
@@ -140,16 +146,10 @@
         "description": "Flags private methods that are never called within the class, indicating dead code."
       },
       {
-        "id": "unescapedQueryParam",
-        "defaultSeverity": "warning",
+        "id": "unusedVariable",
+        "defaultSeverity": "hint",
         "since": "",
-        "description": "Flags query string interpolations that should be wrapped in \u003ccfqueryparam\u003e."
-      },
-      {
-        "id": "missingQueryParamCfsqltype",
-        "defaultSeverity": "warning",
-        "since": "",
-        "description": "Flags \u003ccfqueryparam\u003e tags that are missing a cfsqltype attribute."
+        "description": "Flags local variables that are declared but never used in the code."
       }
     ]
   },

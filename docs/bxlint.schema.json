@@ -64,8 +64,8 @@
           "additionalProperties": false,
           "properties": {
             "enabled": {
-              "description": "Enables the experimental formatter for the workspace when present.",
-              "type": "boolean"
+              "type": "boolean",
+              "description": "Enables the experimental formatter for the workspace when present."
             }
           }
         }
@@ -80,7 +80,6 @@
       "additionalProperties": false,
       "properties": {
         "severity": {
-          "type": "string",
           "description": "Overrides the diagnostic severity for the rule.",
           "enum": [
             "error",
@@ -88,17 +87,18 @@
             "information",
             "info",
             "hint"
-          ]
+          ],
+          "type": "string"
         },
         "enabled": {
-          "type": "boolean",
           "description": "Set to false to disable the rule entirely.",
-          "default": true
+          "default": true,
+          "type": "boolean"
         },
         "params": {
-          "type": "object",
           "description": "Rule-specific parameters. Supported keys depend on the rule.",
-          "additionalProperties": true
+          "additionalProperties": true,
+          "type": "object"
         }
       }
     }
