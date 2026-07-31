@@ -61,6 +61,26 @@ public class UnscopedVariablesTest {
 	}
 
 	@Test
+	void testWarningRangeOnlyCoversAssignmentLine() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unscopedVariable.cfc" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+
+		Diagnostic unscopedVariable = pcp.getFileDiagnostics( f.toURI() ).stream()
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [foo] is not scoped." ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( unscopedVariable ).isNotNull();
+		assertThat( unscopedVariable.getRange().getStart().getLine() ).isEqualTo( 9 );
+		assertThat( unscopedVariable.getRange().getStart().getCharacter() ).isEqualTo( 8 );
+		assertThat( unscopedVariable.getRange().getEnd().getLine() ).isEqualTo( 9 );
+		assertThat( unscopedVariable.getRange().getEnd().getCharacter() ).isEqualTo( 15 );
+	}
+
+	@Test
 	void testDoNotWarnForProperties() {
 		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
 		// Get the project root directory

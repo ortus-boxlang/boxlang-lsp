@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- BLIDE-297: Unscoped variable diagnostics on multiline assignments now highlight only the assignment line
+
 ## [1.11.0] - 2026-05-30
 
 ### Added
