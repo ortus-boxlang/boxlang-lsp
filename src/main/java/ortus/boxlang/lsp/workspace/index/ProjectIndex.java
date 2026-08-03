@@ -32,6 +32,7 @@ import com.google.gson.JsonSerializer;
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlang.lsp.App;
+import ortus.boxlang.lsp.workspace.GitIgnoreMatcher;
 import ortus.boxlang.lsp.workspace.MappingConfig;
 import ortus.boxlang.lsp.workspace.MappingResolver;
 import ortus.boxlang.runtime.BoxRuntime;
@@ -109,6 +110,11 @@ public class ProjectIndex {
 		this.mappingConfig	= mappingConfig;
 		this.cacheFilePath	= getDefaultCacheFilePath( workspaceRoot );
 		loadCache();
+		GitIgnoreMatcher gitIgnoreMatcher = GitIgnoreMatcher.create( workspaceRoot );
+		getIndexedFiles().stream()
+		    .map( URI::create )
+		    .filter( uri -> gitIgnoreMatcher.isIgnored( Paths.get( uri ) ) )
+		    .forEach( this::removeFile );
 
 		// Index external directories declared in the MappingConfig so that
 		// virtual FQNs for those files are available immediately.
@@ -152,10 +158,11 @@ public class ProjectIndex {
 	 * root are skipped to prevent double-indexing.
 	 */
 	private void indexExternalDirectories( MappingConfig config, Path workspaceRoot ) {
-		Path				normalizedRoot	= workspaceRoot.toAbsolutePath().normalize();
+		Path				normalizedRoot		= workspaceRoot.toAbsolutePath().normalize();
+		GitIgnoreMatcher	gitIgnoreMatcher	= GitIgnoreMatcher.create( normalizedRoot );
 
 		// Collect all directories to walk: mapped real paths + classPaths + modulesDirectory
-		java.util.Set<Path>	dirs			= new java.util.LinkedHashSet<>();
+		java.util.Set<Path>	dirs				= new java.util.LinkedHashSet<>();
 		config.getMappings().values().forEach( dirs::add );
 		dirs.addAll( config.getClassPaths() );
 		dirs.addAll( config.getModulesDirectory() );
@@ -169,15 +176,13 @@ public class ProjectIndex {
 			if ( !Files.isDirectory( normalizedDir ) ) {
 				continue;
 			}
-			try ( java.util.stream.Stream<Path> stream = Files.walk( normalizedDir ) ) {
-				stream.filter( p -> {
-					try {
-						return Files.isRegularFile( p ) &&
-						    ortus.boxlang.lsp.LSPTools.canWalkFile( p );
-					} catch ( Exception e ) {
-						return false;
+			GitIgnoreMatcher externalGitIgnoreMatcher = GitIgnoreMatcher.create( normalizedDir );
+			try {
+				externalGitIgnoreMatcher.walk( normalizedDir, p -> {
+					if ( Files.isRegularFile( p ) && ortus.boxlang.lsp.LSPTools.canWalkFile( p ) ) {
+						indexFile( p.toUri() );
 					}
-				} ).forEach( p -> indexFile( p.toUri() ) );
+				} );
 			} catch ( IOException e ) {
 				if ( App.logger != null ) {
 					App.logger.warn( "Failed to index external directory: " + normalizedDir, e );
@@ -195,15 +200,12 @@ public class ProjectIndex {
 			if ( !Files.isDirectory( normalizedDir ) ) {
 				continue;
 			}
-			try ( java.util.stream.Stream<Path> stream = Files.walk( normalizedDir ) ) {
-				stream.filter( p -> {
-					try {
-						return Files.isRegularFile( p ) &&
-						    ortus.boxlang.lsp.LSPTools.canWalkFile( p );
-					} catch ( Exception e ) {
-						return false;
+			try {
+				gitIgnoreMatcher.walk( normalizedDir, p -> {
+					if ( Files.isRegularFile( p ) && ortus.boxlang.lsp.LSPTools.canWalkFile( p ) ) {
+						indexFile( p.toUri() );
 					}
-				} ).forEach( p -> indexFile( p.toUri() ) );
+				} );
 			} catch ( IOException e ) {
 				if ( App.logger != null ) {
 					App.logger.warn( "Failed to index directory: " + normalizedDir, e );

@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
-public class UnscopedVariablesTest {
+public class UnscopedVariablesTest extends BaseTest {
 
 	@Test
 	void testReturnWarningForUnscopedVariable() {

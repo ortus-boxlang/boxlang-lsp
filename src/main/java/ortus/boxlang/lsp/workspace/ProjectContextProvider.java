@@ -152,23 +152,23 @@ public class ProjectContextProvider {
 
 	private List<WorkspaceScanCandidate> collectWorkspaceScanCandidates( Path workspaceRoot, LintConfig lintConfig,
 	    WorkspaceScanPassProfile profile ) throws IOException {
-		try ( Stream<Path> stream = Files.walk( workspaceRoot ) ) {
-			return stream
-			    .peek( path -> profile.walkedPaths.increment() )
-			    .filter( path -> {
-				    boolean canWalk = LSPTools.canWalkFile( path );
-				    if ( canWalk ) {
-					    profile.candidateFiles.increment();
-					    if ( Files.isSymbolicLink( path ) ) {
-						    profile.symlinkFiles.increment();
-					    }
-				    }
-				    return canWalk;
-			    } )
-			    .map( path -> createScanCandidate( path, profile ) )
-			    .filter( candidate -> shouldAnalyzePath( candidate, workspaceRoot, lintConfig, profile ) )
-			    .toList();
-		}
+		GitIgnoreMatcher				gitIgnoreMatcher	= GitIgnoreMatcher.create( workspaceRoot );
+		List<WorkspaceScanCandidate>	candidates			= new ArrayList<>();
+		gitIgnoreMatcher.walk( workspaceRoot, path -> {
+			profile.walkedPaths.increment();
+			if ( !LSPTools.canWalkFile( path ) ) {
+				return;
+			}
+			profile.candidateFiles.increment();
+			if ( Files.isSymbolicLink( path ) ) {
+				profile.symlinkFiles.increment();
+			}
+			WorkspaceScanCandidate candidate = createScanCandidate( path, profile );
+			if ( shouldAnalyzePath( candidate, workspaceRoot, lintConfig, profile ) ) {
+				candidates.add( candidate );
+			}
+		} );
+		return candidates;
 	}
 
 	private boolean shouldAnalyzePath( WorkspaceScanCandidate candidate, Path workspaceRoot, LintConfig lintConfig,
@@ -687,15 +687,7 @@ public class ProjectContextProvider {
 		projectIndex.reinitialize( workspaceRoot, newConfig );
 
 		// 3. Re-index workspace files
-		try ( java.util.stream.Stream<Path> stream = Files.walk( workspaceRoot ) ) {
-			stream
-			    .filter( LSPTools::canWalkFile )
-			    .forEach( p -> projectIndex.indexFile( p.toUri() ) );
-		} catch ( IOException e ) {
-			if ( App.logger != null ) {
-				App.logger.warn( "Failed to re-index workspace after vscode mapping change", e );
-			}
-		}
+		reindexWorkspaceFiles( workspaceRoot, "vscode mapping change" );
 
 		// 4. Re-index external directories from new config
 		projectIndex.indexExternalDirs( newConfig );
@@ -739,6 +731,8 @@ public class ProjectContextProvider {
 			return handleLintConfigChange();
 		} else if ( fileName.equalsIgnoreCase( ".bxformat.json" ) || fileName.equalsIgnoreCase( ".cfformat.json" ) ) {
 			handleFormatterConfigChange( changedFile );
+		} else if ( fileName.equalsIgnoreCase( ".gitignore" ) ) {
+			return handleGitIgnoreChange( workspaceRoot );
 		} else if ( fileName.equalsIgnoreCase( "boxlang.json" ) ) {
 			return handleBoxlangJsonChange( workspaceRoot );
 		} else if ( fileName.equalsIgnoreCase( "Application.bx" ) ||
@@ -764,15 +758,7 @@ public class ProjectContextProvider {
 		projectIndex.reinitialize( workspaceRoot, newConfig );
 
 		// 4. Re-index workspace files
-		try ( java.util.stream.Stream<Path> stream = Files.walk( workspaceRoot ) ) {
-			stream
-			    .filter( LSPTools::canWalkFile )
-			    .forEach( p -> projectIndex.indexFile( p.toUri() ) );
-		} catch ( IOException e ) {
-			if ( App.logger != null ) {
-				App.logger.warn( "Failed to re-index workspace after boxlang.json change", e );
-			}
-		}
+		reindexWorkspaceFiles( workspaceRoot, "boxlang.json change" );
 
 		// 5. Re-index external directories from new config
 		projectIndex.indexExternalDirs( newConfig );
@@ -795,15 +781,7 @@ public class ProjectContextProvider {
 		projectIndex.reinitialize( workspaceRoot, newConfig );
 
 		// 4. Re-index workspace files
-		try ( java.util.stream.Stream<Path> stream = Files.walk( workspaceRoot ) ) {
-			stream
-			    .filter( LSPTools::canWalkFile )
-			    .forEach( p -> projectIndex.indexFile( p.toUri() ) );
-		} catch ( IOException e ) {
-			if ( App.logger != null ) {
-				App.logger.warn( "Failed to re-index workspace after Application.bx change", e );
-			}
-		}
+		reindexWorkspaceFiles( workspaceRoot, "Application.bx change" );
 
 		// 5. Re-index external directories from new config
 		projectIndex.indexExternalDirs( newConfig );
@@ -831,13 +809,7 @@ public class ProjectContextProvider {
 			MappingResolver.invalidate( workspaceRoot );
 			MappingConfig newConfig = MappingResolver.resolve( workspaceRoot, userSettings.getMappings() );
 			projectIndex.reinitialize( workspaceRoot, newConfig );
-			try ( java.util.stream.Stream<Path> stream = Files.walk( workspaceRoot ) ) {
-				stream
-				    .filter( LSPTools::canWalkFile )
-				    .forEach( p -> projectIndex.indexFile( p.toUri() ) );
-			} catch ( IOException e ) {
-				App.logger.warn( "Failed to re-index workspace after lint config change", e );
-			}
+			reindexWorkspaceFiles( workspaceRoot, "lint config change" );
 			projectIndex.indexExternalDirs( newConfig );
 		}
 
@@ -865,6 +837,54 @@ public class ProjectContextProvider {
 		if ( formatterConfigResolver != null ) {
 			formatterConfigResolver.invalidate( changedFile );
 		}
+	}
+
+	private CompletableFuture<Void> handleGitIgnoreChange( Path workspaceRoot ) {
+		if ( workspaceRoot == null || projectIndex == null ) {
+			return CompletableFuture.completedFuture( null );
+		}
+		while ( !workspaceParseRunning.compareAndSet( false, true ) ) {
+			awaitWorkspaceParseComplete( 30_000 );
+		}
+		try {
+			MappingConfig config = MappingResolver.resolve( workspaceRoot, userSettings.getMappings() );
+			projectIndex.reinitialize( workspaceRoot, config );
+			reindexWorkspaceFiles( workspaceRoot, ".gitignore change" );
+			projectIndex.indexExternalDirs( config );
+			clearGitIgnoredDiagnostics( workspaceRoot );
+			invalidateClosedDocumentDiagnostics();
+		} finally {
+			workspaceParseRunning.set( false );
+		}
+		return parseWorkspace( true );
+	}
+
+	private void reindexWorkspaceFiles( Path workspaceRoot, String reason ) {
+		GitIgnoreMatcher gitIgnoreMatcher = GitIgnoreMatcher.create( workspaceRoot );
+		try {
+			gitIgnoreMatcher.walk( workspaceRoot, path -> {
+				if ( LSPTools.canWalkFile( path ) ) {
+					projectIndex.indexFile( path.toUri() );
+				}
+			} );
+		} catch ( IOException e ) {
+			if ( App.logger != null ) {
+				App.logger.warn( "Failed to re-index workspace after " + reason, e );
+			}
+		}
+	}
+
+	private void clearGitIgnoredDiagnostics( Path workspaceRoot ) {
+		GitIgnoreMatcher gitIgnoreMatcher = GitIgnoreMatcher.create( workspaceRoot );
+		this.cachedDiagnosticReports.forEach( ( uri, report ) -> {
+			try {
+				if ( !this.openDocuments.containsKey( uri ) && gitIgnoreMatcher.isIgnored( Paths.get( uri ) ) ) {
+					report.setDiagnostics( new ArrayList<Diagnostic>() );
+					publishEmptyDiagnostics( uri );
+				}
+			} catch ( Exception ignored ) {
+			}
+		} );
 	}
 
 	private void invalidateClosedDocumentDiagnostics() {
@@ -1131,15 +1151,16 @@ public class ProjectContextProvider {
 			return; // already seeded
 		}
 		try {
-			Path workspaceRoot = Path.of( new java.net.URI( workspaceFolders.getFirst().getUri() ) );
-			Files.walk( workspaceRoot )
-			    .filter( LSPTools::canWalkFile )
-			    .forEach( p -> {
-				    try {
-					    index.indexFile( p.toUri() );
-				    } catch ( Exception ignored ) {
-				    }
-			    } );
+			Path				workspaceRoot		= Path.of( new java.net.URI( workspaceFolders.getFirst().getUri() ) );
+			GitIgnoreMatcher	gitIgnoreMatcher	= GitIgnoreMatcher.create( workspaceRoot );
+			gitIgnoreMatcher.walk( workspaceRoot, p -> {
+				if ( LSPTools.canWalkFile( p ) ) {
+					try {
+						index.indexFile( p.toUri() );
+					} catch ( Exception ignored ) {
+					}
+				}
+			} );
 		} catch ( Exception e ) {
 			App.logger.debug( "Could not seed workspace index on document open", e );
 		}
@@ -4577,6 +4598,15 @@ public class ProjectContextProvider {
 		} );
 	}
 
+	private void publishEmptyDiagnostics( URI docURI ) {
+		publishDebouncer.scheduleProcessing( docURI, () -> {
+			LanguageClient client = this.client;
+			if ( client != null ) {
+				client.publishDiagnostics( new PublishDiagnosticsParams( docURI.toString(), List.of() ) );
+			}
+		} );
+	}
+
 	public List<Either<Command, CodeAction>> getAvailableCodeActions( URI convertDocumentURI, CodeActionParams params ) {
 		List<Either<Command, CodeAction>> actions = new ArrayList<>();
 
@@ -4641,6 +4671,10 @@ public class ProjectContextProvider {
 			boxlangWatcher.setGlobPattern( "boxlang.json" );
 			boxlangWatcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
 
+			FileSystemWatcher gitIgnoreWatcher = new FileSystemWatcher();
+			gitIgnoreWatcher.setGlobPattern( "**/.gitignore" );
+			gitIgnoreWatcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
+
 			FileSystemWatcher bxformatWatcher = new FileSystemWatcher();
 			bxformatWatcher.setGlobPattern( "**/.bxformat.json" );
 			bxformatWatcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
@@ -4650,7 +4684,7 @@ public class ProjectContextProvider {
 			cfformatWatcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
 
 			DidChangeWatchedFilesRegistrationOptions	options			= new DidChangeWatchedFilesRegistrationOptions(
-			    List.of( lintWatcher, boxlangWatcher, bxformatWatcher, cfformatWatcher ) );
+			    List.of( lintWatcher, boxlangWatcher, gitIgnoreWatcher, bxformatWatcher, cfformatWatcher ) );
 			Registration								registration	= new Registration( UUID.randomUUID().toString(), "workspace/didChangeWatchedFiles",
 			    options );
 			client.registerCapability( new RegistrationParams( List.of( registration ) ) );
@@ -4719,6 +4753,7 @@ public class ProjectContextProvider {
 		String fileName = changedPath.getFileName() == null ? "" : changedPath.getFileName().toString();
 		return fileName.equalsIgnoreCase( LintConfigLoader.CONFIG_FILENAME )
 		    || fileName.equalsIgnoreCase( "boxlang.json" )
+		    || fileName.equalsIgnoreCase( ".gitignore" )
 		    || fileName.equalsIgnoreCase( ".bxformat.json" )
 		    || fileName.equalsIgnoreCase( ".cfformat.json" );
 	}

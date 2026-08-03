@@ -79,8 +79,18 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "params": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Rule-specific parameters. Supported keys depend on the rule."
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Set to false to disable the rule entirely."
+        },
         "severity": {
-          "description": "Overrides the diagnostic severity for the rule.",
+          "type": "string",
           "enum": [
             "error",
             "warning",
@@ -88,17 +98,7 @@
             "info",
             "hint"
           ],
-          "type": "string"
-        },
-        "enabled": {
-          "description": "Set to false to disable the rule entirely.",
-          "default": true,
-          "type": "boolean"
-        },
-        "params": {
-          "description": "Rule-specific parameters. Supported keys depend on the rule.",
-          "additionalProperties": true,
-          "type": "object"
+          "description": "Overrides the diagnostic severity for the rule."
         }
       }
     }
