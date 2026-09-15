@@ -213,15 +213,65 @@ public class FileParseResult {
 	}
 
 	private void fullyParse() {
-		parseResultRef = new WeakReference<>( parseSource() );
+		ParsingResult parsed = parseSource();
+		parseResultRef	= new WeakReference<>( parsed );
+		issues			= parsed == null ? new ArrayList<>() : new ArrayList<>( parsed.getIssues() );
+		detectUnparsedTemplateText( parsed );
+		properties			= new ArrayList<>();
+		outline				= new ArrayList<>();
+		functionDefinitions	= new ArrayList<>();
 
-		findAstRoot().ifPresent( root -> {
+		Optional.ofNullable( parsed ).map( ParsingResult::getRoot ).ifPresent( root -> {
 			properties			= parseProperties( root );
 			outline				= generateOutline( this.uri, root );
 
 			functionDefinitions	= generateFunctionDefinitions( this.uri, root );
-			diagnostics			= generateDiagnostics();
 		} );
+		// Syntax errors often have no AST. Publish parser issues independently of semantic visitors.
+		diagnostics = generateDiagnostics();
+	}
+
+	/** Older CF parsers can return a partial template without reporting the unconsumed suffix. */
+	private void detectUnparsedTemplateText( ParsingResult parsed ) {
+		if ( parsed == null || !issues.isEmpty() || !isCF()
+		    || ! ( parsed.getRoot() instanceof ortus.boxlang.compiler.ast.BoxTemplate ) )
+			return;
+		try {
+			String	text	= isOpen ? source : Files.readString( Path.of( uri ) );
+			var		end		= parsed.getRoot().getPosition().getEnd();
+			int		offset	= 0;
+			for ( int line = 1; line < end.getLine() && offset < text.length(); line++ ) {
+				int next = text.indexOf( '\n', offset );
+				offset = next < 0 ? text.length() : next + 1;
+			}
+			offset = Math.min( text.length(), offset + Math.max( 0, end.getColumn() ) );
+			String remaining = text.substring( offset );
+			// Comments are intentionally absent from the AST; retain their offsets while ignoring their content.
+			for ( var comment : parsed.getComments() ) {
+				String raw = comment.getSourceText();
+				if ( raw != null && !raw.isEmpty() )
+					remaining = remaining.replace( raw, raw.replaceAll( "[^\\r\\n]", " " ) );
+			}
+			int first = 0;
+			while ( first < remaining.length() && Character.isWhitespace( remaining.charAt( first ) ) )
+				first++;
+			if ( first == remaining.length() )
+				return;
+			int	absolute	= offset + first;
+			int	line		= 1, column = 0;
+			for ( int i = 0; i < absolute; i++ ) {
+				if ( text.charAt( i ) == '\n' ) {
+					line++;
+					column = 0;
+				} else
+					column++;
+			}
+			issues.add( new Issue( "Unable to parse remaining CFML. Check for an incomplete or unclosed tag.",
+			    new ortus.boxlang.compiler.ast.Position( new ortus.boxlang.compiler.ast.Point( line, column ),
+			        new ortus.boxlang.compiler.ast.Point( line, column + 1 ) ) ) );
+		} catch ( IOException e ) {
+			App.logger.debug( "Unable to inspect CFML source coverage for " + uri, e );
+		}
 	}
 
 	private List<ParsedProperty> parseProperties( BoxNode root ) {
