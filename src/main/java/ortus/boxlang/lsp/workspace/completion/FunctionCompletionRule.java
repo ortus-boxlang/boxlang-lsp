@@ -32,14 +32,24 @@ public class FunctionCompletionRule implements IRule<CompletionFacts, List<Compl
 			return;
 		}
 
-		// 1. Get UDFs from the current file
-		List<BoxFunctionDeclaration> functions = root.getDescendantsOfType( BoxFunctionDeclaration.class );
-		for ( BoxFunctionDeclaration func : functions ) {
-			result.add( createFunctionCompletionItem( func ) );
+		var						cursor		= facts.getContext().getCursorPosition();
+		var						functions	= root.getDescendantsOfType( BoxFunctionDeclaration.class ).stream()
+		    .filter( function -> {
+												    var enclosing = function.getFirstAncestorOfType( BoxFunctionDeclaration.class );
+												    return enclosing == null || ortus.boxlang.lsp.workspace.BLASTTools.containsPosition( enclosing,
+												        cursor.getLine() + 1, cursor.getCharacter() );
+											    } )
+		    .sorted( java.util.Comparator.comparingInt( ( BoxFunctionDeclaration function ) -> function.getAncestors().size() ).reversed() )
+		    .toList();
+		java.util.Set<String>	seen		= new java.util.HashSet<>();
+		for ( var function : functions ) {
+			if ( !seen.add( function.getName().toLowerCase( java.util.Locale.ROOT ) ) )
+				continue;
+			// The nearest visible declaration shadows both outer functions and built-ins.
+			result.removeIf( item -> item.getKind() == CompletionItemKind.Function && item.getLabel().equalsIgnoreCase( function.getName() ) );
+			result.add( createFunctionCompletionItem( function ) );
 		}
 
-		// TODO: 2. Get functions from imports
-		// TODO: 3. Get functions from project index (if appropriate for general context)
 	}
 
 	/**
@@ -77,6 +87,9 @@ public class FunctionCompletionRule implements IRule<CompletionFacts, List<Compl
 		item.setDetail( signature.toString() );
 		item.setInsertText( func.getName() + "($1)" );
 		item.setInsertTextFormat( org.eclipse.lsp4j.InsertTextFormat.Snippet );
+		CallableCompletionData.attach( item, func.getType() == null ? "any" : func.getType().toString(),
+		    args.stream().map( arg -> CallableCompletionData.parameter( arg.getName(), arg.getType(), arg.getRequired() ) ).toList(),
+		    "Project-defined function" );
 		item.setSortText( "2" + func.getName() ); // Sort UDFs before BIFs (which are 5)
 
 		return item;

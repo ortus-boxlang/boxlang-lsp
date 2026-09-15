@@ -126,7 +126,8 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		String					returnTypeHint	= node.getType() != null ? node.getType().toString() : "any";
 		List<IndexedParameter>	parameters		= extractParameters( node );
 		List<BoxAnnotation>		annotations		= findAnnotations( node );
-		String					accessModifier	= extractAccessModifier( annotations );
+		String					accessModifier	= node.getAccessModifier() != null ? node.getAccessModifier().name().toLowerCase( java.util.Locale.ROOT )
+		    : extractAccessModifier( annotations );
 		List<String>			modifiers		= extractFunctionModifiers( annotations );
 		String					documentation	= extractDocumentation( node );
 

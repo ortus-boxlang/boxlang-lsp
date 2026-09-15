@@ -56,6 +56,7 @@ public class MemberAccessCompletionRule implements IRule<CompletionFacts, List<C
 		List<CompletionItem>		members		= collector.collectMembers( inferredType.className(), filterPrefix );
 
 		result.addAll( members );
+		result.addAll( NativeMemberCompletions.collect( inferredType.className(), filterPrefix ) );
 	}
 
 }

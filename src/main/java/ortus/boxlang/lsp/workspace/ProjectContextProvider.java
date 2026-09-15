@@ -2608,13 +2608,41 @@ public class ProjectContextProvider {
 	}
 
 	public List<CompletionItem> getAvailableCompletions( URI docURI, CompletionParams params ) {
-		// TODO if you are in a cfscript component within a template script completions
-		// TODO if you are in a cfset return script completions
-		// TODO add completions for in-scope symbols (properties, local variables,
-
-		return getLatestFileParseResult( docURI ).map( ( res ) -> {
-			return CompletionProviderRuleBook.execute( new CompletionFacts( res, params ) );
-		} ).orElseGet( () -> new ArrayList<CompletionItem>() );
+		DocumentModel	model	= documentModels.get( docURI );
+		// Completion must use the current edit even while diagnostic parsing is debounced.
+		FileParseResult	result	= model == null ? getLatestFileParseResult( docURI ).orElse( null )
+		    : FileParseResult.fromSourceString( docURI, model.getContent() );
+		if ( result == null )
+			return new ArrayList<>();
+		if ( model != null && result.findAstRoot().isEmpty() ) {
+			String	source	= model.getContent();
+			int		offset	= 0;
+			for ( int line = 0; line < params.getPosition().getLine() && offset < source.length(); line++ ) {
+				int next = source.indexOf( '\n', offset );
+				offset = next < 0 ? source.length() : next + 1;
+			}
+			offset = Math.min( source.length(), offset + params.getPosition().getCharacter() );
+			var kind = new CompletionFacts( result, params ).getContext().getKind();
+			if ( offset > 0 && ( kind == ortus.boxlang.lsp.workspace.completion.CompletionContextKind.GENERAL
+			    || kind == ortus.boxlang.lsp.workspace.completion.CompletionContextKind.MEMBER_ACCESS )
+			    && ( Character.isJavaIdentifierPart( source.charAt( offset - 1 ) ) || source.charAt( offset - 1 ) == '.' ) ) {
+				int end = offset;
+				while ( end < source.length() && Character.isJavaIdentifierPart( source.charAt( end ) ) )
+					end++;
+				int next = end;
+				while ( next < source.length() && Character.isWhitespace( source.charAt( next ) ) )
+					next++;
+				if ( next == source.length() || source.charAt( next ) == ';' || source.charAt( next ) == '}' ) {
+					String placeholder = source.charAt( offset - 1 ) == '.' && end == offset ? "__completion()" : "()";
+					if ( next == source.length() || source.charAt( next ) == '}' )
+						placeholder += ";";
+					// A temporary call restores the surrounding AST for a half-typed expression.
+					// Never publish these repaired diagnostics or replace the real document.
+					result = FileParseResult.fromSourceString( docURI, source.substring( 0, end ) + placeholder + source.substring( end ) );
+				}
+			}
+		}
+		return CompletionProviderRuleBook.execute( new CompletionFacts( result, params ) );
 	}
 
 	public List<CodeLens> getAvailableCodeLenses( URI docURI, CodeLensParams params ) {

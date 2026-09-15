@@ -87,7 +87,7 @@ public class MemberAccessTypeInferrer {
 		}
 
 		// Strategy 1: Check for parameter type hints
-		TypeInferenceResult paramType = inferFromParameterTypeHint( root, varName, cursorLine );
+		TypeInferenceResult paramType = inferFromParameterTypeHint( root, varName, cursorLine, cursorColumn );
 		if ( paramType.isResolved() ) {
 			return paramType;
 		}
@@ -115,13 +115,14 @@ public class MemberAccessTypeInferrer {
 	/**
 	 * Infer type from function parameter with type hint.
 	 */
-	private TypeInferenceResult inferFromParameterTypeHint( BoxNode root, String varName, int cursorLine ) {
+	private TypeInferenceResult inferFromParameterTypeHint( BoxNode root, String varName, int cursorLine, int cursorColumn ) {
 		// Find the function containing the cursor
 		int line1Based = cursorLine + 1;
 
-		for ( BoxNode child : root.getDescendantsOfType( BoxFunctionDeclaration.class ) ) {
+		for ( BoxNode child : root.getDescendantsOfType( BoxFunctionDeclaration.class ).stream()
+		    .sorted( java.util.Comparator.comparingInt( ( BoxFunctionDeclaration function ) -> function.getAncestors().size() ).reversed() ).toList() ) {
 			BoxFunctionDeclaration func = ( BoxFunctionDeclaration ) child;
-			if ( !BLASTTools.containsPosition( func, line1Based, 0 ) ) {
+			if ( !BLASTTools.containsPosition( func, line1Based, cursorColumn ) ) {
 				continue;
 			}
 

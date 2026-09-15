@@ -202,6 +202,10 @@ public class MemberCompletionCollector {
 			detail.append( " : " ).append( method.returnTypeHint() );
 		}
 		item.setDetail( detail.toString() );
+		CallableCompletionData.attach( item, method.returnTypeHint(),
+		    params == null ? List.of()
+		        : params.stream().map( param -> CallableCompletionData.parameter( param.name(), param.typeHint(), param.required() ) ).toList(),
+		    method.documentation() == null ? "Method declared in " + declaringClass : method.documentation() );
 
 		// Sort text: depth prefix + name for relevance sorting
 		item.setSortText( String.format( "%02d_%s", depth, method.name().toLowerCase() ) );
