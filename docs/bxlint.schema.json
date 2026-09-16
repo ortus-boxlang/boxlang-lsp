@@ -16,6 +16,7 @@
           "invalidImplements",
           "missingQueryParamCfsqltype",
           "missingReturnStatement",
+          "possibleTypo",
           "shadowedVariable",
           "unescapedQueryParam",
           "unreachableCode",
@@ -79,18 +80,17 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "params": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Rule-specific parameters. Supported keys depend on the rule."
-        },
         "enabled": {
-          "type": "boolean",
           "default": true,
+          "type": "boolean",
           "description": "Set to false to disable the rule entirely."
         },
+        "params": {
+          "additionalProperties": true,
+          "type": "object",
+          "description": "Rule-specific parameters. Supported keys depend on the rule."
+        },
         "severity": {
-          "type": "string",
           "enum": [
             "error",
             "warning",
@@ -98,6 +98,7 @@
             "info",
             "hint"
           ],
+          "type": "string",
           "description": "Overrides the diagnostic severity for the rule."
         }
       }

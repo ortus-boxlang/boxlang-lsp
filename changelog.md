@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Bump BoxLang version to 1.17.0
+- BLIDE-324 Add semantic warning for possibleTypos
+
 ## [1.12.0] - 2026-09-16
 
 ### Fixed

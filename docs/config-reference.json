@@ -110,6 +110,12 @@
         "description": "Flags functions with a non-void return type that lack a return statement in all code paths."
       },
       {
+        "id": "possibleTypo",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Reports identifiers that are likely misspellings of a visible identifier or BoxLang keyword. Configure keywordDistance and identifierDistance in rule params."
+      },
+      {
         "id": "shadowedVariable",
         "defaultSeverity": "warning",
         "since": "",

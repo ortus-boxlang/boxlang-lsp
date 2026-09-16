@@ -11,6 +11,7 @@ import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.lsp.workspace.MappingConfig;
 import ortus.boxlang.lsp.workspace.MappingResolver;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.visitors.PossibleTypoDiagnosticVisitor;
 import ortus.boxlang.lsp.workspace.visitors.QueryParamVisitor;
 import ortus.boxlang.lsp.workspace.visitors.SemanticErrorDiagnosticVisitor;
 import ortus.boxlang.lsp.workspace.visitors.SemanticWarningDiagnosticVisitor;
@@ -27,6 +28,7 @@ public class SourceCodeVisitorService {
 
 		instance.addVisitor( UnscopedVariableDiagnosticVisitor.class );
 		instance.addVisitor( UnusedVariableDiagnosticVisitor.class );
+		instance.addVisitor( PossibleTypoDiagnosticVisitor.class );
 		instance.addVisitor( SemanticErrorDiagnosticVisitor.class );
 		instance.addVisitor( SemanticWarningDiagnosticVisitor.class );
 		instance.addVisitor( QueryParamVisitor.class );
