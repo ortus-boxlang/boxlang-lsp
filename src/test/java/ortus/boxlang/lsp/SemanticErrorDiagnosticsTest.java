@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionContext;
+import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.CreateFile;
 import org.eclipse.lsp4j.Diagnostic;
@@ -182,6 +183,102 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		assertThat( typo ).isNotNull();
 		assertThat( typo.getSeverity() ).isEqualTo( DiagnosticSeverity.Warning );
 		assertThat( typo.getMessage().getLeft() ).contains( "calculateTotal" );
+	}
+
+	@Test
+	void testPossibleTypoPrefersCurrentFileIdentifierBeforeGlobalBif() throws Exception {
+		String	classCode	= """
+		                      class {
+		                          function what() { return "bx"; }
+		                          function thing() { return wht(); }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "PossibleTypoCurrentFileBeforeBif.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> typoDiagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
+		    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
+		    .toList();
+
+		assertThat( typoDiagnostics ).hasSize( 1 );
+		assertThat( typoDiagnostics.getFirst().getMessage().getLeft() ).isEqualTo( "Possible typo: 'wht' may be 'what'." );
+	}
+
+	@Test
+	void testPossibleTypoOffersQuickFixForUserDefinedIdentifier() throws Exception {
+		String	classCode	= """
+		                      class {
+		                          function calculateTotal() { return 1; }
+		                          function caller() { return calculatTotal(); }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "PossibleTypoUserIdentifierQuickFix.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		Diagnostic	typo	= ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
+		    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
+		    .findFirst()
+		    .orElseThrow();
+		CodeAction	action	= getAvailableCodeActions( ProjectContextProvider.getInstance(), testFile, typo ).stream().findFirst().orElseThrow();
+
+		assertThat( action.getTitle() ).isEqualTo( "Replace 'calculatTotal' with 'calculateTotal'" );
+		assertThat( action.getKind() ).isEqualTo( CodeActionKind.QuickFix );
+		assertThat( getEditedText( action.getEdit(), testFile.toUri().toString() ) ).isEqualTo( "calculateTotal" );
+		assertThat( action.getEdit().getChanges().get( testFile.toUri().toString() ).getFirst().getRange() ).isEqualTo( typo.getRange() );
+	}
+
+	@Test
+	void testPossibleTypoOffersQuickFixForKeyword() throws Exception {
+		String	classCode	= """
+		                      class {
+		                          functions add() { return 1; }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "PossibleTypoKeywordQuickFix.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		Diagnostic	typo	= ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
+		    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
+		    .findFirst()
+		    .orElseThrow();
+		CodeAction	action	= getAvailableCodeActions( ProjectContextProvider.getInstance(), testFile, typo ).stream().findFirst().orElseThrow();
+
+		assertThat( action.getTitle() ).isEqualTo( "Replace 'functions' with 'function'" );
+		assertThat( action.getKind() ).isEqualTo( CodeActionKind.QuickFix );
+		assertThat( getEditedText( action.getEdit(), testFile.toUri().toString() ) ).isEqualTo( "function" );
+		assertThat( action.getEdit().getChanges().get( testFile.toUri().toString() ).getFirst().getRange() ).isEqualTo( typo.getRange() );
+	}
+
+	@Test
+	void testPossibleTypoQuickFixWorksWithoutDiagnosticData() throws Exception {
+		Path testFile = createTestFile( "PossibleTypoQuickFixWithoutData.bx", """
+		                                                                      class {
+		                                                                          functions add() { return 1; }
+		                                                                      }
+		                                                                      """ );
+		index.indexFile( testFile.toUri() );
+
+		Diagnostic	typo				= ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
+		    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
+		    .findFirst()
+		    .orElseThrow();
+		Diagnostic	clientDiagnostic	= new Diagnostic( typo.getRange(), typo.getMessage().getLeft(), typo.getSeverity(), typo.getSource(), null );
+		clientDiagnostic.setCode( typo.getCode() );
+
+		CodeActionParams params = new CodeActionParams();
+		params.setTextDocument( new TextDocumentIdentifier( testFile.toUri().toString() ) );
+		params.setRange( typo.getRange() );
+		params.setContext( new CodeActionContext( List.of( clientDiagnostic ) ) );
+
+		List<CodeAction> actions = ProjectContextProvider.getInstance().getAvailableCodeActions( testFile.toUri(), params ).stream()
+		    .filter( Either::isRight )
+		    .map( Either::getRight )
+		    .toList();
+
+		assertThat( actions ).hasSize( 1 );
 	}
 
 	@Test

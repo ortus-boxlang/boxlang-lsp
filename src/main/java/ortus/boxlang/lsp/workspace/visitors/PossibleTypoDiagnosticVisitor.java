@@ -11,11 +11,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.WorkspaceEdit;
 import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxInterface;
 import ortus.boxlang.compiler.ast.BoxNode;
@@ -26,6 +30,7 @@ import ortus.boxlang.compiler.ast.expression.BoxAssignment;
 import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
+import ortus.boxlang.compiler.ast.expression.BoxStringInterpolation;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionalBIFAccess;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionalMemberAccess;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
@@ -67,13 +72,16 @@ public class PossibleTypoDiagnosticVisitor extends SourceCodeVisitor {
 	private record IdentifierUse( String name, BoxNode node ) {
 	}
 
-	private final List<IdentifierUse>	uses				= new ArrayList<>();
-	private final Set<BoxIdentifier>	ignoredIdentifiers	= new HashSet<>();
-	private final Map<String, String>	visibleIdentifiers	= new LinkedHashMap<>();
-	private final Map<String, String>	fileIdentifiers		= new LinkedHashMap<>();
-	private final Map<String, String>	parentIdentifiers	= new LinkedHashMap<>();
-	private final List<Diagnostic>		diagnostics			= new ArrayList<>();
-	private boolean						analyzed;
+	private final List<IdentifierUse>		uses					= new ArrayList<>();
+	private final Set<BoxIdentifier>		ignoredIdentifiers		= new HashSet<>();
+	private final Map<String, String>		visibleIdentifiers		= new LinkedHashMap<>();
+	private final Map<String, String>		fileIdentifiers			= new LinkedHashMap<>();
+	private final Map<String, String>		parentIdentifiers		= new LinkedHashMap<>();
+	private final Map<String, String>		globalIdentifiers		= new LinkedHashMap<>();
+	private final List<Diagnostic>			diagnostics				= new ArrayList<>();
+	private final Map<Diagnostic, String>	suggestionsByDiagnostic	= new LinkedHashMap<>();
+	private final Map<Diagnostic, String>	actualNamesByDiagnostic	= new LinkedHashMap<>();
+	private boolean							analyzed;
 
 	@Override
 	public void visit( BoxClass node ) {
@@ -102,7 +110,14 @@ public class PossibleTypoDiagnosticVisitor extends SourceCodeVisitor {
 
 	@Override
 	public List<CodeAction> getCodeActions() {
-		return List.of();
+		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( PossibleTypoRule.ID, true ) ) {
+			return List.of();
+		}
+
+		return diagnostics.stream()
+		    .map( diagnostic -> createCodeAction( diagnostic, actualNamesByDiagnostic.get( diagnostic ), suggestionsByDiagnostic.get( diagnostic ) ) )
+		    .filter( action -> action != null )
+		    .toList();
 	}
 
 	@Override
@@ -136,7 +151,7 @@ public class PossibleTypoDiagnosticVisitor extends SourceCodeVisitor {
 			}
 
 			String suggestion = findIdentifierSuggestion( actualName, identifierDistance );
-			if ( suggestion == null ) {
+			if ( suggestion == null && !isInsideStringInterpolation( use.node() ) ) {
 				suggestion = findKeywordSuggestion( actualName, keywordDistance );
 			}
 			if ( suggestion == null ) {
@@ -150,7 +165,10 @@ public class PossibleTypoDiagnosticVisitor extends SourceCodeVisitor {
 			    "boxlang",
 			    PossibleTypoRule.ID
 			);
+			diagnostic.setData( Map.of( "id", UUID.randomUUID().toString() ) );
 			diagnostics.add( diagnostic );
+			actualNamesByDiagnostic.put( diagnostic, actualName );
+			suggestionsByDiagnostic.put( diagnostic, suggestion );
 		}
 	}
 
@@ -216,7 +234,7 @@ public class PossibleTypoDiagnosticVisitor extends SourceCodeVisitor {
 
 		try {
 			Arrays.stream( BoxRuntime.getInstance().getFunctionService().getGlobalFunctionNames() )
-			    .forEach( name -> addCandidate( visibleIdentifiers, name ) );
+			    .forEach( name -> addCandidate( globalIdentifiers, name ) );
 		} catch ( Exception ignored ) {
 			// Runtime BIFs are optional during parser-only operation.
 		}
@@ -300,7 +318,7 @@ public class PossibleTypoDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	private String findIdentifierSuggestion( String actualName, int maxDistance ) {
-		for ( Map<String, String> candidates : List.of( visibleIdentifiers, fileIdentifiers, parentIdentifiers ) ) {
+		for ( Map<String, String> candidates : List.of( visibleIdentifiers, fileIdentifiers, parentIdentifiers, globalIdentifiers ) ) {
 			List<String> matches = closeMatches( actualName, candidates, maxDistance );
 			if ( matches.size() == 1 ) {
 				return matches.getFirst();
@@ -338,12 +356,17 @@ public class PossibleTypoDiagnosticVisitor extends SourceCodeVisitor {
 		    .toList();
 	}
 
+	private boolean isInsideStringInterpolation( BoxNode node ) {
+		return node instanceof BoxIdentifier && node.getFirstAncestorOfType( BoxStringInterpolation.class ) != null;
+	}
+
 	private boolean isKnown( String name ) {
 		String lowerName = name.toLowerCase( Locale.ROOT );
 		return RESERVED_IDENTIFIERS.contains( lowerName )
 		    || visibleIdentifiers.containsKey( lowerName )
 		    || fileIdentifiers.containsKey( lowerName )
-		    || parentIdentifiers.containsKey( lowerName );
+		    || parentIdentifiers.containsKey( lowerName )
+		    || globalIdentifiers.containsKey( lowerName );
 	}
 
 	private boolean isCheckable( String name ) {
@@ -363,6 +386,21 @@ public class PossibleTypoDiagnosticVisitor extends SourceCodeVisitor {
 		} catch ( Exception e ) {
 			return defaultValue;
 		}
+	}
+
+	private CodeAction createCodeAction( Diagnostic diagnostic, String actualName, String suggestion ) {
+		if ( actualName == null || suggestion == null || diagnostic.getRange() == null || filePath == null ) {
+			return null;
+		}
+
+		CodeAction action = new CodeAction( "Replace '" + actualName + "' with '" + suggestion + "'" );
+		action.setKind( CodeActionKind.QuickFix );
+		action.setIsPreferred( true );
+		action.setDiagnostics( List.of( diagnostic ) );
+		action.setEdit( new WorkspaceEdit( Map.of(
+		    filePath,
+		    List.of( new TextEdit( diagnostic.getRange(), suggestion ) ) ) ) );
+		return action;
 	}
 
 	private Range rangeFor( IdentifierUse use ) {

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -4609,34 +4610,45 @@ public class ProjectContextProvider {
 
 	public List<Either<Command, CodeAction>> getAvailableCodeActions( URI convertDocumentURI, CodeActionParams params ) {
 		List<Either<Command, CodeAction>> actions = new ArrayList<>();
-
-		if ( params.getContext().getDiagnostics().size() != 0 ) {
-			this.getFileCodeActions( convertDocumentURI ).stream().filter( codeAction -> {
-				for ( Diagnostic cad : codeAction.getDiagnostics() ) {
-					@SuppressWarnings( "unchecked" )
-					Map<String, Object>	cadData					= ( Map<String, Object> ) cad.getData();
-					String				codeActionDiagnosticId	= ( String ) cadData.get( "id" );
-
-					for ( Diagnostic d : params.getContext().getDiagnostics() ) {
-						JsonObject data = ( JsonObject ) d.getData();
-
-						if ( data == null ) {
-							return false;
-						}
-
-						String clientDiagnosticId = data.get( "id" ).getAsString();
-						if ( codeActionDiagnosticId.equals( clientDiagnosticId ) ) {
-							return true;
-						}
-					}
-				}
-
-				return false;
-			} )
-			    .forEach( action -> actions.add( Either.forRight( action ) ) );
+		if ( params == null || params.getContext() == null || params.getContext().getDiagnostics().isEmpty() ) {
+			return actions;
 		}
 
+		this.getFileCodeActions( convertDocumentURI ).stream()
+		    .filter( codeAction -> codeAction.getDiagnostics() != null
+		        && codeAction.getDiagnostics().stream().anyMatch( actionDiagnostic -> params.getContext().getDiagnostics().stream()
+		            .anyMatch( requestedDiagnostic -> diagnosticsMatch( actionDiagnostic, requestedDiagnostic ) ) ) )
+		    .forEach( action -> actions.add( Either.forRight( action ) ) );
+
 		return actions;
+	}
+
+	private boolean diagnosticsMatch( Diagnostic actionDiagnostic, Diagnostic requestedDiagnostic ) {
+		String	actionId	= diagnosticId( actionDiagnostic );
+		String	requestedId	= diagnosticId( requestedDiagnostic );
+		if ( actionId != null && requestedId != null && actionId.equals( requestedId ) ) {
+			return true;
+		}
+
+		return Objects.equals( actionDiagnostic.getRange(), requestedDiagnostic.getRange() )
+		    && Objects.equals( actionDiagnostic.getCode(), requestedDiagnostic.getCode() )
+		    && Objects.equals( actionDiagnostic.getMessage(), requestedDiagnostic.getMessage() );
+	}
+
+	private String diagnosticId( Diagnostic diagnostic ) {
+		if ( diagnostic == null || diagnostic.getData() == null ) {
+			return null;
+		}
+
+		Object data = diagnostic.getData();
+		if ( data instanceof Map<?, ?> dataMap ) {
+			Object id = dataMap.get( "id" );
+			return id == null ? null : id.toString();
+		}
+		if ( data instanceof JsonObject json && json.has( "id" ) && !json.get( "id" ).isJsonNull() ) {
+			return json.get( "id" ).getAsString();
+		}
+		return null;
 	}
 
 	private DiagnosticReport cacheDiagnostics( URI fileUri, List<Diagnostic> diagnostics ) {
