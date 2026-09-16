@@ -22,9 +22,15 @@ import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
+import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxNode;
+import ortus.boxlang.compiler.ast.BoxStatement;
 import ortus.boxlang.compiler.ast.Issue;
+import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
+import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
+import ortus.boxlang.compiler.ast.statement.BoxExpressionStatement;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
+import ortus.boxlang.compiler.ast.statement.BoxStatementBlock;
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlang.lsp.App;
@@ -202,17 +208,22 @@ public class FileParseResult {
 		Parser	parser		= new Parser();
 
 		try {
+			ParsingResult result;
 			if ( this.isOpen ) {
 				String extension = Parser.getFileExtension( this.uri.toString() ).orElse( "bxs" );
-				return parser.parse(
+				result = parser.parse(
 				    this.source,
 				    Parser.detectFile( new File( this.uri ) ),
 				    shouldParseAsClassLikeSource( extension ),
 				    false );
+			} else {
+				result = parser.parse( Paths.get( this.uri ).toFile(), false );
 			}
 
-			return parser.parse( Paths.get( this.uri ).toFile(), false );
+			this.issues = result == null ? new ArrayList<>() : result.getIssues();
+			return result;
 		} catch ( Exception e ) {
+			this.issues = new ArrayList<>();
 			App.logger.error( "Unable to parse " + this.uri, e );
 			return null;
 		} finally {
@@ -269,8 +280,10 @@ public class FileParseResult {
 
 		Optional<BoxNode> astRootOpt = findAstRoot();
 		if ( astRootOpt.isPresent() ) {
-			BoxNode							astRoot					= astRootOpt.get();
-			FunctionReturnDiagnosticVisitor	returnDiagnosticVisitor	= new FunctionReturnDiagnosticVisitor();
+			BoxNode astRoot = astRootOpt.get();
+			fileDiagnostics.addAll( generateMalformedFunctionDiagnostics( astRoot ) );
+
+			FunctionReturnDiagnosticVisitor returnDiagnosticVisitor = new FunctionReturnDiagnosticVisitor();
 			astRoot.accept( returnDiagnosticVisitor );
 			fileDiagnostics.addAll( returnDiagnosticVisitor.getDiagnostics() );
 
@@ -300,6 +313,66 @@ public class FileParseResult {
 		}
 	}
 
+	private List<Diagnostic> generateMalformedFunctionDiagnostics( BoxNode astRoot ) {
+		if ( ! ( astRoot instanceof BoxClass boxClass ) ) {
+			return List.of();
+		}
+
+		List<Diagnostic>	diagnostics	= new ArrayList<>();
+		List<BoxStatement>	body		= boxClass.getBody();
+		for ( int i = 0; i + 2 < body.size(); i++ ) {
+			if ( ! ( body.get( i ) instanceof BoxExpressionStatement keywordStatement )
+			    || ! ( keywordStatement.getExpression() instanceof BoxIdentifier keyword )
+			    || !isFunctionKeywordTypo( keyword.getName() )
+			    || ! ( body.get( i + 1 ) instanceof BoxExpressionStatement invocationStatement )
+			    || ! ( invocationStatement.getExpression() instanceof BoxFunctionInvocation )
+			    || ! ( body.get( i + 2 ) instanceof BoxStatementBlock ) ) {
+				continue;
+			}
+
+			Diagnostic diagnostic = new Diagnostic();
+			diagnostic.setSeverity( DiagnosticSeverity.Error );
+			diagnostic.setMessage( "Invalid function declaration: expected 'function'" );
+			diagnostic.setRange( BLASTTools.positionToRange( keywordStatement.getPosition() ) );
+			diagnostics.add( diagnostic );
+		}
+		return diagnostics;
+	}
+
+	private boolean isFunctionKeywordTypo( String identifier ) {
+		String	keyword				= identifier.toLowerCase( Locale.ROOT );
+		String	expected			= "function";
+		int		lengthDifference	= Math.abs( keyword.length() - expected.length() );
+		if ( keyword.equals( expected ) || lengthDifference > 1 ) {
+			return false;
+		}
+
+		int	candidateIndex	= 0;
+		int	expectedIndex	= 0;
+		int	differences		= 0;
+		while ( candidateIndex < keyword.length() && expectedIndex < expected.length() ) {
+			if ( keyword.charAt( candidateIndex ) == expected.charAt( expectedIndex ) ) {
+				candidateIndex++;
+				expectedIndex++;
+				continue;
+			}
+
+			if ( ++differences > 1 ) {
+				return false;
+			}
+			if ( keyword.length() > expected.length() ) {
+				candidateIndex++;
+			} else if ( keyword.length() < expected.length() ) {
+				expectedIndex++;
+			} else {
+				candidateIndex++;
+				expectedIndex++;
+			}
+		}
+
+		return differences + Math.abs( ( keyword.length() - candidateIndex ) - ( expected.length() - expectedIndex ) ) <= 1;
+	}
+
 	private void fullyParse() {
 		FULL_PARSE_COUNT.increment();
 		parseResultRef = new WeakReference<>( parseSource() );
@@ -309,8 +382,9 @@ public class FileParseResult {
 			outline				= generateOutline( this.uri, root );
 
 			functionDefinitions	= generateFunctionDefinitions( this.uri, root );
-			diagnostics			= generateDiagnostics();
 		} );
+
+		diagnostics = generateDiagnostics();
 	}
 
 	private List<ParsedProperty> parseProperties( BoxNode root ) {

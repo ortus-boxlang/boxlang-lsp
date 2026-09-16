@@ -11,17 +11,18 @@ public class SQLFeatureExtractor {
 	    Pattern.CASE_INSENSITIVE );
 	private static final Pattern	replacementStartKeyword		= Pattern.compile( "(by|then|select|into|from)(\s*)$", Pattern.CASE_INSENSITIVE );
 	private static final Pattern	replacementStartQuote		= Pattern.compile( "(n*')[^']*?$", Pattern.CASE_INSENSITIVE );
+	private static final Pattern	replacementStartDoubleQuote	= Pattern.compile( "(n*\")[^\"]*?$", Pattern.CASE_INSENSITIVE );
 	private static final Pattern	replacementStartSpace		= Pattern.compile( " $", Pattern.CASE_INSENSITIVE );
 
 	private static final Pattern	replacementEndComma			= Pattern.compile( "^\s*,", Pattern.CASE_INSENSITIVE );
 	private static final Pattern	replacementEndParens		= Pattern.compile( "^\s*(\\))", Pattern.CASE_INSENSITIVE );
-	private static final Pattern	replacementEndSingleQuote	= Pattern.compile( "^([^']*)?(')", Pattern.CASE_INSENSITIVE );
-	private static final Pattern	replacementEndMethod		= Pattern.compile( "^(.+)*(')\s*(,|\\))", Pattern.CASE_INSENSITIVE );
+	private static final Pattern	replacementEndSingleQuote	= Pattern.compile( "^([^'\"]*)?(['\"])", Pattern.CASE_INSENSITIVE );
+	private static final Pattern	replacementEndMethod		= Pattern.compile( "^(.+)*(['\"])\\s*(,|\\))", Pattern.CASE_INSENSITIVE );
 	private static final Pattern	replacementEndSpace			= Pattern.compile( "^( |\r*\n)", Pattern.CASE_INSENSITIVE );
 
-	private static final Pattern	listPattern					= Pattern.compile( "(in|not in)\\s*\\(\\s*'*\\s*$", Pattern.CASE_INSENSITIVE );
+	private static final Pattern	listPattern					= Pattern.compile( "(in|not in)\\s*\\(\\s*['\"]*\\s*$", Pattern.CASE_INSENSITIVE );
 	private static final Pattern	leftIncludeQuotePattern		= Pattern.compile(
-	    "(by|then|select|,|in|not in|=|>|<|>=|<=|like|not like|<>|!=)\s*'([^']+?)$",
+	    "(by|then|select|,|in|not in|=|>|<|>=|<=|like|not like|<>|!=)\\s*['\"]([^'\"]+?)$",
 	    Pattern.CASE_INSENSITIVE );
 	private static final Pattern	leftIncludeNoQuote			= Pattern.compile(
 	    "(by|then|select|,|in|not in|=|>|<|>=|<=|like|not like|<>|!=)\s*(\s+)*$",
@@ -35,7 +36,7 @@ public class SQLFeatureExtractor {
 	}
 
 	public static String getLeftInclude( String leftText ) {
-		if ( leftText.endsWith( "'" ) ) {
+		if ( leftText.endsWith( "'" ) || leftText.endsWith( "\"" ) ) {
 			return "";
 		}
 
@@ -110,6 +111,12 @@ public class SQLFeatureExtractor {
 
 		start = testPatternEnd( replacementStartSpace, leftText, 0 );
 		if ( start > 0 ) {
+			return start;
+		}
+
+		// Handle double-quote delimited SQL strings (e.g., "#var#")
+		start = testPatternStart( replacementStartDoubleQuote, leftText, 1 );
+		if ( start > -1 ) {
 			return start;
 		}
 

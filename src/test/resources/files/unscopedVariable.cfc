@@ -7,7 +7,9 @@ component {
 
     public function thing(){
         var x = 4;
-        foo = "test";
+        foo = {
+            nested = "test"
+        };
 
         x = 5;
     }

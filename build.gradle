@@ -65,6 +65,7 @@ dependencies {
     implementation "com.google.guava:guava:33.6.0-jre"
 	// JSON parsing for diagnostic configuration - use older version compatible with BoxLang jackson-jr
 	implementation "com.fasterxml.jackson.core:jackson-databind:2.21.0"
+	implementation "org.eclipse.jgit:org.eclipse.jgit:7.7.1.202607240634-r"
 
     // https://mvnrepository.com/artifact/org.eclipse.lsp4j/org.eclipse.lsp4j
     implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:1.0.0"

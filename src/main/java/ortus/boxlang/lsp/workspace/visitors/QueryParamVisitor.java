@@ -33,7 +33,7 @@ import ortus.boxlang.runtime.types.QueryColumnType;
 public class QueryParamVisitor extends SourceCodeVisitor {
 
 	private static final Pattern						MARKED_SAFE_PATTERN				= Pattern.compile( "/\\*\\s*safe\\s*\\*/", Pattern.CASE_INSENSITIVE );
-	private static final Pattern						OPERATOR_VALUE_PATTERN_RIGHT	= Pattern.compile( "^(%)*(')", Pattern.CASE_INSENSITIVE );
+	private static final Pattern						OPERATOR_VALUE_PATTERN_RIGHT	= Pattern.compile( "^(%)*(['\"])", Pattern.CASE_INSENSITIVE );
 
 	private final List<Diagnostic>						diagnostics						= new ArrayList<>();
 	private final List<CodeAction>						codeActions						= new ArrayList<>();

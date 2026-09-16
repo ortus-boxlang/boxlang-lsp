@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 
-public class UnscopedVariablesTest {
+public class UnscopedVariablesTest extends BaseTest {
 
 	@Test
 	void testReturnWarningForUnscopedVariable() {
@@ -58,6 +58,26 @@ public class UnscopedVariablesTest {
 
 		assertThat( unscopedVariable ).isNotNull();
 		assertThat( unscopedVariable.getSeverity() ).isEqualTo( DiagnosticSeverity.Warning );
+	}
+
+	@Test
+	void testWarningRangeOnlyCoversAssignmentLine() {
+		ProjectContextProvider	pcp			= ProjectContextProvider.getInstance();
+		Path					projectRoot	= Paths.get( System.getProperty( "user.dir" ) );
+		Path					p			= projectRoot.resolve( "src/test/resources/files/unscopedVariable.cfc" );
+		File					f			= p.toFile();
+		assertTrue( f.exists(), "Test file does not exist: " + p.toString() );
+
+		Diagnostic unscopedVariable = pcp.getFileDiagnostics( f.toURI() ).stream()
+		    .filter( d -> d.getMessage().getLeft().contains( "Variable [foo] is not scoped." ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( unscopedVariable ).isNotNull();
+		assertThat( unscopedVariable.getRange().getStart().getLine() ).isEqualTo( 9 );
+		assertThat( unscopedVariable.getRange().getStart().getCharacter() ).isEqualTo( 8 );
+		assertThat( unscopedVariable.getRange().getEnd().getLine() ).isEqualTo( 9 );
+		assertThat( unscopedVariable.getRange().getEnd().getCharacter() ).isEqualTo( 15 );
 	}
 
 	@Test

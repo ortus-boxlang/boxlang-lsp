@@ -157,8 +157,15 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 			return;
 		}
 
+		var range = ProjectContextProvider.positionToRange( node.getPosition() );
+		if ( range.getStart().getLine() != range.getEnd().getLine() ) {
+			String firstLine = node.getSourceText().lines().findFirst().orElse( node.getSourceText() );
+			range.getEnd().setLine( range.getStart().getLine() );
+			range.getEnd().setCharacter( range.getStart().getCharacter() + firstLine.length() );
+		}
+
 		var d = new Diagnostic(
-		    ProjectContextProvider.positionToRange( node.getPosition() ),
+		    range,
 		    "Variable [" + name + "] is not scoped.",
 		    org.eclipse.lsp4j.DiagnosticSeverity.Warning,
 		    "boxlang",

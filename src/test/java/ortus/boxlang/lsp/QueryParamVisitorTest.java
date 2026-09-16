@@ -551,4 +551,69 @@ public class QueryParamVisitorTest extends BaseTest {
 
 		assertThat( action.getEdit().getChanges().get( "test" ).getFirst().getRange().getStart().getCharacter() ).isEqualTo( 15 );
 	}
+
+	@DisplayName( "It should find replacement starts for double quotes" )
+	@Test
+	public void testGetReplacementStartDoubleQuote() {
+		int replacementStart = SQLFeatureExtractor.getReplacementStartIndex( "\"" );
+		assertThat( replacementStart ).isEqualTo( 0 );
+
+		replacementStart = SQLFeatureExtractor.getReplacementStartIndex( "something = \"" );
+		assertThat( replacementStart ).isEqualTo( 12 );
+	}
+
+	@DisplayName( "It should find replacement ends for double quotes" )
+	@Test
+	public void testGetReplacementEndDoubleQuote() {
+		int replacementEnd = SQLFeatureExtractor.getReplacementEndIndex( "\"" );
+		assertThat( replacementEnd ).isEqualTo( 1 );
+
+		replacementEnd = SQLFeatureExtractor.getReplacementEndIndex( "blah\"" );
+		assertThat( replacementEnd ).isEqualTo( 5 );
+	}
+
+	@DisplayName( "It should handle double-quoted string interpolation in SQL values" )
+	@Test
+	public void testDoubleQuotedStringInterpolation() throws IOException {
+		CFParser			parser	= new CFParser();
+
+		// @formatter:off
+		ParsingResult	pr		= parser.parse( """
+			<cfquery datasource="#dsn#">
+				insert into items (col1, col2)
+				values (
+				"#x.a#-#x.b#",
+				1,
+				"#y.c#",
+				now()
+				)
+			</cfquery>
+		                                            """, false );
+		// @formatter:on
+
+		QueryParamVisitor	visitor	= new QueryParamVisitor();
+
+		visitor.setFilePath( "test" );
+
+		pr.getRoot().accept( visitor );
+
+		List<CodeAction> codeActions = visitor.getCodeActions();
+
+		// Verify no code action leaves a dangling double quote at the start
+		codeActions.stream()
+		    .filter( codeAction -> codeAction.getEdit() != null
+		        && codeAction.getEdit().getChanges() != null
+		        && codeAction.getEdit().getChanges().containsKey( "test" ) )
+		    .forEach( codeAction -> {
+			    codeAction.getEdit().getChanges().get( "test" ).forEach( edit -> {
+				    String newText = edit.getNewText();
+				    // The replacement text should not start with a bare double quote
+				    // unless it's part of the cfqueryparam value attribute
+				    if ( newText.contains( "<cfqueryparam" ) ) {
+					    assertThat( newText ).doesNotContain( "value=\"\"#" );
+					    assertThat( newText ).doesNotContain( "value=\"\" " );
+				    }
+			    } );
+		    } );
+	}
 }
