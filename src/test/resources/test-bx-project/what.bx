@@ -1,0 +1,5 @@
+class {
+    public function what() {
+        return "bx";
+    }
+}

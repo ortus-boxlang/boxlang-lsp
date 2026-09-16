@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- BLIDE-323: Ensure syntax errors appear in the editor
 - BLIDE-297: Unscoped variable diagnostics on multiline assignments now highlight only the assignment line
 - BLIDE-280: Workspace scanning now respects root and nested `.gitignore` files
 

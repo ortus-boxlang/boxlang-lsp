@@ -87,6 +87,56 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		ProjectContextProvider.getInstance().setIndex( index );
 	}
 
+	// ============ Syntax Error Tests ============
+
+	@Test
+	void testInvalidFunctionKeywordProducesSyntaxDiagnostic() throws Exception {
+		String	classCode	= """
+		                      class {
+		                          public functionxyz add( a, b ){
+		                              return a + b;
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "InvalidFunctionKeyword.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic>	diagnostics	= ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+
+		Diagnostic			syntaxError	= diagnostics.stream()
+		    .filter( d -> d.getSeverity() == DiagnosticSeverity.Error )
+		    .filter( d -> d.getMessage().getLeft().contains( "functionxyz" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( syntaxError ).isNotNull();
+	}
+
+	@Test
+	void testMisspelledFunctionKeywordWithoutModifierProducesSyntaxDiagnostic() throws Exception {
+		String	classCode	= """
+		                      class {
+		                          fxunction add( a, b ) {
+		                              return a + b;
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "MisspelledFunctionKeyword.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic>	diagnostics	= ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+
+		Diagnostic			syntaxError	= diagnostics.stream()
+		    .filter( d -> d.getSeverity() == DiagnosticSeverity.Error )
+		    .filter( d -> d.getMessage().getLeft().contains( "Invalid function declaration" ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertThat( syntaxError ).isNotNull();
+	}
+
 	// ============ Invalid Extends Tests ============
 
 	@Test
