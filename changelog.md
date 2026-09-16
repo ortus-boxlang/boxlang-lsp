@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-09-16
+
 ### Fixed
 
 - BLIDE-323: Ensure syntax errors appear in the editor
@@ -145,7 +147,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverted LSP to be a BoxLang module
 - BLIDE-96 Added version info
 
-[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.11.0...HEAD
+[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.6.0...v1.9.0
