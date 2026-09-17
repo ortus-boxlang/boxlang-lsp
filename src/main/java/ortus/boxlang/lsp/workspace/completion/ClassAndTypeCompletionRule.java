@@ -17,6 +17,7 @@ import org.eclipse.lsp4j.TextEdit;
 
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.statement.BoxImport;
+import ortus.boxlang.lsp.workspace.BLASTTools;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.index.IndexedClass;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
@@ -247,10 +248,7 @@ public class ClassAndTypeCompletionRule implements IRule<CompletionFacts, List<C
 			List<BoxImport> importNodes = root.getDescendantsOfType( BoxImport.class );
 			for ( BoxImport importNode : importNodes ) {
 				// Get the imported class name (simple or fully qualified)
-				if ( importNode.getExpression() != null ) {
-					String importedName = importNode.getExpression().getSourceText();
-					imports.add( importedName );
-				}
+				BLASTTools.getValue( importNode.getExpression() ).ifPresent( imports::add );
 			}
 		} );
 

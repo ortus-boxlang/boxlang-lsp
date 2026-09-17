@@ -3,10 +3,10 @@ package ortus.boxlang.lsp.workspace.visitors;
 import java.util.ArrayList;
 import java.util.List;
 
-import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
+import ortus.boxlang.lsp.workspace.BLASTTools;
 import ortus.boxlang.lsp.workspace.types.ParsedProperty;
 
 public class PropertyVisitor extends VoidBoxVisitor {
@@ -22,35 +22,22 @@ public class PropertyVisitor extends VoidBoxVisitor {
 	}
 
 	private String getName( BoxProperty node ) {
-		BoxAnnotation nameAnnotation = node.getAllAnnotations()
-		    .stream()
-		    .filter( annotation -> annotation.getKey().getValue().equalsIgnoreCase( "name" ) )
+		return BLASTTools.getPropertyName( node ).orElseGet( () -> node.getAllAnnotations().stream()
 		    .findFirst()
-		    .orElseGet( () -> node.getAllAnnotations().get( 0 ) );
-
-		if ( nameAnnotation.getValue() == null ) {
-			return nameAnnotation.getKey().getValue();
-		} else if ( nameAnnotation.getValue() instanceof BoxStringLiteral bsl ) {
-			return bsl.getValue();
-		}
-
-		return nameAnnotation.getValue().toString();
+		    .flatMap( annotation -> annotation.getValue() == null
+		        ? BLASTTools.getAnnotationName( annotation )
+		        : BLASTTools.getAnnotationValue( annotation ) )
+		    .orElse( null ) );
 	}
 
 	private String getType( BoxProperty node ) {
-		BoxAnnotation nameAnnotation = node.getAllAnnotations()
-		    .stream()
-		    .filter( annotation -> annotation.getKey().getValue().equalsIgnoreCase( "type" ) )
+		BoxAnnotation typeAnnotation = node.getAllAnnotations().stream()
+		    .filter( annotation -> BLASTTools.getAnnotationName( annotation ).filter( name -> name.equalsIgnoreCase( "type" ) ).isPresent() )
 		    .findFirst()
 		    .orElseGet( () -> node.getAllAnnotations().get( 0 ) );
-
-		if ( nameAnnotation.getValue() == null ) {
-			return nameAnnotation.getKey().getValue();
-		} else if ( nameAnnotation.getValue() instanceof BoxStringLiteral bsl ) {
-			return bsl.getValue();
-		}
-
-		return nameAnnotation.getValue().toString();
+		return typeAnnotation.getValue() == null
+		    ? BLASTTools.getAnnotationName( typeAnnotation ).orElse( null )
+		    : BLASTTools.getAnnotationValue( typeAnnotation ).orElse( null );
 	}
 
 }

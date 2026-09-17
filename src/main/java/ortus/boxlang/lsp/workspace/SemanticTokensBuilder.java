@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.eclipse.lsp4j.SemanticTokens;
@@ -111,12 +112,13 @@ public class SemanticTokensBuilder {
 				continue;
 			}
 
-			String nameText = nameNode.getSourceText();
-			if ( nameText == null || nameText.isBlank() ) {
+			Optional<String> nameTextOpt = BLASTTools.getName( invocation );
+			if ( nameTextOpt.isEmpty() || nameTextOpt.get().isBlank() ) {
 				continue;
 			}
+			String	nameText	= nameTextOpt.get();
 
-			Point start = getStartPoint( nameNode );
+			Point	start		= getStartPoint( nameNode );
 			if ( start == null ) {
 				continue;
 			}
@@ -288,10 +290,10 @@ public class SemanticTokensBuilder {
 		}
 
 		for ( BoxProperty property : boxClass.getProperties() ) {
-			String propertyName = BLASTTools.getPropertyName( property );
-			if ( propertyName != null && !propertyName.isBlank() ) {
-				declaredProperties.add( propertyName.toLowerCase( Locale.ROOT ) );
-			}
+			BLASTTools.getPropertyName( property )
+			    .filter( name -> !name.isBlank() )
+			    .map( name -> name.toLowerCase( Locale.ROOT ) )
+			    .ifPresent( declaredProperties::add );
 		}
 
 		return declaredProperties;
@@ -500,10 +502,11 @@ public class SemanticTokensBuilder {
 			return null;
 		}
 
-		String sourceText = declaration.getSourceText();
-		if ( sourceText == null || sourceText.isBlank() ) {
+		Optional<String> sourceTextOpt = BLASTTools.getSourceText( declaration );
+		if ( sourceTextOpt.isEmpty() || sourceTextOpt.get().isBlank() ) {
 			return new TokenStart( Math.max( 0, start.getLine() - 1 ), Math.max( 0, start.getColumn() ) );
 		}
+		String	sourceText				= sourceTextOpt.get();
 
 		String	lowerSource				= sourceText.toLowerCase( Locale.ROOT );
 		String	lowerName				= functionName.toLowerCase( Locale.ROOT );

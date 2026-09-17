@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.eclipse.lsp4j.Range;
 
@@ -287,7 +288,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 
 	private String extractExtends( List<BoxAnnotation> annotations ) {
 		return annotations.stream()
-		    .filter( a -> a.getKey().getValue().equalsIgnoreCase( "extends" ) )
+		    .filter( a -> BLASTTools.getAnnotationName( a ).filter( name -> name.equalsIgnoreCase( "extends" ) ).isPresent() )
 		    .findFirst()
 		    .map( this::extractAnnotationValue )
 		    .orElse( null );
@@ -295,7 +296,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 
 	private List<String> extractImplements( List<BoxAnnotation> annotations ) {
 		return annotations.stream()
-		    .filter( a -> a.getKey().getValue().equalsIgnoreCase( "implements" ) )
+		    .filter( a -> BLASTTools.getAnnotationName( a ).filter( name -> name.equalsIgnoreCase( "implements" ) ).isPresent() )
 		    .findFirst()
 		    .map( a -> extractAnnotationValueAsList( a ) )
 		    .orElse( new ArrayList<>() );
@@ -305,10 +306,10 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		List<String> modifiers = new ArrayList<>();
 
 		for ( BoxAnnotation annotation : annotations ) {
-			String key = annotation.getKey().getValue().toLowerCase();
-			if ( key.equals( "abstract" ) || key.equals( "final" ) ) {
-				modifiers.add( key );
-			}
+			BLASTTools.getAnnotationName( annotation )
+			    .map( String::toLowerCase )
+			    .filter( key -> key.equals( "abstract" ) || key.equals( "final" ) )
+			    .ifPresent( modifiers::add );
 		}
 
 		return modifiers;
@@ -316,19 +317,15 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 
 	private String extractAccessModifier( List<BoxAnnotation> annotations ) {
 		return annotations.stream()
-		    .filter( a -> {
-			    String key = a.getKey().getValue().toLowerCase();
-			    return key.equals( "access" ) || key.equals( "public" ) ||
-			        key.equals( "private" ) || key.equals( "remote" ) ||
-			        key.equals( "package" );
-		    } )
+		    .filter( a -> BLASTTools.getAnnotationName( a )
+		        .map( String::toLowerCase )
+		        .filter( key -> key.equals( "access" ) || key.equals( "public" )
+		            || key.equals( "private" ) || key.equals( "remote" ) || key.equals( "package" ) )
+		        .isPresent() )
 		    .findFirst()
 		    .map( a -> {
-			    String key = a.getKey().getValue().toLowerCase();
-			    if ( key.equals( "access" ) ) {
-				    return extractAnnotationValue( a );
-			    }
-			    return key;
+			    String key = BLASTTools.getAnnotationName( a ).map( String::toLowerCase ).orElse( "public" );
+			    return key.equals( "access" ) ? extractAnnotationValue( a ) : key;
 		    } )
 		    .orElse( "public" );
 	}
@@ -337,10 +334,10 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		List<String> modifiers = new ArrayList<>();
 
 		for ( BoxAnnotation annotation : annotations ) {
-			String key = annotation.getKey().getValue().toLowerCase();
-			if ( key.equals( "static" ) || key.equals( "final" ) || key.equals( "abstract" ) ) {
-				modifiers.add( key );
-			}
+			BLASTTools.getAnnotationName( annotation )
+			    .map( String::toLowerCase )
+			    .filter( key -> key.equals( "static" ) || key.equals( "final" ) || key.equals( "abstract" ) )
+			    .ifPresent( modifiers::add );
 		}
 
 		return modifiers;
@@ -355,7 +352,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 				String	name			= argDecl.getName();
 				String	typeHint		= argDecl.getType() != null ? argDecl.getType().toString() : "any";
 				boolean	required		= extractArgumentRequired( argDecl );
-				String	defaultValue	= argDecl.getValue() != null ? argDecl.getValue().getSourceText() : null;
+				String	defaultValue	= BLASTTools.getValue( argDecl.getValue() ).orElse( null );
 
 				parameters.add( new IndexedParameter( name, typeHint, required, defaultValue ) );
 			}
@@ -368,8 +365,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		// Check annotations for required
 		List<BoxAnnotation> annotations = findAnnotations( argDecl );
 		for ( BoxAnnotation annotation : annotations ) {
-			String key = annotation.getKey().getValue().toLowerCase();
-			if ( key.equals( "required" ) ) {
+			if ( BLASTTools.getAnnotationName( annotation ).filter( name -> name.equalsIgnoreCase( "required" ) ).isPresent() ) {
 				// If just "required" annotation with no value, it's true
 				if ( annotation.getValue() == null ) {
 					return true;
@@ -382,20 +378,16 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 	}
 
 	private String extractPropertyName( BoxProperty node ) {
-		for ( BoxAnnotation annotation : node.getAllAnnotations() ) {
-			if ( annotation.getKey().getValue().equalsIgnoreCase( "name" ) ) {
-				String value = extractAnnotationValue( annotation );
-				if ( value != null ) {
-					return value;
-				}
-			}
+		Optional<String> propertyName = BLASTTools.getPropertyName( node );
+		if ( propertyName.isPresent() ) {
+			return propertyName.get();
 		}
 
 		// If no name annotation, use the first annotation key as the name
 		if ( !node.getAllAnnotations().isEmpty() ) {
 			BoxAnnotation firstAnnotation = node.getAllAnnotations().get( 0 );
 			if ( firstAnnotation.getValue() == null ) {
-				return firstAnnotation.getKey().getValue();
+				return BLASTTools.getAnnotationName( firstAnnotation ).orElse( null );
 			}
 		}
 
@@ -404,7 +396,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 
 	private String extractPropertyType( BoxProperty node ) {
 		for ( BoxAnnotation annotation : node.getAllAnnotations() ) {
-			if ( annotation.getKey().getValue().equalsIgnoreCase( "type" ) ) {
+			if ( BLASTTools.getAnnotationName( annotation ).filter( name -> name.equalsIgnoreCase( "type" ) ).isPresent() ) {
 				return extractAnnotationValue( annotation );
 			}
 		}
@@ -413,7 +405,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 
 	private String extractPropertyDefault( BoxProperty node ) {
 		for ( BoxAnnotation annotation : node.getAllAnnotations() ) {
-			if ( annotation.getKey().getValue().equalsIgnoreCase( "default" ) ) {
+			if ( BLASTTools.getAnnotationName( annotation ).filter( name -> name.equalsIgnoreCase( "default" ) ).isPresent() ) {
 				return extractAnnotationValue( annotation );
 			}
 		}
@@ -422,7 +414,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 
 	private boolean extractPropertyAccessor( BoxProperty node, String accessorType ) {
 		for ( BoxAnnotation annotation : node.getAllAnnotations() ) {
-			if ( annotation.getKey().getValue().equalsIgnoreCase( accessorType ) ) {
+			if ( BLASTTools.getAnnotationName( annotation ).filter( name -> name.equalsIgnoreCase( accessorType ) ).isPresent() ) {
 				if ( annotation.getValue() == null ) {
 					return true;
 				}
@@ -435,19 +427,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 	}
 
 	private String extractAnnotationValue( BoxAnnotation annotation ) {
-		if ( annotation.getValue() == null ) {
-			return null;
-		}
-
-		if ( annotation.getValue() instanceof BoxStringLiteral bsl ) {
-			return bsl.getValue();
-		}
-
-		if ( annotation.getValue() instanceof BoxFQN fqn ) {
-			return fqn.getValue();
-		}
-
-		return annotation.getValue().getSourceText();
+		return BLASTTools.getAnnotationValue( annotation ).orElse( null );
 	}
 
 	private List<String> extractAnnotationValueAsList( BoxAnnotation annotation ) {
@@ -464,7 +444,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 				} else if ( element instanceof BoxFQN fqn ) {
 					values.add( fqn.getValue() );
 				} else {
-					values.add( element.getSourceText() );
+					BLASTTools.getValue( element ).ifPresent( values::add );
 				}
 			}
 		} else if ( annotation.getValue() instanceof BoxStringLiteral bsl ) {
@@ -480,14 +460,15 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		} else if ( annotation.getValue() instanceof BoxFQN fqn ) {
 			values.add( fqn.getValue() );
 		} else {
-			String text = annotation.getValue().getSourceText();
-			if ( text != null && text.contains( "," ) ) {
-				for ( String part : text.split( "," ) ) {
-					values.add( part.trim() );
+			BLASTTools.getAnnotationValue( annotation ).ifPresent( text -> {
+				if ( text.contains( "," ) ) {
+					for ( String part : text.split( "," ) ) {
+						values.add( part.trim() );
+					}
+				} else {
+					values.add( text );
 				}
-			} else if ( text != null ) {
-				values.add( text );
-			}
+			} );
 		}
 
 		return values;
@@ -522,20 +503,18 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		List<BoxDocumentationAnnotation> annotations = docComment.getAnnotations();
 		if ( annotations != null && !annotations.isEmpty() ) {
 			for ( BoxDocumentationAnnotation annotation : annotations ) {
+				Optional<String> key = BLASTTools.getAnnotationName( annotation );
+				if ( key.isEmpty() ) {
+					continue;
+				}
 				if ( doc.length() > 0 ) {
 					doc.append( "\n" );
 				}
-				String	key		= annotation.getKey().getValue();
-				String	value	= "";
-				if ( annotation.getValue() != null ) {
-					value = annotation.getValue().getSourceText();
-					String tagPrefix = "@" + key + " ";
-					if ( value.startsWith( tagPrefix ) ) {
-						value = value.substring( tagPrefix.length() );
-					}
-					value = cleanAnnotationValue( value );
-				}
-				doc.append( "@" ).append( key ).append( " " ).append( value );
+				doc.append( "@" ).append( key.get() );
+				BLASTTools.getAnnotationValue( annotation )
+				    .map( this::cleanAnnotationValue )
+				    .filter( value -> !value.isBlank() )
+				    .ifPresent( value -> doc.append( " " ).append( value ) );
 			}
 		}
 
@@ -571,20 +550,18 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		List<BoxDocumentationAnnotation> annotations = docComment.getAnnotations();
 		if ( annotations != null && !annotations.isEmpty() ) {
 			for ( BoxDocumentationAnnotation annotation : annotations ) {
+				Optional<String> key = BLASTTools.getAnnotationName( annotation );
+				if ( key.isEmpty() ) {
+					continue;
+				}
 				if ( doc.length() > 0 ) {
 					doc.append( "\n" );
 				}
-				String	key		= annotation.getKey().getValue();
-				String	value	= "";
-				if ( annotation.getValue() != null ) {
-					value = annotation.getValue().getSourceText();
-					String tagPrefix = "@" + key + " ";
-					if ( value.startsWith( tagPrefix ) ) {
-						value = value.substring( tagPrefix.length() );
-					}
-					value = cleanAnnotationValue( value );
-				}
-				doc.append( "@" ).append( key ).append( " " ).append( value );
+				doc.append( "@" ).append( key.get() );
+				BLASTTools.getAnnotationValue( annotation )
+				    .map( this::cleanAnnotationValue )
+				    .filter( value -> !value.isBlank() )
+				    .ifPresent( value -> doc.append( " " ).append( value ) );
 			}
 		}
 
@@ -621,22 +598,18 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		List<BoxDocumentationAnnotation> annotations = docComment.getAnnotations();
 		if ( annotations != null && !annotations.isEmpty() ) {
 			for ( BoxDocumentationAnnotation annotation : annotations ) {
+				Optional<String> key = BLASTTools.getAnnotationName( annotation );
+				if ( key.isEmpty() ) {
+					continue;
+				}
 				if ( doc.length() > 0 ) {
 					doc.append( "\n" );
 				}
-				String	key		= annotation.getKey().getValue();
-				String	value	= "";
-				if ( annotation.getValue() != null ) {
-					value = annotation.getValue().getSourceText();
-					// Clean up the value - it may contain the tag prefix again
-					String tagPrefix = "@" + key + " ";
-					if ( value.startsWith( tagPrefix ) ) {
-						value = value.substring( tagPrefix.length() );
-					}
-					// Remove trailing asterisks and whitespace from multiline comments
-					value = cleanAnnotationValue( value );
-				}
-				doc.append( "@" ).append( key ).append( " " ).append( value );
+				doc.append( "@" ).append( key.get() );
+				BLASTTools.getAnnotationValue( annotation )
+				    .map( this::cleanAnnotationValue )
+				    .filter( value -> !value.isBlank() )
+				    .ifPresent( value -> doc.append( " " ).append( value ) );
 			}
 		}
 

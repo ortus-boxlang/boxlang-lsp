@@ -1,6 +1,7 @@
 package ortus.boxlang.lsp;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import org.eclipse.lsp4j.DefinitionParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
@@ -13,12 +14,41 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
+
+import ortus.boxlang.compiler.ast.BoxScript;
+import ortus.boxlang.compiler.ast.Point;
+import ortus.boxlang.compiler.ast.expression.BoxFQN;
+import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
+import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
+import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
+import ortus.boxlang.compiler.ast.statement.BoxProperty;
+import ortus.boxlang.compiler.parser.BoxSourceType;
+import ortus.boxlang.lsp.workspace.visitors.VariableDefinitionResolver;
 
 /**
  * Tests for go-to-definition functionality on local variables.
  * Task 2.1: Go to Definition - Local Variables
  */
+
 public class VariableDefinitionTest extends BaseTest {
+
+	@Test
+	void testPropertyValueWithoutSourceTextDoesNotAbortResolution() {
+		BoxAnnotation				annotation	= new BoxAnnotation(
+		    new BoxFQN( "name", null, null ),
+		    new BoxStringLiteral( "field", null, null ),
+		    null,
+		    null );
+		BoxProperty					property	= new BoxProperty( List.of( annotation ), List.of(), List.of(), null, null );
+		BoxScript					root		= new BoxScript( List.of( property ), null, null, BoxSourceType.BOXSCRIPT );
+		BoxIdentifier				target		= new BoxIdentifier( "field", new ortus.boxlang.compiler.ast.Position( new Point( 1, 0 ), new Point( 1, 5 ) ),
+		    null );
+		VariableDefinitionResolver	resolver	= new VariableDefinitionResolver( target );
+
+		assertDoesNotThrow( () -> resolver.resolve( root ) );
+		assertThat( resolver.getResolvedDeclaration() ).isNotNull();
+	}
 
 	private BoxLangTextDocumentService	svc;
 	private Path						testFilePath;

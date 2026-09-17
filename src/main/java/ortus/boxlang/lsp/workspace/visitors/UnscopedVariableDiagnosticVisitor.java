@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
@@ -105,10 +106,7 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	public void visit( BoxProperty node ) {
-		String name = BLASTTools.getPropertyName( node );
-		if ( name != null ) {
-			properties.add( name.toLowerCase() );
-		}
+		BLASTTools.getPropertyName( node ).ifPresent( name -> properties.add( name.toLowerCase() ) );
 	}
 
 	public void visit( BoxArgumentDeclaration node ) {
@@ -131,53 +129,58 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 			return;
 		}
 
-		if ( ! ( node.getLeft() instanceof BoxIdentifier ) ) {
+		if ( ! ( node.getLeft() instanceof BoxIdentifier identifier ) ) {
 			return;
 		}
 
-		var name = node.getLeft().getSourceText();
+		Optional<String> name = BLASTTools.getName( identifier );
+		if ( name.isEmpty() ) {
+			return;
+		}
+		String variableName = name.get();
 
 		functionVard.computeIfAbsent( function, k -> new HashSet<>() );
 
 		if ( isVarScoped( node ) ) {
 			functionVard.get( function )
-			    .add( name.toLowerCase() );
+			    .add( variableName.toLowerCase() );
 			return;
 		}
 
-		if ( functionVard.get( function ).contains( name.toLowerCase() ) ) {
+		if ( functionVard.get( function ).contains( variableName.toLowerCase() ) ) {
 			return;
 		}
 
-		if ( functionDiagnostics.containsKey( function ) && functionDiagnostics.get( function ).contains( name.toLowerCase() ) ) {
+		if ( functionDiagnostics.containsKey( function ) && functionDiagnostics.get( function ).contains( variableName.toLowerCase() ) ) {
 			return;
 		}
 
-		if ( properties.contains( name.toLowerCase() ) ) {
+		if ( properties.contains( variableName.toLowerCase() ) ) {
 			return;
 		}
 
-		var range = ProjectContextProvider.positionToRange( node.getPosition() );
-		if ( range.getStart().getLine() != range.getEnd().getLine() ) {
-			String firstLine = node.getSourceText().lines().findFirst().orElse( node.getSourceText() );
+		var					range		= ProjectContextProvider.positionToRange( node.getPosition() );
+		Optional<String>	sourceText	= BLASTTools.getSourceText( node );
+		if ( range.getStart().getLine() != range.getEnd().getLine() && sourceText.isPresent() ) {
+			String firstLine = sourceText.get().lines().findFirst().orElse( sourceText.get() );
 			range.getEnd().setLine( range.getStart().getLine() );
 			range.getEnd().setCharacter( range.getStart().getCharacter() + firstLine.length() );
 		}
 
 		var d = new Diagnostic(
 		    range,
-		    "Variable [" + name + "] is not scoped.",
+		    "Variable [" + variableName + "] is not scoped.",
 		    org.eclipse.lsp4j.DiagnosticSeverity.Warning,
 		    "boxlang",
 		    UnscopedVariableRule.ID
 		);
-		d.setData( Map.of( "variableName", name, "id", UUID.randomUUID().toString() ) );
+		d.setData( Map.of( "variableName", variableName, "id", UUID.randomUUID().toString() ) );
 		diagnosticNodes.put( d, node );
 
 		diagnostics.add( d );
 
 		functionDiagnostics.computeIfAbsent( function, k -> new HashSet<>() )
-		    .add( name.toLowerCase() );
+		    .add( variableName.toLowerCase() );
 	}
 
 	public boolean isVarScoped( BoxAssignment node ) {
@@ -194,14 +197,14 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 		if ( node.getLeft() instanceof BoxDotAccess bda ) {
 			var access = bda.getAccess();
 
-			if ( access instanceof BoxIdentifier accessIdentifier && accessIdentifier.getSourceText() != null ) {
-				properties.add( ( ( String ) accessIdentifier.getSourceText() ).toLowerCase() );
+			if ( access instanceof BoxIdentifier accessIdentifier ) {
+				BLASTTools.getName( accessIdentifier ).ifPresent( name -> properties.add( name.toLowerCase() ) );
 			}
-		} else if ( node.getLeft() instanceof BoxIdentifier id && id.getSourceText() != null ) {
-			properties.add( ( ( String ) id.getSourceText() ).toLowerCase() );
+		} else if ( node.getLeft() instanceof BoxIdentifier id ) {
+			BLASTTools.getName( id ).ifPresent( name -> properties.add( name.toLowerCase() ) );
 		} else if ( node.getLeft() instanceof BoxArrayAccess arrayAccess ) {
 			if ( arrayAccess.getAccess() instanceof BoxStringLiteral accessIdentifier ) {
-				properties.add( ( ( String ) accessIdentifier.getAsSimpleValue() ).toLowerCase() );
+				BLASTTools.getValue( accessIdentifier ).ifPresent( name -> properties.add( name.toLowerCase() ) );
 			}
 		}
 	}
@@ -215,17 +218,22 @@ public class UnscopedVariableDiagnosticVisitor extends SourceCodeVisitor {
 		if ( node == null || node.getPosition() == null ) {
 			return null;
 		}
+		Optional<String> sourceText = BLASTTools.getSourceText( node );
+		if ( sourceText.isEmpty() ) {
+			return null;
+		}
+		String			source			= sourceText.get();
 
 		TextEdit		edit			= new TextEdit(
 		    ProjectContextProvider.positionToRange( node.getPosition() ),
-		    node.getSourceText().replaceAll( "^", "var " ) );
+		    source.replaceAll( "^", "var " ) );
 
 		WorkspaceEdit	workspaceEdit	= new WorkspaceEdit( new HashMap<>() );
 
 		workspaceEdit.getChanges().put( this.filePath, new ArrayList<>() );
 		workspaceEdit.getChanges().get( this.filePath ).add( edit );
 
-		CodeAction action = new CodeAction( "Add var keyword to " + node.getSourceText() );
+		CodeAction action = new CodeAction( "Add var keyword to " + source );
 		action.setEdit( workspaceEdit );
 		action.setKind( CodeActionKind.QuickFix );
 		action.setDiagnostics( new ArrayList<>() );

@@ -312,9 +312,9 @@ public class PossibleTypoDiagnosticVisitor extends SourceCodeVisitor {
 			return true;
 		}
 		return annotation.getValue() == fqn
-		    && annotation.getKey() != null
-		    && ( "extends".equalsIgnoreCase( annotation.getKey().getValue() )
-		        || "implements".equalsIgnoreCase( annotation.getKey().getValue() ) );
+		    && BLASTTools.getAnnotationName( annotation )
+		        .filter( key -> key.equalsIgnoreCase( "extends" ) || key.equalsIgnoreCase( "implements" ) )
+		        .isPresent();
 	}
 
 	private String findIdentifierSuggestion( String actualName, int maxDistance ) {
@@ -413,15 +413,11 @@ public class PossibleTypoDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	private String propertyName( BoxProperty property ) {
-		String name = BLASTTools.getPropertyName( property );
-		if ( name != null ) {
-			return name;
-		}
-		return property.getAllAnnotations().stream()
+		return BLASTTools.getPropertyName( property ).orElseGet( () -> property.getAllAnnotations().stream()
 		    .filter( annotation -> annotation.getValue() == null )
-		    .map( annotation -> annotation.getKey().getValue() )
+		    .flatMap( annotation -> BLASTTools.getAnnotationName( annotation ).stream() )
 		    .findFirst()
-		    .orElse( null );
+		    .orElse( null ) );
 	}
 
 	private String getParentName( BoxNode root ) {
@@ -432,8 +428,8 @@ public class PossibleTypoDiagnosticVisitor extends SourceCodeVisitor {
 			annotations = boxInterface.getAllAnnotations();
 		}
 		return annotations.stream()
-		    .filter( annotation -> annotation.getKey() != null && "extends".equalsIgnoreCase( annotation.getKey().getValue() ) )
-		    .map( annotation -> annotation.getValue() == null ? null : annotation.getValue().getAsSimpleValue() )
+		    .filter( annotation -> BLASTTools.getAnnotationName( annotation ).filter( key -> key.equalsIgnoreCase( "extends" ) ).isPresent() )
+		    .map( annotation -> BLASTTools.getAnnotationValue( annotation ).orElse( null ) )
 		    .filter( value -> value != null )
 		    .map( Object::toString )
 		    .findFirst()

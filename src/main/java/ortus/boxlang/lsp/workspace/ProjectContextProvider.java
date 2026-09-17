@@ -1389,7 +1389,7 @@ public class ProjectContextProvider {
 			// Also find method invocations with matching name (for this.methodName() calls)
 			List<BoxMethodInvocation> methodInvocations = root.getDescendantsOfType(
 			    BoxMethodInvocation.class,
-			    n -> n.getName().getSourceText().equalsIgnoreCase( functionName ) );
+			    n -> BLASTTools.getName( n ).filter( name -> name.equalsIgnoreCase( functionName ) ).isPresent() );
 
 			for ( BoxMethodInvocation inv : methodInvocations ) {
 				references.add( createLocationFromMethodInvocation( inv, fileUri ) );
@@ -1453,8 +1453,7 @@ public class ProjectContextProvider {
 			List<BoxAnnotation> extendsAnnotations = root.getDescendantsOfType(
 			    BoxAnnotation.class,
 			    n -> {
-				    String key = n.getKey().getValue().toLowerCase();
-				    if ( !key.equals( "extends" ) ) {
+				    if ( BLASTTools.getAnnotationName( n ).filter( key -> key.equalsIgnoreCase( "extends" ) ).isEmpty() ) {
 					    return false;
 				    }
 				    String value = extractAnnotationValueForRefs( n );
@@ -1469,8 +1468,7 @@ public class ProjectContextProvider {
 			List<BoxAnnotation> implementsAnnotations = root.getDescendantsOfType(
 			    BoxAnnotation.class,
 			    n -> {
-				    String key = n.getKey().getValue().toLowerCase();
-				    if ( !key.equals( "implements" ) ) {
+				    if ( BLASTTools.getAnnotationName( n ).filter( key -> key.equalsIgnoreCase( "implements" ) ).isEmpty() ) {
 					    return false;
 				    }
 				    String value = extractAnnotationValueForRefs( n );
@@ -1539,8 +1537,7 @@ public class ProjectContextProvider {
 			List<BoxAnnotation>	implementsAnnotations	= root.getDescendantsOfType(
 			    BoxAnnotation.class,
 			    n -> {
-				    String key = n.getKey().getValue().toLowerCase();
-				    if ( !key.equals( "implements" ) ) {
+				    if ( BLASTTools.getAnnotationName( n ).filter( key -> key.equalsIgnoreCase( "implements" ) ).isEmpty() ) {
 					    return false;
 				    }
 				    String value = extractAnnotationValueForRefs( n );
@@ -1754,8 +1751,12 @@ public class ProjectContextProvider {
 	 */
 	private List<Location> findMethodInvocationReferences( BoxMethodInvocation methodInvocation, URI currentDocURI,
 	    boolean includeDeclaration ) {
-		List<Location>				references	= new ArrayList<>();
-		String						methodName	= methodInvocation.getName().getSourceText();
+		List<Location>		references		= new ArrayList<>();
+		Optional<String>	methodNameOpt	= BLASTTools.getName( methodInvocation );
+		if ( methodNameOpt.isEmpty() ) {
+			return references;
+		}
+		String						methodName	= methodNameOpt.get();
 
 		// Search across all files for method invocations with this name
 		Map<URI, FileParseResult>	allFiles	= new HashMap<>();
@@ -1775,7 +1776,7 @@ public class ProjectContextProvider {
 			// Find all method invocations with matching name
 			List<BoxMethodInvocation>	invocations	= root.getDescendantsOfType(
 			    BoxMethodInvocation.class,
-			    n -> n.getName().getSourceText().equalsIgnoreCase( methodName ) );
+			    n -> BLASTTools.getName( n ).filter( name -> name.equalsIgnoreCase( methodName ) ).isPresent() );
 
 			for ( BoxMethodInvocation inv : invocations ) {
 				references.add( createLocationFromMethodInvocation( inv, fileUri ) );
@@ -1889,7 +1890,7 @@ public class ProjectContextProvider {
 				int	startCol	= pos.getStart().getColumn();
 				location.setRange( new Range(
 				    new Position( startLine, startCol ),
-				    new Position( startLine, startCol + nameNode.getSourceText().length() ) ) );
+				    new Position( startLine, startCol + BLASTTools.getName( inv ).map( String::length ).orElse( 0 ) ) ) );
 			}
 		}
 
@@ -2602,7 +2603,7 @@ public class ProjectContextProvider {
 	 */
 	private String extractPropertyName( BoxProperty property ) {
 		// Use BLASTTools.getPropertyName for consistency
-		return BLASTTools.getPropertyName( property );
+		return BLASTTools.getPropertyName( property ).orElse( null );
 	}
 
 	/**
@@ -2631,22 +2632,22 @@ public class ProjectContextProvider {
 	 * @return List containing the class/interface definition location, or empty list if not found
 	 */
 	private List<Location> findClassDefinitionFromAnnotation( BoxAnnotation annotation, URI docURI ) {
-		String key = annotation.getKey().getValue().toLowerCase();
+		String key = BLASTTools.getAnnotationName( annotation ).map( String::toLowerCase ).orElse( null );
 
-		if ( !key.equals( "extends" ) && !key.equals( "implements" ) ) {
+		if ( key == null || ( !key.equals( "extends" ) && !key.equals( "implements" ) ) ) {
 			return new ArrayList<>();
 		}
 
 		// Extract class/interface name from annotation value
 		String className = null;
 		if ( annotation.getValue() instanceof BoxStringLiteral strLiteral ) {
-			className = strLiteral.getValue();
+			className = BLASTTools.getValue( strLiteral ).orElse( null );
 		} else if ( annotation.getValue() instanceof BoxFQN fqn ) {
 			className = extractClassNameFromFQN( fqn );
-		} else if ( annotation.getValue() != null ) {
-			className	= annotation.getValue().getSourceText();
-			// Clean up quotes if present
-			className	= className.replace( "\"", "" ).replace( "'", "" );
+		} else {
+			className = BLASTTools.getValue( annotation.getValue() )
+			    .map( value -> value.replace( "\"", "" ).replace( "'", "" ) )
+			    .orElse( null );
 		}
 
 		if ( className == null || className.isEmpty() ) {
@@ -2700,10 +2701,11 @@ public class ProjectContextProvider {
 			return new ArrayList<>();
 		}
 
-		String fullPath = importNode.getExpression().getSourceText();
-		if ( fullPath == null || fullPath.isEmpty() ) {
+		Optional<String> fullPathOpt = BLASTTools.getValue( importNode.getExpression() );
+		if ( fullPathOpt.isEmpty() ) {
 			return new ArrayList<>();
 		}
+		String fullPath = fullPathOpt.get();
 
 		// Check if this is a Java import (contains "java:" prefix)
 		// Java imports don't have source to navigate to
@@ -3019,15 +3021,19 @@ public class ProjectContextProvider {
 	 * @return List containing the definition location, or empty list if not found
 	 */
 	private List<Location> findMethodDefinition( BoxNode rootNode, BoxMethodInvocation methodInvocation, URI docURI ) {
-		List<Location>	locations		= new ArrayList<>();
-		String			methodName		= methodInvocation.getName().getSourceText();
+		List<Location>		locations		= new ArrayList<>();
+		Optional<String>	methodNameOpt	= BLASTTools.getName( methodInvocation );
+		if ( methodNameOpt.isEmpty() ) {
+			return locations;
+		}
+		String	methodName		= methodNameOpt.get();
 
 		// Get the receiver object
-		BoxNode			obj				= methodInvocation.getObj();
+		BoxNode	obj				= methodInvocation.getObj();
 
 		// Handle `this.methodName()` - look in the same file first
 		// The `this` keyword can be represented as BoxScope or BoxIdentifier
-		boolean			isThisReceiver	= false;
+		boolean	isThisReceiver	= false;
 		if ( obj instanceof BoxScope scope && "this".equalsIgnoreCase( scope.getName() ) ) {
 			isThisReceiver = true;
 		} else if ( obj instanceof BoxIdentifier identifier && "this".equalsIgnoreCase( identifier.getName() ) ) {
@@ -3229,7 +3235,11 @@ public class ProjectContextProvider {
 
 			    // Handle method invocations
 			    if ( target instanceof BoxMethodInvocation methodInvocation ) {
-				    String methodName = methodInvocation.getName().getSourceText();
+				    Optional<String> methodNameOpt = BLASTTools.getName( methodInvocation );
+				    if ( methodNameOpt.isEmpty() ) {
+					    return null;
+				    }
+				    String methodName = methodNameOpt.get();
 
 				    // First, try to resolve the object's type using variable tracking
 				    BoxNode obj		= methodInvocation.getObj();
@@ -3397,7 +3407,11 @@ public class ProjectContextProvider {
 
 			    // Handle method invocations
 			    if ( target instanceof BoxMethodInvocation methodInvocation ) {
-				    String methodName = methodInvocation.getName().getSourceText();
+				    Optional<String> methodNameOpt = BLASTTools.getName( methodInvocation );
+				    if ( methodNameOpt.isEmpty() ) {
+					    return null;
+				    }
+				    String methodName = methodNameOpt.get();
 
 				    // Try to resolve the object's type using variable tracking
 				    BoxNode obj		= methodInvocation.getObj();
@@ -3482,7 +3496,7 @@ public class ProjectContextProvider {
 				}
 				paramLabel.append( arg.getName() );
 				if ( arg.getValue() != null ) {
-					paramLabel.append( " = " ).append( arg.getValue().getSourceText() );
+					BLASTTools.getValue( arg.getValue() ).ifPresent( value -> paramLabel.append( " = " ).append( value ) );
 				}
 
 				paramInfo.setLabel( paramLabel.toString() );
@@ -3782,7 +3796,7 @@ public class ProjectContextProvider {
 
 		// Check for required annotation
 		boolean isRequired = argDecl.getAnnotations().stream()
-		    .anyMatch( a -> a.getKey().getValue().equalsIgnoreCase( "required" ) );
+		    .anyMatch( a -> BLASTTools.getAnnotationName( a ).filter( name -> name.equalsIgnoreCase( "required" ) ).isPresent() );
 
 		if ( isRequired ) {
 			sig.append( "required " );
@@ -3798,7 +3812,7 @@ public class ProjectContextProvider {
 
 		// Add default value
 		if ( argDecl.getValue() != null ) {
-			sig.append( " = " ).append( argDecl.getValue().getSourceText() );
+			BLASTTools.getValue( argDecl.getValue() ).ifPresent( value -> sig.append( " = " ).append( value ) );
 		}
 
 		content.append( sig.toString() );
@@ -3821,7 +3835,7 @@ public class ProjectContextProvider {
 
 		// Add default value if present
 		if ( argDecl.getValue() != null ) {
-			content.append( "**Default:** `" ).append( argDecl.getValue().getSourceText() ).append( "`\n\n" );
+			BLASTTools.getValue( argDecl.getValue() ).ifPresent( value -> content.append( "**Default:** `" ).append( value ).append( "`\n\n" ) );
 		}
 
 		Hover			hover			= new Hover();
@@ -3845,13 +3859,17 @@ public class ProjectContextProvider {
 		String			defaultVal	= null;
 
 		for ( var annotation : property.getAnnotations() ) {
-			String key = annotation.getKey().getValue().toLowerCase();
-			if ( key.equals( "name" ) && annotation.getValue() != null ) {
-				name = annotation.getValue().getSourceText().replace( "\"", "" ).replace( "'", "" );
-			} else if ( key.equals( "type" ) && annotation.getValue() != null ) {
-				type = annotation.getValue().getSourceText().replace( "\"", "" ).replace( "'", "" );
-			} else if ( key.equals( "default" ) && annotation.getValue() != null ) {
-				defaultVal = annotation.getValue().getSourceText();
+			String key = BLASTTools.getAnnotationName( annotation ).map( String::toLowerCase ).orElse( null );
+			if ( "name".equals( key ) ) {
+				name = BLASTTools.getAnnotationValue( annotation )
+				    .map( value -> value.replace( "\"", "" ).replace( "'", "" ) )
+				    .orElse( null );
+			} else if ( "type".equals( key ) ) {
+				type = BLASTTools.getAnnotationValue( annotation )
+				    .map( value -> value.replace( "\"", "" ).replace( "'", "" ) )
+				    .orElse( null );
+			} else if ( "default".equals( key ) ) {
+				defaultVal = BLASTTools.getAnnotationValue( annotation ).orElse( null );
 			}
 		}
 
@@ -4136,7 +4154,7 @@ public class ProjectContextProvider {
 
 				// Check for required annotation
 				boolean			isRequired	= arg.getAnnotations().stream()
-				    .anyMatch( a -> a.getKey().getValue().equalsIgnoreCase( "required" ) );
+				    .anyMatch( a -> BLASTTools.getAnnotationName( a ).filter( name -> name.equalsIgnoreCase( "required" ) ).isPresent() );
 
 				if ( isRequired ) {
 					paramStr.append( "required " );
@@ -4152,7 +4170,7 @@ public class ProjectContextProvider {
 
 				// Add default value
 				if ( arg.getValue() != null ) {
-					paramStr.append( " = " ).append( arg.getValue().getSourceText() );
+					BLASTTools.getValue( arg.getValue() ).ifPresent( value -> paramStr.append( " = " ).append( value ) );
 				}
 
 				paramStrings.add( paramStr.toString() );
@@ -4217,8 +4235,11 @@ public class ProjectContextProvider {
 		BoxDocumentationAnnotation			authorAnnotation		= null;
 
 		for ( BoxDocumentationAnnotation annotation : annotations ) {
-			String key = annotation.getKey().getValue().toLowerCase();
-			switch ( key ) {
+			Optional<String> key = BLASTTools.getAnnotationName( annotation );
+			if ( key.isEmpty() ) {
+				continue;
+			}
+			switch ( key.get().toLowerCase() ) {
 				case "param" :
 					paramAnnotations.add( annotation );
 					break;
@@ -4246,44 +4267,38 @@ public class ProjectContextProvider {
 		if ( !paramAnnotations.isEmpty() ) {
 			sb.append( "**Parameters:**\n" );
 			for ( BoxDocumentationAnnotation param : paramAnnotations ) {
-				String value = getAnnotationValue( param );
-				sb.append( "- " ).append( value ).append( "\n" );
+				getAnnotationValue( param ).ifPresent( value -> sb.append( "- @param " ).append( value ).append( "\n" ) );
 			}
 			sb.append( "\n" );
 		}
 
 		// Format return
 		if ( returnAnnotation != null ) {
-			String value = getAnnotationValue( returnAnnotation );
-			sb.append( "**@return** " ).append( value ).append( "\n\n" );
+			getAnnotationValue( returnAnnotation ).ifPresent( value -> sb.append( "**@return** " ).append( value ).append( "\n\n" ) );
 		}
 
 		// Format throws
 		if ( !throwsAnnotations.isEmpty() ) {
 			sb.append( "**Throws:**\n" );
 			for ( BoxDocumentationAnnotation throwsAnn : throwsAnnotations ) {
-				String value = getAnnotationValue( throwsAnn );
-				sb.append( "- " ).append( value ).append( "\n" );
+				getAnnotationValue( throwsAnn ).ifPresent( value -> sb.append( "- @throws " ).append( value ).append( "\n" ) );
 			}
 			sb.append( "\n" );
 		}
 
 		// Format deprecated
 		if ( deprecatedAnnotation != null ) {
-			String value = getAnnotationValue( deprecatedAnnotation );
-			sb.append( "**@deprecated** " ).append( value != null ? value : "" ).append( "\n\n" );
+			getAnnotationValue( deprecatedAnnotation ).ifPresent( value -> sb.append( "**@deprecated** " ).append( value ).append( "\n\n" ) );
 		}
 
 		// Format since
 		if ( sinceAnnotation != null ) {
-			String value = getAnnotationValue( sinceAnnotation );
-			sb.append( "**@since** " ).append( value ).append( "\n\n" );
+			getAnnotationValue( sinceAnnotation ).ifPresent( value -> sb.append( "**@since** " ).append( value ).append( "\n\n" ) );
 		}
 
 		// Format author
 		if ( authorAnnotation != null ) {
-			String value = getAnnotationValue( authorAnnotation );
-			sb.append( "**@author** " ).append( value ).append( "\n\n" );
+			getAnnotationValue( authorAnnotation ).ifPresent( value -> sb.append( "**@author** " ).append( value ).append( "\n\n" ) );
 		}
 
 		return sb.toString();
@@ -4292,11 +4307,8 @@ public class ProjectContextProvider {
 	/**
 	 * Get the string value from a documentation annotation.
 	 */
-	private String getAnnotationValue( BoxDocumentationAnnotation annotation ) {
-		if ( annotation.getValue() == null ) {
-			return "";
-		}
-		return annotation.getValue().getSourceText();
+	private Optional<String> getAnnotationValue( BoxDocumentationAnnotation annotation ) {
+		return BLASTTools.getAnnotationValue( annotation );
 	}
 
 	/**
@@ -4324,20 +4336,19 @@ public class ProjectContextProvider {
 			return extractClassNameFromFQN( fqn );
 		}
 
-		// Try to get the source text as a fallback
-		if ( expression != null ) {
-			String sourceText = expression.getSourceText();
-			if ( sourceText != null ) {
-				sourceText = sourceText.trim();
-				int	lastDot			= sourceText.lastIndexOf( '.' );
-				int	lastColon		= sourceText.lastIndexOf( ':' );
-				int	lastSeparator	= Math.max( lastDot, lastColon );
+		// Try to get the semantic value as a fallback
+		Optional<String> sourceTextOpt = BLASTTools.getValue( expression );
+		if ( sourceTextOpt.isPresent() ) {
+			String sourceText = sourceTextOpt.get();
+			sourceText = sourceText.trim();
+			int	lastDot			= sourceText.lastIndexOf( '.' );
+			int	lastColon		= sourceText.lastIndexOf( ':' );
+			int	lastSeparator	= Math.max( lastDot, lastColon );
 
-				if ( lastSeparator >= 0 && lastSeparator < sourceText.length() - 1 ) {
-					return sourceText.substring( lastSeparator + 1 );
-				}
-				return sourceText;
+			if ( lastSeparator >= 0 && lastSeparator < sourceText.length() - 1 ) {
+				return sourceText.substring( lastSeparator + 1 );
 			}
+			return sourceText;
 		}
 
 		return null;
@@ -4367,22 +4378,22 @@ public class ProjectContextProvider {
 	 * Extract class name from an extends/implements annotation.
 	 */
 	private String extractClassNameFromAnnotation( BoxAnnotation annotation ) {
-		String key = annotation.getKey().getValue().toLowerCase();
+		String key = BLASTTools.getAnnotationName( annotation ).map( String::toLowerCase ).orElse( null );
 
-		if ( !key.equals( "extends" ) && !key.equals( "implements" ) ) {
+		if ( key == null || ( !key.equals( "extends" ) && !key.equals( "implements" ) ) ) {
 			return null;
 		}
 
 		// Extract class/interface name from annotation value
 		String className = null;
 		if ( annotation.getValue() instanceof BoxStringLiteral strLiteral ) {
-			className = strLiteral.getValue();
+			className = BLASTTools.getValue( strLiteral ).orElse( null );
 		} else if ( annotation.getValue() instanceof BoxFQN fqn ) {
 			className = extractClassNameFromFQN( fqn );
-		} else if ( annotation.getValue() != null ) {
-			className	= annotation.getValue().getSourceText();
-			// Clean up quotes if present
-			className	= className.replace( "\"", "" ).replace( "'", "" );
+		} else {
+			className = BLASTTools.getValue( annotation.getValue() )
+			    .map( value -> value.replace( "\"", "" ).replace( "'", "" ) )
+			    .orElse( null );
 		}
 
 		if ( className == null || className.isEmpty() ) {

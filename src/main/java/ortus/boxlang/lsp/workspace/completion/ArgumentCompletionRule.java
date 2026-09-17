@@ -179,7 +179,11 @@ public class ArgumentCompletionRule implements IRule<CompletionFacts, List<Compl
 	 * Get parameters for a method invocation.
 	 */
 	private List<ParameterInfo> getParametersForMethodInvocation( CompletionFacts facts, BoxMethodInvocation methodInvocation ) {
-		String	methodName	= methodInvocation.getName().getSourceText();
+		var methodNameOpt = BLASTTools.getName( methodInvocation );
+		if ( methodNameOpt.isEmpty() ) {
+			return List.of();
+		}
+		String	methodName	= methodNameOpt.get();
 
 		// Try to resolve the receiver's type
 		BoxNode	obj			= methodInvocation.getObj();

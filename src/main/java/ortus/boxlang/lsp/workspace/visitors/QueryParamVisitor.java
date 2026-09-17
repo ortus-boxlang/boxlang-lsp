@@ -27,6 +27,7 @@ import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.lint.rules.MissingQueryParamCfsqltypeRule;
 import ortus.boxlang.lsp.lint.rules.UnescapedQueryParamRule;
+import ortus.boxlang.lsp.workspace.BLASTTools;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.runtime.types.QueryColumnType;
 
@@ -97,19 +98,25 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 
 	private void diagnoseQueryParam( BoxComponent node ) {
 		Optional<BoxAnnotation>	valueAttr			= node.getAttributes().stream()
-		    .filter( annotation -> annotation.getKey().getSourceText().equalsIgnoreCase( "value" ) )
+		    .filter( annotation -> BLASTTools.getAnnotationName( annotation )
+		        .filter( name -> name.equalsIgnoreCase( "value" ) )
+		        .isPresent() )
 		    .findFirst();
 		Optional<BoxAnnotation>	cfSQLTypeAttribute	= node.getAttributes().stream()
-		    .filter( annotation -> annotation.getKey().getSourceText().equalsIgnoreCase( "cfsqltype" ) )
+		    .filter( annotation -> BLASTTools.getAnnotationName( annotation )
+		        .filter( name -> name.equalsIgnoreCase( "cfsqltype" ) )
+		        .isPresent() )
 		    .findFirst();
 
 		if ( cfSQLTypeAttribute.isPresent() ) {
 			return;
 		}
 
-		Diagnostic diagnostic = new Diagnostic(
+		String		valueText	= valueAttr.flatMap( BLASTTools::getAnnotationValue )
+		    .orElse( "query parameter" );
+		Diagnostic	diagnostic	= new Diagnostic(
 		    ProjectContextProvider.positionToRange( node.getPosition() ),
-		    "Missing cfsqltype attribute: " + valueAttr.map( value -> value.getSourceText() ).orElse( node.getSourceText() ),
+		    "Missing cfsqltype attribute: " + valueText,
 		    DiagnosticSeverity.Warning,
 		    "boxlang",
 		    MissingQueryParamCfsqltypeRule.ID );
@@ -120,7 +127,12 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 	}
 
 	private void addParamSqlTypeRefactoring( BoxNode node, Diagnostic diagnostic ) {
-		sqlTypeRefactors.computeIfAbsent( node.getSourceText(), ignored -> new HashMap<>() );
+		Optional<String> sourceText = BLASTTools.getSourceText( node );
+		if ( sourceText.isEmpty() ) {
+			return;
+		}
+
+		sqlTypeRefactors.computeIfAbsent( sourceText.get(), ignored -> new HashMap<>() );
 
 		for ( QueryColumnType columnType : QueryColumnType.values() ) {
 			createSpecificSQLTypeRefactoring( "cf_sql_" + columnType.name().toLowerCase(), node, diagnostic );
@@ -131,22 +143,28 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 	}
 
 	private void createSpecificSQLTypeRefactoring( String type, BoxNode node, Diagnostic diagnostic ) {
-		if ( !sqlTypeRefactors.get( node.getSourceText() ).containsKey( type ) ) {
+		Optional<String> sourceText = BLASTTools.getSourceText( node );
+		if ( sourceText.isEmpty() ) {
+			return;
+		}
+		String nodeSourceText = sourceText.get();
+
+		if ( !sqlTypeRefactors.get( nodeSourceText ).containsKey( type ) ) {
 			CodeAction action = new CodeAction( "Refactor similar as: " + type );
 			action.setEdit( new WorkspaceEdit( new HashMap<>() ) );
 			action.getEdit().getChanges().put( filePath, new ArrayList<>() );
 			action.setKind( CodeActionKind.RefactorRewrite );
 			action.setDiagnostics( new ArrayList<>() );
 			codeActions.add( action );
-			sqlTypeRefactors.get( node.getSourceText() ).put( type, action );
+			sqlTypeRefactors.get( nodeSourceText ).put( type, action );
 		}
 
 		TextEdit edit = new TextEdit(
 		    ProjectContextProvider.positionToRange( node.getPosition() ),
-		    node.getSourceText().replaceAll( ">$", " cfsqltype=\"" + type + "\">" ) );
+		    nodeSourceText.replaceAll( ">$", " cfsqltype=\"" + type + "\">" ) );
 
-		sqlTypeRefactors.get( node.getSourceText() ).get( type ).getDiagnostics().add( diagnostic );
-		sqlTypeRefactors.get( node.getSourceText() ).get( type ).getEdit().getChanges().get( filePath ).add( edit );
+		sqlTypeRefactors.get( nodeSourceText ).get( type ).getDiagnostics().add( diagnostic );
+		sqlTypeRefactors.get( nodeSourceText ).get( type ).getEdit().getChanges().get( filePath ).add( edit );
 	}
 
 	private void checkNode( BoxNode node ) {
@@ -159,7 +177,9 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 
 				Diagnostic diagnostic = new Diagnostic(
 				    ProjectContextProvider.positionToRange( node.getPosition() ),
-				    "Possible unescaped query param: " + node.getSourceText(),
+				    BLASTTools.getSourceText( node )
+				        .map( text -> "Possible unescaped query param: " + text )
+				        .orElse( "Possible unescaped query param" ),
 				    DiagnosticSeverity.Warning,
 				    "boxlang",
 				    UnescapedQueryParamRule.ID );
@@ -177,7 +197,12 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 	}
 
 	private void addRefactorSimilarStringInterpolation( BoxNode node, Diagnostic diagnostic ) {
-		sqlTypeRefactors.computeIfAbsent( node.getSourceText(), ignored -> new HashMap<>() );
+		Optional<String> sourceText = BLASTTools.getSourceText( node );
+		if ( sourceText.isEmpty() ) {
+			return;
+		}
+
+		sqlTypeRefactors.computeIfAbsent( sourceText.get(), ignored -> new HashMap<>() );
 
 		for ( QueryColumnType columnType : QueryColumnType.values() ) {
 			createSpecificSqlTypeInterpolationRefactoring( "cf_sql_" + columnType.name().toLowerCase(), node, diagnostic );
@@ -188,23 +213,32 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 	}
 
 	private void createSpecificSqlTypeInterpolationRefactoring( String type, BoxNode node, Diagnostic diagnostic ) {
-		if ( !sqlTypeRefactors.get( node.getSourceText() ).containsKey( type ) ) {
+		Optional<String> sourceText = BLASTTools.getSourceText( node );
+		if ( sourceText.isEmpty() ) {
+			return;
+		}
+		String		nodeSourceText	= sourceText.get();
+		TextEdit	edit			= createGenericTextEdit( node, type );
+		if ( edit == null ) {
+			return;
+		}
+
+		if ( !sqlTypeRefactors.get( nodeSourceText ).containsKey( type ) ) {
 			CodeAction action = new CodeAction( "Refactor similar as: " + type );
 			action.setEdit( new WorkspaceEdit( new HashMap<>() ) );
 			action.getEdit().getChanges().put( filePath, new ArrayList<>() );
 			action.setKind( CodeActionKind.RefactorRewrite );
 			action.setDiagnostics( new ArrayList<>() );
 			codeActions.add( action );
-			sqlTypeRefactors.get( node.getSourceText() ).put( type, action );
+			sqlTypeRefactors.get( nodeSourceText ).put( type, action );
 		}
 
-		sqlTypeRefactors.get( node.getSourceText() ).get( type ).getDiagnostics().add( diagnostic );
-		sqlTypeRefactors.get( node.getSourceText() ).get( type ).getEdit().getChanges().get( filePath )
-		    .add( createGenericTextEdit( node, type ) );
+		sqlTypeRefactors.get( nodeSourceText ).get( type ).getDiagnostics().add( diagnostic );
+		sqlTypeRefactors.get( nodeSourceText ).get( type ).getEdit().getChanges().get( filePath ).add( edit );
 	}
 
 	private boolean shouldIgnore( BoxNode node ) {
-		return MARKED_SAFE_PATTERN.matcher( node.getSourceText() ).find();
+		return BLASTTools.getSourceText( node ).map( text -> MARKED_SAFE_PATTERN.matcher( text ).find() ).orElse( false );
 	}
 
 	private void addRefactoring( BoxNode node, Diagnostic diagnostic ) {
@@ -232,7 +266,9 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 			return Optional.empty();
 		}
 
-		CodeAction action = new CodeAction( "Parameterize " + node.getSourceText() );
+		CodeAction action = new CodeAction( BLASTTools.getSourceText( node )
+		    .map( text -> "Parameterize " + text )
+		    .orElse( "Parameterize query parameter" ) );
 		action.setKind( CodeActionKind.QuickFix );
 		action.setDiagnostics( List.of( diagnostic ) );
 		action.setIsPreferred( true );
@@ -242,7 +278,9 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 	}
 
 	private CodeAction createMarkSafeCodeAction( BoxNode node, Diagnostic diagnostic ) {
-		CodeAction action = new CodeAction( "Mark as safe " + node.getSourceText() );
+		CodeAction action = new CodeAction( BLASTTools.getSourceText( node )
+		    .map( text -> "Mark as safe " + text )
+		    .orElse( "Mark query parameter as safe" ) );
 		action.setKind( CodeActionKind.QuickFix );
 		action.setDiagnostics( List.of( diagnostic ) );
 
@@ -269,11 +307,15 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 	}
 
 	private TextEdit createTextEdit( BoxNode node ) {
-		Range			editRange		= ProjectContextProvider.positionToRange( node.getPosition() );
-		String			leftSourceText	= findLeftText( node );
-		String			rightSourceText	= findRightText( node );
+		Optional<String>	nodeSourceText	= BLASTTools.getSourceText( node );
+		Optional<String>	leftSourceText	= findLeftText( node );
+		Optional<String>	rightSourceText	= findRightText( node );
+		if ( nodeSourceText.isEmpty() || leftSourceText.isEmpty() || rightSourceText.isEmpty() ) {
+			return null;
+		}
 
-		OperatorContext	operatorContext	= fallbackOperatorContext( leftSourceText, rightSourceText );
+		Range			editRange		= ProjectContextProvider.positionToRange( node.getPosition() );
+		OperatorContext	operatorContext	= fallbackOperatorContext( leftSourceText.get(), rightSourceText.get() );
 		if ( operatorContext == null ) {
 			return null;
 		}
@@ -281,11 +323,11 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 		editRange.getStart().setCharacter( editRange.getStart().getCharacter() - operatorContext.replacementRangeLeftOffset );
 		editRange.getEnd().setCharacter( editRange.getEnd().getCharacter() + operatorContext.replacementRangeRightOffset );
 
-		String replacementValue = operatorContext.includeLeft + node.getSourceText() + operatorContext.includeRight;
+		String replacementValue = operatorContext.includeLeft + nodeSourceText.get() + operatorContext.includeRight;
 		return new TextEdit( editRange, getEditText( replacementValue, determineSQLType( node, operatorContext ), operatorContext.list ) );
 	}
 
-	private String findLeftText( BoxNode node ) {
+	private Optional<String> findLeftText( BoxNode node ) {
 		BoxNode parent = node.getParent();
 
 		while ( ! ( parent instanceof BoxComponent component && component.getName().equalsIgnoreCase( "query" ) ) ) {
@@ -295,17 +337,17 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 			if ( thisNodeIndex > 0 ) {
 				List<BoxNode> children = grandParent.getChildren().get( thisNodeIndex - 1 ).getChildren();
 				if ( !children.isEmpty() ) {
-					return children.getLast().getSourceText();
+					return BLASTTools.getSourceText( children.getLast() );
 				}
 			}
 
 			parent = grandParent;
 		}
 
-		return "";
+		return Optional.of( "" );
 	}
 
-	private String findRightText( BoxNode node ) {
+	private Optional<String> findRightText( BoxNode node ) {
 		BoxNode parent = node.getParent();
 
 		while ( ! ( parent instanceof BoxComponent component && component.getName().equalsIgnoreCase( "query" ) ) ) {
@@ -315,26 +357,33 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 			if ( thisNodeIndex < grandParent.getChildren().size() - 1 ) {
 				List<BoxNode> children = grandParent.getChildren().get( thisNodeIndex + 1 ).getChildren();
 				if ( !children.isEmpty() ) {
-					return children.getFirst().getSourceText();
+					return BLASTTools.getSourceText( children.getFirst() );
 				}
 			}
 
 			parent = grandParent;
 		}
 
-		return "";
+		return Optional.of( "" );
 	}
 
 	private TextEdit createGenericTextEdit( BoxNode node, String sqlType ) {
-		Range			editRange		= ProjectContextProvider.positionToRange( node.getPosition() );
-		String			leftSourceText	= findLeftText( node );
-		String			rightSourceText	= findRightText( node );
+		Optional<String>	nodeSourceText	= BLASTTools.getSourceText( node );
+		Optional<String>	leftSourceText	= findLeftText( node );
+		Optional<String>	rightSourceText	= findRightText( node );
+		if ( nodeSourceText.isEmpty() || leftSourceText.isEmpty() || rightSourceText.isEmpty() ) {
+			return null;
+		}
 
-		OperatorContext	operatorContext	= fallbackOperatorContext( leftSourceText, rightSourceText );
+		Range			editRange		= ProjectContextProvider.positionToRange( node.getPosition() );
+		OperatorContext	operatorContext	= fallbackOperatorContext( leftSourceText.get(), rightSourceText.get() );
+		if ( operatorContext == null ) {
+			return null;
+		}
 		editRange.getStart().setCharacter( editRange.getStart().getCharacter() - operatorContext.replacementRangeLeftOffset );
 		editRange.getEnd().setCharacter( editRange.getEnd().getCharacter() + operatorContext.replacementRangeRightOffset );
 
-		String replacementValue = operatorContext.includeLeft + node.getSourceText() + operatorContext.includeRight;
+		String replacementValue = operatorContext.includeLeft + nodeSourceText.get() + operatorContext.includeRight;
 		return new TextEdit( editRange, getEditText( replacementValue, sqlType, operatorContext.list ) );
 	}
 
@@ -392,6 +441,10 @@ public class QueryParamVisitor extends SourceCodeVisitor {
 	}
 
 	private OperatorContext fallbackOperatorContext( String preText, String postText ) {
+		if ( preText == null || postText == null ) {
+			return null;
+		}
+
 		String	includeRight	= "";
 		Matcher	matcher			= OPERATOR_VALUE_PATTERN_RIGHT.matcher( postText );
 		if ( matcher.find() ) {

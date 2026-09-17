@@ -1,6 +1,7 @@
 package ortus.boxlang.lsp;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
@@ -8,7 +9,24 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.junit.jupiter.api.Test;
 
+import ortus.boxlang.compiler.ast.expression.BoxFQN;
+import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
+import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
+import ortus.boxlang.compiler.ast.statement.BoxProperty;
+import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor;
+
 public class VariableHoverTest extends BaseTest {
+
+	@Test
+	void testPropertyValueWithoutSourceTextDoesNotAbortCollection() {
+		BoxProperty						property	= new BoxProperty(
+		    java.util.List.of( new BoxAnnotation( new BoxFQN( "name", null, null ), new BoxStringLiteral( "field", null, null ), null, null ) ),
+		    java.util.List.of(), java.util.List.of(), null, null );
+		VariableScopeCollectorVisitor	visitor		= new VariableScopeCollectorVisitor();
+
+		assertDoesNotThrow( () -> visitor.visit( property ) );
+		assertThat( visitor.getVariableInfo( "field", null ) ).isNotNull();
+	}
 
 	@Test
 	void testHoverOnLocalVariableDeclaration() throws Exception {

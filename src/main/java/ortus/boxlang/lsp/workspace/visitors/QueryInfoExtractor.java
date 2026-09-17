@@ -6,12 +6,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxBufferOutput;
+import ortus.boxlang.lsp.workspace.BLASTTools;
 import ortus.boxlang.compiler.ast.statement.component.BoxComponent;
 
 class QueryInfoExtractor {
@@ -67,8 +69,12 @@ class QueryInfoExtractor {
 		List<BoxStringLiteral> outputs = node.getDescendantsOfType( BoxStringLiteral.class, candidate -> candidate.getParent() instanceof BoxBufferOutput );
 
 		for ( BoxStringLiteral output : outputs ) {
+			Optional<String> outputText = BLASTTools.getValue( output );
+			if ( outputText.isEmpty() ) {
+				continue;
+			}
 			for ( Entry<Pattern, BiConsumer<Matcher, QueryInfoExtractor>> entry : patterns.entrySet() ) {
-				Matcher matcher = entry.getKey().matcher( output.getSourceText() );
+				Matcher matcher = entry.getKey().matcher( outputText.get() );
 				if ( !matcher.find() ) {
 					continue;
 				}
@@ -78,8 +84,12 @@ class QueryInfoExtractor {
 		}
 
 		for ( BoxStringLiteral output : outputs ) {
+			Optional<String> outputText = BLASTTools.getValue( output );
+			if ( outputText.isEmpty() ) {
+				continue;
+			}
 			for ( Entry<Pattern, BiConsumer<Matcher, QueryInfoExtractor>> entry : columnPatterns.entrySet() ) {
-				Matcher matcher = entry.getKey().matcher( output.getSourceText() );
+				Matcher matcher = entry.getKey().matcher( outputText.get() );
 				if ( !matcher.find() ) {
 					continue;
 				}

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump BoxLang version to 1.17.0
 - BLIDE-324 Add semantic warning for possibleTypos
+- BLIDE-327 Fix LSP to safely detect source
 
 ## [1.12.0] - 2026-09-16
 

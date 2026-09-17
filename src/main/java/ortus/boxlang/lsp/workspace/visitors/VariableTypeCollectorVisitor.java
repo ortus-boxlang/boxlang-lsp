@@ -2,6 +2,7 @@ package ortus.boxlang.lsp.workspace.visitors;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxInterface;
@@ -14,6 +15,7 @@ import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxNew;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
+import ortus.boxlang.lsp.workspace.BLASTTools;
 
 /**
  * Visitor that collects variable type information from assignments.
@@ -108,24 +110,21 @@ public class VariableTypeCollectorVisitor extends VoidBoxVisitor {
 			return fullPath;
 		}
 
-		// Try to get the source text as a fallback
-		if ( expression != null ) {
-			String sourceText = expression.getSourceText();
-			if ( sourceText != null ) {
-				// Clean up and extract class name
-				sourceText = sourceText.trim();
-				int	lastDot			= sourceText.lastIndexOf( '.' );
-				int	lastColon		= sourceText.lastIndexOf( ':' );
-				int	lastSeparator	= Math.max( lastDot, lastColon );
-
-				if ( lastSeparator >= 0 && lastSeparator < sourceText.length() - 1 ) {
-					return sourceText.substring( lastSeparator + 1 );
-				}
-				return sourceText;
-			}
+		// Try to get the semantic value as a fallback
+		Optional<String> sourceText = BLASTTools.getValue( expression ).map( String::trim );
+		if ( sourceText.isEmpty() ) {
+			return null;
 		}
 
-		return null;
+		String	value			= sourceText.get();
+		int		lastDot			= value.lastIndexOf( '.' );
+		int		lastColon		= value.lastIndexOf( ':' );
+		int		lastSeparator	= Math.max( lastDot, lastColon );
+
+		if ( lastSeparator >= 0 && lastSeparator < value.length() - 1 ) {
+			return value.substring( lastSeparator + 1 );
+		}
+		return value;
 	}
 
 	private void visitChildren( BoxNode node ) {
