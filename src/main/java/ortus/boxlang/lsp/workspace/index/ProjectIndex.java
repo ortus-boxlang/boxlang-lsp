@@ -421,7 +421,10 @@ public class ProjectIndex {
 	 * Tries multiple strategies in order:
 	 * 1. Simple name lookup (e.g., "User")
 	 * 2. Full FQN lookup (e.g., "models.User")
-	 * 3. Relative path resolution (if contextFileUri provided and className contains ".")
+	 * 3. Package-relative FQN and mapping resolution (if contextFileUri provided and className contains ".")
+	 * 4. Filesystem lookup relative to the referencing file's folder. This runs for
+	 * dot-paths ("subpackage.Base") and for plain names ("Base"), because an
+	 * unqualified extends/implements resolves to a sibling file first in CFML/BoxLang.
 	 *
 	 * @param className      The class name to find (simple name, FQN, or relative path)
 	 * @param contextFileUri The URI of the file making the reference (for relative path resolution), or null
@@ -468,8 +471,11 @@ public class ProjectIndex {
 			}
 		}
 
-		// Filesystem fallback: resolve dot-path as a file path
-		if ( className.contains( "." ) && workspaceRoot != null ) {
+		// Filesystem fallback: resolve the name as a file path relative to the referencing
+		// file's folder. Not limited to dot-paths: a plain name like "BaseApp" must find a
+		// sibling BaseApp.cfc even when that file is missing from the index (stale cache,
+		// background parsing off, or the seed walk skipped it). See vscode-boxlang#63.
+		if ( workspaceRoot != null ) {
 			result = findClassByFileSystemPath( className, contextFileUri );
 			if ( result.isPresent() ) {
 				return result;
@@ -599,16 +605,18 @@ public class ProjectIndex {
 	}
 
 	/**
-	 * Resolve a dot-path class name by locating the corresponding file directly
-	 * on disk relative to the file making the reference and indexing it on-demand
-	 * if it is not already in the index.
+	 * Resolve a class name by locating the corresponding file directly on disk
+	 * relative to the file making the reference and indexing it on-demand if it
+	 * is not already in the index.
 	 *
 	 * <p>
 	 * For example, from {@code subpackage/BaseType.bx} the reference
 	 * {@code subsubpackage.EvenBaserType} is resolved to
-	 * {@code subpackage/subsubpackage/EvenBaserType.bx}.
+	 * {@code subpackage/subsubpackage/EvenBaserType.bx}, and the plain reference
+	 * {@code Base} is resolved to {@code subpackage/Base.bx} (or any other
+	 * BoxLang/CFML extension).
 	 *
-	 * @param className      the dot-path class name to resolve
+	 * @param className      the class name to resolve (dot-path or plain name)
 	 * @param contextFileUri the file making the reference, or {@code null}
 	 *
 	 * @return the matching {@link IndexedClass}, or empty if not found
