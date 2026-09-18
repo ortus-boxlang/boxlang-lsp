@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump BoxLang version to 1.17.0
 - BLIDE-324 Add semantic warning for possibleTypos
 - BLIDE-327 Fix LSP to safely detect source
+- Add implicit `/coldbox` and `/testbox` mappings for CommandBox-installed frameworks so `extends="coldbox.system..."` and `extends="testbox.system.BaseSpec"` resolve when those folders are gitignored (regression from BLIDE-280)
+- Mapped folders inside the workspace are now indexed even when `.gitignore` excludes them
 
 ## [1.12.0] - 2026-09-16
 
