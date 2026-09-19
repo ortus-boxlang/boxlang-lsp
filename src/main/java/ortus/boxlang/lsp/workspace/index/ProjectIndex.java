@@ -110,9 +110,16 @@ public class ProjectIndex {
 		this.mappingConfig	= mappingConfig;
 		this.cacheFilePath	= getDefaultCacheFilePath( workspaceRoot );
 		loadCache();
-		GitIgnoreMatcher gitIgnoreMatcher = GitIgnoreMatcher.create( workspaceRoot );
+		// Drop cached files that are now gitignored, except files that live under a
+		// mapped folder (mappings, classPaths, modulesDirectory). Those folders are
+		// often gitignored (CommandBox installs coldbox/, testbox/, modules/) but the
+		// user still wants them indexed, and indexExternalDirectories() below walks
+		// them anyway. Keeping their cache entries avoids re-parsing them every start.
+		GitIgnoreMatcher	gitIgnoreMatcher	= GitIgnoreMatcher.create( workspaceRoot );
+		java.util.Set<Path>	mappedDirs			= collectMappedDirectories( mappingConfig );
 		getIndexedFiles().stream()
 		    .map( URI::create )
+		    .filter( uri -> !isUnderAnyDirectory( Paths.get( uri ), mappedDirs ) )
 		    .filter( uri -> gitIgnoreMatcher.isIgnored( Paths.get( uri ) ) )
 		    .forEach( this::removeFile );
 
@@ -153,65 +160,67 @@ public class ProjectIndex {
 	}
 
 	/**
-	 * Walks every external directory declared in the MappingConfig and indexes
-	 * each BoxLang file found. Directories that already sit inside the workspace
-	 * root are skipped to prevent double-indexing.
+	 * Walks every directory declared in the MappingConfig (mapped real paths,
+	 * classPaths and modulesDirectory) and indexes each BoxLang file found.
+	 *
+	 * <p>
+	 * Each directory is walked with a {@link GitIgnoreMatcher} rooted at that
+	 * directory, not at the workspace root. A mapped folder is often gitignored
+	 * by the workspace (CommandBox installs coldbox/, testbox/ and modules/ and
+	 * projects ignore them), and a workspace-rooted matcher would skip the whole
+	 * folder before indexing a single file. Rooting the matcher at the mapped
+	 * folder still honours any .gitignore files inside it.
+	 *
+	 * <p>
+	 * Directories inside the workspace root are walked too. {@link #indexFile}
+	 * removes any previous entry for the file first, so indexing a file twice
+	 * (once from the workspace scan, once from here) is safe.
 	 */
 	private void indexExternalDirectories( MappingConfig config, Path workspaceRoot ) {
-		Path				normalizedRoot		= workspaceRoot.toAbsolutePath().normalize();
-		GitIgnoreMatcher	gitIgnoreMatcher	= GitIgnoreMatcher.create( normalizedRoot );
-
-		// Collect all directories to walk: mapped real paths + classPaths + modulesDirectory
-		java.util.Set<Path>	dirs				= new java.util.LinkedHashSet<>();
-		config.getMappings().values().forEach( dirs::add );
-		dirs.addAll( config.getClassPaths() );
-		dirs.addAll( config.getModulesDirectory() );
-
-		for ( Path dir : dirs ) {
-			Path normalizedDir = dir.toAbsolutePath().normalize();
-			// Skip dirs that are already under the workspace root (they'll be indexed separately)
-			if ( normalizedDir.startsWith( normalizedRoot ) ) {
-				continue;
-			}
+		for ( Path normalizedDir : collectMappedDirectories( config ) ) {
 			if ( !Files.isDirectory( normalizedDir ) ) {
 				continue;
 			}
-			GitIgnoreMatcher externalGitIgnoreMatcher = GitIgnoreMatcher.create( normalizedDir );
+			GitIgnoreMatcher dirGitIgnoreMatcher = GitIgnoreMatcher.create( normalizedDir );
 			try {
-				externalGitIgnoreMatcher.walk( normalizedDir, p -> {
+				dirGitIgnoreMatcher.walk( normalizedDir, p -> {
 					if ( Files.isRegularFile( p ) && ortus.boxlang.lsp.LSPTools.canWalkFile( p ) ) {
 						indexFile( p.toUri() );
 					}
 				} );
 			} catch ( IOException e ) {
 				if ( App.logger != null ) {
-					App.logger.warn( "Failed to index external directory: " + normalizedDir, e );
+					App.logger.warn( "Failed to index mapped directory: " + normalizedDir, e );
 				}
 			}
 		}
+	}
 
-		// Also walk directories that ARE inside the workspace root
-		// (they need indexing too, just skip de-dup concern — indexFile is idempotent via removeFile)
-		for ( Path dir : dirs ) {
-			Path normalizedDir = dir.toAbsolutePath().normalize();
-			if ( !normalizedDir.startsWith( normalizedRoot ) ) {
-				continue; // already handled above
-			}
-			if ( !Files.isDirectory( normalizedDir ) ) {
-				continue;
-			}
-			try {
-				gitIgnoreMatcher.walk( normalizedDir, p -> {
-					if ( Files.isRegularFile( p ) && ortus.boxlang.lsp.LSPTools.canWalkFile( p ) ) {
-						indexFile( p.toUri() );
-					}
-				} );
-			} catch ( IOException e ) {
-				if ( App.logger != null ) {
-					App.logger.warn( "Failed to index directory: " + normalizedDir, e );
-				}
-			}
+	/**
+	 * Collect every directory a MappingConfig points at: mapped real paths,
+	 * classPaths and modulesDirectory. Paths are absolute and normalized.
+	 * Returns an empty set when the config is null.
+	 */
+	private static java.util.Set<Path> collectMappedDirectories( MappingConfig config ) {
+		java.util.Set<Path> dirs = new java.util.LinkedHashSet<>();
+		if ( config == null ) {
+			return dirs;
 		}
+		config.getMappings().values().forEach( dir -> dirs.add( dir.toAbsolutePath().normalize() ) );
+		config.getClassPaths().forEach( dir -> dirs.add( dir.toAbsolutePath().normalize() ) );
+		config.getModulesDirectory().forEach( dir -> dirs.add( dir.toAbsolutePath().normalize() ) );
+		return dirs;
+	}
+
+	/**
+	 * True when {@code path} is inside (or equal to) any directory in {@code dirs}.
+	 */
+	private static boolean isUnderAnyDirectory( Path path, java.util.Set<Path> dirs ) {
+		if ( dirs.isEmpty() ) {
+			return false;
+		}
+		Path normalizedPath = path.toAbsolutePath().normalize();
+		return dirs.stream().anyMatch( normalizedPath::startsWith );
 	}
 
 	/**

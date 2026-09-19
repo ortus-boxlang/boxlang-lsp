@@ -144,4 +144,50 @@ public class ColdBoxDetectorTest extends BaseTest {
 		assertThat( result ).containsKey( "/baz" );
 		assertThat( pathString( result.get( "/baz" ) ) ).contains( "modules_app/baz" );
 	}
+
+	// ─── Cycle 12 ────────────────────────────────────────────────────────────
+	// discoverImplicitMappings adds /coldbox for a ColdBox app with a coldbox/ folder
+
+	@Test
+	void discoverImplicitMappingsAddsColdboxRoot() {
+		Path				appRoot	= fixtureDir( "withColdboxDir" );
+		Map<String, Path>	result	= ColdBoxDetector.discoverImplicitMappings( appRoot );
+		assertThat( result ).containsKey( "/coldbox" );
+		assertThat( result.get( "/coldbox" ) ).isEqualTo( appRoot.resolve( "coldbox" ).toAbsolutePath().normalize() );
+	}
+
+	// ─── Cycle 13 ────────────────────────────────────────────────────────────
+	// discoverImplicitMappings adds /testbox even when the app is not ColdBox
+
+	@Test
+	void discoverImplicitMappingsAddsTestboxForAnyApp() {
+		Path				appRoot	= fixtureDir( "nonColdboxWithTestbox" );
+		Map<String, Path>	result	= ColdBoxDetector.discoverImplicitMappings( appRoot );
+		assertThat( result.keySet() ).containsExactly( "/testbox" );
+		assertThat( result.get( "/testbox" ) ).isEqualTo( appRoot.resolve( "testbox" ).toAbsolutePath().normalize() );
+	}
+
+	// ─── Cycle 14 ────────────────────────────────────────────────────────────
+	// discoverImplicitMappings is empty for a plain app with no framework folders
+
+	@Test
+	void discoverImplicitMappingsIsEmptyForPlainApp() {
+		Path				appRoot	= fixtureDir( "nonColdbox" );
+		Map<String, Path>	result	= ColdBoxDetector.discoverImplicitMappings( appRoot );
+		assertThat( result ).isEmpty();
+	}
+
+	// ─── Cycle 15 ────────────────────────────────────────────────────────────
+	// discoverImplicitMappings still includes module mappings for a ColdBox app
+
+	@Test
+	void discoverImplicitMappingsStillIncludesModules() {
+		Path				appRoot	= fixtureDir( "withExtends" );
+		Map<String, Path>	result	= ColdBoxDetector.discoverImplicitMappings( appRoot );
+		assertThat( result ).containsKey( "/foo" );
+		assertThat( pathString( result.get( "/foo" ) ) ).endsWith( "modules/foo" );
+		// withExtends has no coldbox/ or testbox/ folder, so no framework root keys
+		assertThat( result ).doesNotContainKey( "/coldbox" );
+		assertThat( result ).doesNotContainKey( "/testbox" );
+	}
 }

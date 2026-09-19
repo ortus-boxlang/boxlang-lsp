@@ -1131,4 +1131,70 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 			throw new AssertionError( "Timed out waiting for diagnostics publish for " + uri );
 		}
 	}
+
+	// ============ Implicit ColdBox / TestBox mapping tests ============
+
+	/**
+	 * deploybot-style layout: CommandBox installed coldbox/ at the app root, the
+	 * project gitignores it, and config/WireBox.cfc extends a coldbox class.
+	 * The implicit /coldbox mapping must make the extends resolve.
+	 */
+	@Test
+	void testExtendsResolvesThroughImplicitColdboxMappingWhenGitignored() throws Exception {
+		Files.writeString( tempDir.resolve( ".gitignore" ), "coldbox/\n" );
+		createTestFile( "Application.cfc", "component {}" );
+		createTestFile( "coldbox/system/ioc/config/Binder.cfc", "component {}" );
+		Path child = createTestFile( "config/WireBox.cfc", "component extends=\"coldbox.system.ioc.config.Binder\" {}" );
+
+		assertNoInvalidExtendsInTempWorkspace( child );
+	}
+
+	/**
+	 * Same for TestBox specs: tests/specs/FooSpec.cfc extends testbox.system.BaseSpec
+	 * while testbox/ is gitignored.
+	 */
+	@Test
+	void testExtendsResolvesThroughImplicitTestboxMappingWhenGitignored() throws Exception {
+		Files.writeString( tempDir.resolve( ".gitignore" ), "testbox/\n" );
+		createTestFile( "Application.cfc", "component {}" );
+		createTestFile( "testbox/system/BaseSpec.cfc", "component {}" );
+		Path spec = createTestFile( "tests/specs/FooSpec.cfc", "component extends=\"testbox.system.BaseSpec\" {}" );
+
+		assertNoInvalidExtendsInTempWorkspace( spec );
+	}
+
+	/**
+	 * Treat tempDir as the workspace root, resolve its mappings like the server
+	 * does on startup, open the file, and assert no invalidExtends diagnostic.
+	 */
+	private void assertNoInvalidExtendsInTempWorkspace( Path sourceFile ) throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		WorkspaceFolder			folder			= new WorkspaceFolder();
+		folder.setName( "temp-workspace" );
+		folder.setUri( tempDir.toUri().toString() );
+
+		String sourceText = Files.readString( sourceFile );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			MappingResolver.invalidate( tempDir );
+			index.reinitialize( tempDir, MappingResolver.resolve( tempDir ) );
+			provider.setIndex( index );
+
+			provider.trackDocumentOpen( sourceFile.toUri(), sourceText );
+			List<Diagnostic>	diagnostics		= provider.getFileDiagnostics( sourceFile.toUri() );
+
+			Diagnostic			invalidExtends	= diagnostics.stream()
+			    .filter( diagnostic -> diagnostic.getCode() != null && "invalidExtends".equals( diagnostic.getCode().getLeft() ) )
+			    .findFirst()
+			    .orElse( null );
+
+			assertThat( invalidExtends ).isNull();
+		} finally {
+			provider.trackDocumentClose( sourceFile.toUri() );
+			provider.setWorkspaceFolders( savedFolders );
+			MappingResolver.invalidate( tempDir );
+		}
+	}
 }
