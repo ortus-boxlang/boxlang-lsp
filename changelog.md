@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-09-19
+
 - Bump BoxLang version to 1.17.0
 - BLIDE-324 Add semantic warning for possibleTypos
 - BLIDE-327 Fix LSP to safely detect source
@@ -151,7 +153,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverted LSP to be a BoxLang module
 - BLIDE-96 Added version info
 
-[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.12.0...HEAD
+[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.13.0...HEAD
+[1.13.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.9.0...v1.10.0
