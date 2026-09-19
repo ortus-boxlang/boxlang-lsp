@@ -1,6 +1,7 @@
 package ortus.boxlang.lsp;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import java.io.IOException;
 import java.util.List;
@@ -10,6 +11,7 @@ import org.eclipse.lsp4j.Diagnostic;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import ortus.boxlang.compiler.ast.expression.BoxStringInterpolation;
 import ortus.boxlang.compiler.parser.CFParser;
 import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlang.lsp.workspace.visitors.QueryParamVisitor;
@@ -56,6 +58,25 @@ public class QueryParamVisitorTest extends BaseTest {
 		assertThat( action.getEdit().getChanges().get( "test" ).getFirst().getRange().getEnd().getCharacter() ).isEqualTo( 29 );
 		assertThat( action.getEdit().getChanges().get( "test" ).getFirst().getNewText() )
 		    .isEqualTo( "<cfqueryparam value=\"#paramRef#\">" );
+	}
+
+	@DisplayName( "It should ignore interpolations without source text" )
+	@Test
+	public void testMissingInterpolationSourceTextDoesNotAbortVisitor() throws IOException {
+		CFParser		parser	= new CFParser();
+		ParsingResult	result	= parser.parse(
+		    "<cfquery datasource=\"#thing#\">\n"
+		        + "\tSELECT * FROM items\n"
+		        + "\tWHERE id = '#paramRef#'\n"
+		        + "</cfquery>",
+		    false );
+
+		result.getRoot().getDescendantsOfType( BoxStringInterpolation.class ).forEach( interpolation -> interpolation.setSourceText( null ) );
+
+		QueryParamVisitor visitor = new QueryParamVisitor();
+		visitor.setFilePath( "test" );
+
+		assertDoesNotThrow( () -> result.getRoot().accept( visitor ) );
 	}
 
 	@DisplayName( "It should identify list contexts" )

@@ -19,6 +19,7 @@
 package ortus.boxlang.lsp;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.nio.file.Files;
@@ -33,9 +34,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import ortus.boxlang.compiler.ast.expression.BoxFQN;
+import ortus.boxlang.compiler.ast.statement.BoxImport;
 import ortus.boxlang.lsp.lint.rules.UnreachableCodeRule;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
+import ortus.boxlang.lsp.workspace.visitors.SemanticWarningDiagnosticVisitor;
 import ortus.boxlang.runtime.BoxRuntime;
 
 /**
@@ -50,6 +54,14 @@ import ortus.boxlang.runtime.BoxRuntime;
  * - Missing return statement when return type hint is present
  */
 public class SemanticWarningDiagnosticsTest extends BaseTest {
+
+	@Test
+	void testImportWithoutSourceTextDoesNotAbortVisitor() {
+		BoxImport							importNode	= new BoxImport( new BoxFQN( "pkg.Type", null, null ), null, null, null );
+		SemanticWarningDiagnosticVisitor	visitor		= new SemanticWarningDiagnosticVisitor();
+
+		assertDoesNotThrow( () -> visitor.visit( importNode ) );
+	}
 
 	@TempDir
 	Path					tempDir;

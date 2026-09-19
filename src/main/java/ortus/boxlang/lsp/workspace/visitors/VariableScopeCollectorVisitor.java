@@ -2,6 +2,7 @@ package ortus.boxlang.lsp.workspace.visitors;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxNode;
@@ -25,6 +26,7 @@ import ortus.boxlang.compiler.ast.statement.BoxTryCatch;
 import ortus.boxlang.compiler.ast.statement.BoxForIndex;
 import ortus.boxlang.compiler.ast.statement.BoxForIn;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
+import ortus.boxlang.lsp.workspace.BLASTTools;
 
 /**
  * Visitor that collects variable scope and type information for hover purposes.
@@ -241,7 +243,7 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 		// Get required status directly from the node
 		boolean			isRequired		= node.getRequired();
 
-		String			defaultValue	= node.getValue() != null ? node.getValue().getSourceText() : null;
+		String			defaultValue	= BLASTTools.getValue( node.getValue() ).orElse( null );
 
 		int				line			= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
 
@@ -269,11 +271,15 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 
 		// Extract property name and type from annotations
 		for ( var annotation : node.getAnnotations() ) {
-			String key = annotation.getKey().getValue().toLowerCase();
-			if ( key.equals( "name" ) && annotation.getValue() != null ) {
-				name = annotation.getValue().getSourceText().replace( "\"", "" ).replace( "'", "" );
-			} else if ( key.equals( "type" ) && annotation.getValue() != null ) {
-				typeHint = annotation.getValue().getSourceText().replace( "\"", "" ).replace( "'", "" );
+			String key = BLASTTools.getAnnotationName( annotation ).map( String::toLowerCase ).orElse( null );
+			if ( "name".equals( key ) ) {
+				name = BLASTTools.getAnnotationValue( annotation )
+				    .map( value -> value.replace( "\"", "" ).replace( "'", "" ) )
+				    .orElse( null );
+			} else if ( "type".equals( key ) ) {
+				typeHint = BLASTTools.getAnnotationValue( annotation )
+				    .map( value -> value.replace( "\"", "" ).replace( "'", "" ) )
+				    .orElse( null );
 			}
 		}
 
@@ -401,19 +407,18 @@ public class VariableScopeCollectorVisitor extends VoidBoxVisitor {
 			return "struct";
 		} else if ( expression instanceof BoxNew newExpr ) {
 			// Try to extract the class name
-			BoxNode expr = newExpr.getExpression();
-			if ( expr != null ) {
-				String sourceText = expr.getSourceText();
-				if ( sourceText != null ) {
-					// Get just the class name (last part)
-					int	lastDot			= sourceText.lastIndexOf( '.' );
-					int	lastColon		= sourceText.lastIndexOf( ':' );
-					int	lastSeparator	= Math.max( lastDot, lastColon );
-					if ( lastSeparator >= 0 && lastSeparator < sourceText.length() - 1 ) {
-						return sourceText.substring( lastSeparator + 1 );
-					}
-					return sourceText;
+			BoxNode				expr		= newExpr.getExpression();
+			Optional<String>	sourceText	= BLASTTools.getValue( expr );
+			if ( sourceText.isPresent() ) {
+				// Get just the class name (last part)
+				String	value			= sourceText.get();
+				int		lastDot			= value.lastIndexOf( '.' );
+				int		lastColon		= value.lastIndexOf( ':' );
+				int		lastSeparator	= Math.max( lastDot, lastColon );
+				if ( lastSeparator >= 0 && lastSeparator < value.length() - 1 ) {
+					return value.substring( lastSeparator + 1 );
 				}
+				return value;
 			}
 		}
 

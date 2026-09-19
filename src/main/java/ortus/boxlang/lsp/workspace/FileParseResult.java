@@ -37,6 +37,8 @@ import ortus.boxlang.lsp.App;
 import ortus.boxlang.lsp.DocumentSymbolBoxNodeVisitor;
 import ortus.boxlang.lsp.SourceCodeVisitor;
 import ortus.boxlang.lsp.SourceCodeVisitorService;
+import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
+import ortus.boxlang.lsp.lint.rules.PossibleTypoRule;
 import ortus.boxlang.lsp.workspace.types.ParsedProperty;
 import ortus.boxlang.lsp.workspace.visitors.FunctionReturnDiagnosticVisitor;
 import ortus.boxlang.lsp.workspace.visitors.PropertyVisitor;
@@ -314,7 +316,7 @@ public class FileParseResult {
 	}
 
 	private List<Diagnostic> generateMalformedFunctionDiagnostics( BoxNode astRoot ) {
-		if ( ! ( astRoot instanceof BoxClass boxClass ) ) {
+		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( PossibleTypoRule.ID, true ) || ! ( astRoot instanceof BoxClass boxClass ) ) {
 			return List.of();
 		}
 
@@ -343,7 +345,13 @@ public class FileParseResult {
 		String	keyword				= identifier.toLowerCase( Locale.ROOT );
 		String	expected			= "function";
 		int		lengthDifference	= Math.abs( keyword.length() - expected.length() );
-		if ( keyword.equals( expected ) || lengthDifference > 1 ) {
+		if ( keyword.equals( expected ) ) {
+			return false;
+		}
+		if ( keyword.startsWith( expected ) ) {
+			return true;
+		}
+		if ( lengthDifference > 1 ) {
 			return false;
 		}
 

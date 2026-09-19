@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.expression.BoxAssignment;
@@ -13,6 +14,7 @@ import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
+import ortus.boxlang.lsp.workspace.BLASTTools;
 
 /**
  * Resolves variable usages to their declaration sites.
@@ -122,29 +124,20 @@ public class VariableDefinitionResolver {
 	 * Collect a property declaration.
 	 */
 	private void collectProperty( BoxProperty node ) {
-		String name = null;
-
-		// Extract property name from annotations
-		for ( var annotation : node.getAnnotations() ) {
-			String key = annotation.getKey().getValue().toLowerCase();
-			if ( key.equals( "name" ) && annotation.getValue() != null ) {
-				name = annotation.getValue().getSourceText().replace( "\"", "" ).replace( "'", "" );
-				break;
-			}
+		Optional<String> name = BLASTTools.getPropertyName( node );
+		if ( name.isEmpty() ) {
+			return;
 		}
 
-		if ( name != null ) {
-			int					line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+		int					line	= node.getPosition() != null ? node.getPosition().getStart().getLine() : 0;
+		VariableDeclaration	decl	= new VariableDeclaration(
+		    name.get(),
+		    node,
+		    DeclarationType.PROPERTY,
+		    line
+		);
 
-			VariableDeclaration	decl	= new VariableDeclaration(
-			    name,
-			    node,
-			    DeclarationType.PROPERTY,
-			    line
-			);
-
-			classDeclarations.add( decl );
-		}
+		classDeclarations.add( decl );
 	}
 
 	/**

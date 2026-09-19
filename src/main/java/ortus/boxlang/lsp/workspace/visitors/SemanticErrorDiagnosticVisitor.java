@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
@@ -226,24 +227,24 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 			return;
 		}
 
-		String propertyName = BLASTTools.getPropertyName( node );
-		if ( propertyName == null ) {
+		Optional<String> propertyName = BLASTTools.getPropertyName( node );
+		if ( propertyName.isEmpty() ) {
 			return;
 		}
 
-		propertyName = propertyName.toLowerCase();
+		String normalizedPropertyName = propertyName.get().toLowerCase();
 
-		if ( seenProperties.contains( propertyName ) ) {
+		if ( seenProperties.contains( normalizedPropertyName ) ) {
 			Diagnostic diagnostic = new Diagnostic(
 			    ProjectContextProvider.positionToRange( node.getPosition() ),
-			    "Duplicate property definition: '" + propertyName + "' is already defined in this class.",
+			    "Duplicate property definition: '" + normalizedPropertyName + "' is already defined in this class.",
 			    DiagnosticSeverity.Error,
 			    "boxlang",
 			    DuplicatePropertyRule.ID
 			);
 			diagnostics.add( diagnostic );
 		} else {
-			seenProperties.add( propertyName );
+			seenProperties.add( normalizedPropertyName );
 		}
 	}
 
@@ -278,13 +279,14 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 	 */
 	private Range getClassDeclarationRange( BoxNode node ) {
 		// Get the full source text of the class/interface
-		String sourceText = node.getSourceText();
-		if ( sourceText == null || sourceText.isEmpty() ) {
+		Optional<String> sourceTextOpt = BLASTTools.getSourceText( node );
+		if ( sourceTextOpt.isEmpty() || sourceTextOpt.get().isEmpty() ) {
 			// Fallback to full node range if no source text
 			return ProjectContextProvider.positionToRange( node.getPosition() );
 		}
+		String	sourceText				= sourceTextOpt.get();
 
-		int declarationEndOffset = findDeclarationEndOffset( sourceText );
+		int		declarationEndOffset	= findDeclarationEndOffset( sourceText );
 		if ( declarationEndOffset < 0 ) {
 			// No opening brace or template tag end found, use full range
 			return ProjectContextProvider.positionToRange( node.getPosition() );
@@ -901,7 +903,7 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 
 	private String extractExtends( List<BoxAnnotation> annotations ) {
 		return annotations.stream()
-		    .filter( a -> a.getKey().getValue().equalsIgnoreCase( "extends" ) )
+		    .filter( a -> BLASTTools.getAnnotationName( a ).filter( name -> name.equalsIgnoreCase( "extends" ) ).isPresent() )
 		    .findFirst()
 		    .map( this::extractAnnotationValue )
 		    .orElse( null );
@@ -909,26 +911,14 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 
 	private List<String> extractImplements( List<BoxAnnotation> annotations ) {
 		return annotations.stream()
-		    .filter( a -> a.getKey().getValue().equalsIgnoreCase( "implements" ) )
+		    .filter( a -> BLASTTools.getAnnotationName( a ).filter( name -> name.equalsIgnoreCase( "implements" ) ).isPresent() )
 		    .findFirst()
 		    .map( this::extractAnnotationValueAsList )
 		    .orElse( new ArrayList<>() );
 	}
 
 	private String extractAnnotationValue( BoxAnnotation annotation ) {
-		if ( annotation.getValue() == null ) {
-			return null;
-		}
-
-		if ( annotation.getValue() instanceof BoxStringLiteral bsl ) {
-			return bsl.getValue();
-		}
-
-		if ( annotation.getValue() instanceof BoxFQN fqn ) {
-			return fqn.getValue();
-		}
-
-		return annotation.getValue().getSourceText();
+		return BLASTTools.getAnnotationValue( annotation ).orElse( null );
 	}
 
 	private List<String> extractAnnotationValueAsList( BoxAnnotation annotation ) {
@@ -945,7 +935,7 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 				} else if ( element instanceof BoxFQN fqn ) {
 					values.add( fqn.getValue() );
 				} else {
-					values.add( element.getSourceText() );
+					BLASTTools.getValue( element ).ifPresent( values::add );
 				}
 			}
 		} else if ( annotation.getValue() instanceof BoxStringLiteral bsl ) {
@@ -961,14 +951,15 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 		} else if ( annotation.getValue() instanceof BoxFQN fqn ) {
 			values.add( fqn.getValue() );
 		} else {
-			String text = annotation.getValue().getSourceText();
-			if ( text != null && text.contains( "," ) ) {
-				for ( String part : text.split( "," ) ) {
-					values.add( part.trim() );
+			BLASTTools.getAnnotationValue( annotation ).ifPresent( text -> {
+				if ( text.contains( "," ) ) {
+					for ( String part : text.split( "," ) ) {
+						values.add( part.trim() );
+					}
+				} else {
+					values.add( text );
 				}
-			} else if ( text != null ) {
-				values.add( text );
-			}
+			} );
 		}
 
 		return values;

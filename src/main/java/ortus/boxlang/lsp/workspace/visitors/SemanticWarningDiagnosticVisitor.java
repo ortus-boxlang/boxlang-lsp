@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.eclipse.lsp4j.CodeAction;
@@ -55,6 +56,7 @@ import ortus.boxlang.compiler.ast.statement.BoxTryCatch;
 import ortus.boxlang.compiler.ast.statement.BoxType;
 import ortus.boxlang.lsp.SourceCodeVisitor;
 import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
+import ortus.boxlang.lsp.workspace.BLASTTools;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.lint.rules.EmptyCatchBlockRule;
 import ortus.boxlang.lsp.lint.rules.MissingReturnStatementRule;
@@ -281,8 +283,7 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 		}
 
 		if ( node instanceof BoxBufferOutput ) {
-			String sourceText = node.getSourceText();
-			return sourceText == null || sourceText.isBlank();
+			return BLASTTools.getSourceText( node ).map( String::isBlank ).orElse( true );
 		}
 
 		return false;
@@ -418,7 +419,11 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 
 		// Otherwise extract the class name from the import expression
 		if ( node.getExpression() != null ) {
-			String	fullPath		= node.getExpression().getSourceText();
+			Optional<String> fullPathOpt = BLASTTools.getValue( node.getExpression() );
+			if ( fullPathOpt.isEmpty() ) {
+				return null;
+			}
+			String	fullPath		= fullPathOpt.get();
 			// Get the last part after the last dot or colon
 			int		lastDot			= fullPath.lastIndexOf( '.' );
 			int		lastColon		= fullPath.lastIndexOf( ':' );
@@ -450,10 +455,7 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 	@Override
 	public void visit( BoxMethodInvocation node ) {
 		// Track method calls - getName() returns a BoxExpression, get source text
-		String methodName = node.getName().getSourceText();
-		if ( methodName != null ) {
-			calledMethods.add( methodName.toLowerCase() );
-		}
+		BLASTTools.getName( node ).ifPresent( methodName -> calledMethods.add( methodName.toLowerCase() ) );
 		visitChildren( node );
 	}
 

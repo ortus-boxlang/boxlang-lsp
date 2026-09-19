@@ -19,12 +19,12 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxInterface;
 import ortus.boxlang.compiler.ast.BoxNode;
-import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxProperty;
 import ortus.boxlang.compiler.ast.visitor.VoidBoxVisitor;
+import ortus.boxlang.lsp.workspace.BLASTTools;
 
 public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
 
@@ -93,17 +93,12 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
 		DocumentSymbol	property		= new DocumentSymbol();
 		BoxAnnotation	nameAnnotation	= node.getAllAnnotations()
 		    .stream()
-		    .filter( annotation -> annotation.getKey().getValue().equalsIgnoreCase( "name" ) )
+		    .filter( annotation -> BLASTTools.getAnnotationName( annotation ).filter( name -> name.equalsIgnoreCase( "name" ) ).isPresent() )
 		    .findFirst()
 		    .orElseGet( () -> node.getAllAnnotations().get( 0 ) );
 
-		if ( nameAnnotation.getValue() == null ) {
-			property.setName( nameAnnotation.getKey().getValue() );
-		} else if ( nameAnnotation.getValue() instanceof BoxStringLiteral bsl ) {
-			property.setName( bsl.getValue() );
-		} else {
-			property.setName( nameAnnotation.getValue().toString() );
-		}
+		property.setName( BLASTTools.getAnnotationValue( nameAnnotation )
+		    .orElseGet( () -> BLASTTools.getAnnotationName( nameAnnotation ).orElse( "property" ) ) );
 		property.setKind( SymbolKind.Property );
 
 		// Extract type hint for detail
@@ -200,16 +195,9 @@ public class DocumentSymbolBoxNodeVisitor extends VoidBoxVisitor {
 	private String getPropertyTypeHint( BoxProperty node ) {
 		return node.getAllAnnotations()
 		    .stream()
-		    .filter( annotation -> annotation.getKey().getValue().equalsIgnoreCase( "type" ) )
+		    .filter( annotation -> BLASTTools.getAnnotationName( annotation ).filter( name -> name.equalsIgnoreCase( "type" ) ).isPresent() )
 		    .findFirst()
-		    .map( annotation -> {
-			    if ( annotation.getValue() instanceof BoxStringLiteral bsl ) {
-				    return bsl.getValue();
-			    } else if ( annotation.getValue() != null ) {
-				    return annotation.getValue().toString();
-			    }
-			    return null;
-		    } )
+		    .flatMap( BLASTTools::getAnnotationValue )
 		    .orElse( null );
 	}
 

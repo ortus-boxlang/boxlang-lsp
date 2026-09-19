@@ -19,11 +19,13 @@
 package ortus.boxlang.lsp;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -34,9 +36,27 @@ import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.junit.jupiter.api.Test;
 
+import ortus.boxlang.compiler.ast.expression.BoxAssignment;
+import ortus.boxlang.compiler.parser.CFParser;
+import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
+import ortus.boxlang.lsp.workspace.visitors.UnscopedVariableDiagnosticVisitor;
 
 public class UnscopedVariablesTest extends BaseTest {
+
+	@Test
+	void testMissingAssignmentSourceTextDoesNotAbortVisitor() throws IOException {
+		ParsingResult	result		= new CFParser().parse(
+		    "<cffunction name=\"test\">\n"
+		        + "\t<cfset missing = 1>\n"
+		        + "</cffunction>",
+		    false );
+		BoxAssignment	assignment	= result.getRoot().getDescendantsOfType( BoxAssignment.class ).getFirst();
+		assignment.getLeft().setSourceText( null );
+
+		UnscopedVariableDiagnosticVisitor visitor = new UnscopedVariableDiagnosticVisitor();
+		assertDoesNotThrow( () -> result.getRoot().accept( visitor ) );
+	}
 
 	@Test
 	void testReturnWarningForUnscopedVariable() {

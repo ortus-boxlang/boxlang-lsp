@@ -18,7 +18,6 @@ import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxInterface;
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.expression.BoxArrayLiteral;
-import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 
@@ -185,11 +184,9 @@ public class DiagnosticSuppressionFilter {
 	}
 
 	private static boolean isSuppressWarningsAnnotation( BoxAnnotation annotation ) {
-		if ( annotation == null || annotation.getKey() == null || annotation.getKey().getValue() == null ) {
-			return false;
-		}
-
-		return SUPPRESS_WARNINGS_KEY.equals( annotation.getKey().getValue().trim().toLowerCase( Locale.ROOT ) );
+		return BLASTTools.getAnnotationName( annotation )
+		    .map( value -> SUPPRESS_WARNINGS_KEY.equals( value.trim().toLowerCase( Locale.ROOT ) ) )
+		    .orElse( false );
 	}
 
 	private static SuppressionRule toSuppressionRule( BoxAnnotation annotation ) {
@@ -386,25 +383,17 @@ public class DiagnosticSuppressionFilter {
 
 		if ( annotation.getValue() instanceof BoxArrayLiteral arrayLiteral ) {
 			for ( BoxNode valueNode : arrayLiteral.getValues() ) {
-				ruleIds.addAll( parseRuleList( sourceTextForValue( valueNode ) ) );
+				ruleIds.addAll( parseRuleList( valueForNode( valueNode ) ) );
 			}
 			return ruleIds;
 		}
 
-		ruleIds.addAll( parseRuleList( sourceTextForValue( annotation.getValue() ) ) );
+		ruleIds.addAll( parseRuleList( valueForNode( annotation.getValue() ) ) );
 		return ruleIds;
 	}
 
-	private static String sourceTextForValue( BoxNode valueNode ) {
-		if ( valueNode == null ) {
-			return "";
-		}
-
-		if ( valueNode instanceof BoxStringLiteral boxStringLiteral ) {
-			return boxStringLiteral.getValue();
-		}
-
-		return valueNode.getSourceText();
+	private static String valueForNode( BoxNode valueNode ) {
+		return BLASTTools.getValue( valueNode ).orElse( null );
 	}
 
 	private static List<String> parseRuleList( String rawValue ) {

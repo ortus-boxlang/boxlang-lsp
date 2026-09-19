@@ -1,6 +1,7 @@
 package ortus.boxlang.lsp.index;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import ortus.boxlang.compiler.ast.statement.BoxDocumentationAnnotation;
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlang.lsp.BaseTest;
@@ -25,6 +27,18 @@ import ortus.boxlang.lsp.workspace.index.ProjectIndexVisitor;
 import ortus.boxlang.runtime.BoxRuntime;
 
 class ProjectIndexVisitorTest extends BaseTest {
+
+	@Test
+	void testDocumentationWithoutSourceTextDoesNotAbortIndexing() throws Exception {
+		Path testFile = tempDir.resolve( "DocumentedClass.bx" );
+		Files.writeString( testFile, "/** @author Test */ class {}" );
+		ParsingResult result = new Parser().parse( testFile.toFile(), false );
+		result.getRoot().getDescendantsOfType( BoxDocumentationAnnotation.class )
+		    .forEach( annotation -> annotation.getValue().setSourceText( null ) );
+
+		ProjectIndexVisitor visitor = new ProjectIndexVisitor( testFile.toUri(), tempDir );
+		assertDoesNotThrow( () -> result.getRoot().accept( visitor ) );
+	}
 
 	@TempDir
 	Path				tempDir;

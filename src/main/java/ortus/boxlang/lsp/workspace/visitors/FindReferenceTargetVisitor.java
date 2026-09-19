@@ -207,8 +207,9 @@ public class FindReferenceTargetVisitor extends VoidBoxVisitor {
 			return;
 		}
 
-		String key = node.getKey().getValue().toLowerCase();
-		if ( key.equals( "extends" ) || key.equals( "implements" ) ) {
+		if ( BLASTTools.getAnnotationName( node )
+		    .filter( key -> key.equalsIgnoreCase( "extends" ) || key.equalsIgnoreCase( "implements" ) )
+		    .isPresent() ) {
 			// Check if cursor is on the value
 			if ( node.getValue() != null && BLASTTools.containsPosition( node.getValue(), line, column ) ) {
 				this.referenceTarget = node;

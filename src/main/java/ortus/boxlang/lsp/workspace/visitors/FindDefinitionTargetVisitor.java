@@ -299,10 +299,10 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 			return;
 		}
 
-		String key = node.getKey().getValue().toLowerCase();
-
 		// Handle extends and implements annotations
-		if ( key.equals( "extends" ) || key.equals( "implements" ) ) {
+		if ( BLASTTools.getAnnotationName( node )
+		    .filter( key -> key.equalsIgnoreCase( "extends" ) || key.equalsIgnoreCase( "implements" ) )
+		    .isPresent() ) {
 			// Check if cursor is on the value (the class/interface name)
 			if ( node.getValue() != null && BLASTTools.containsPosition( node.getValue(), line, column ) ) {
 				// Set the annotation as target so we can extract the class name from it
@@ -328,13 +328,13 @@ public class FindDefinitionTargetVisitor extends VoidBoxVisitor {
 
 		// Check if this string literal is the value of an extends or implements annotation
 		BoxNode parent = node.getParent();
-		if ( parent instanceof BoxAnnotation annotation ) {
-			String key = annotation.getKey().getValue().toLowerCase();
-			if ( key.equals( "extends" ) || key.equals( "implements" ) ) {
-				// Set the parent annotation as target
-				this.definitionTarget = annotation;
-				return;
-			}
+		if ( parent instanceof BoxAnnotation annotation
+		    && BLASTTools.getAnnotationName( annotation )
+		        .filter( key -> key.equalsIgnoreCase( "extends" ) || key.equalsIgnoreCase( "implements" ) )
+		        .isPresent() ) {
+			// Set the parent annotation as target
+			this.definitionTarget = annotation;
+			return;
 		}
 
 		// For other string literals, don't set as target
