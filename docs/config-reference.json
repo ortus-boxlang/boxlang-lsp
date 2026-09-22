@@ -113,7 +113,7 @@
         "id": "possibleTypo",
         "defaultSeverity": "warning",
         "since": "",
-        "description": "Reports identifiers that are likely misspellings of a visible identifier or BoxLang keyword. Configure keywordDistance and identifierDistance in rule params."
+        "description": "Reports likely misspellings of the function keyword in class pseudo-constructors."
       },
       {
         "id": "shadowedVariable",

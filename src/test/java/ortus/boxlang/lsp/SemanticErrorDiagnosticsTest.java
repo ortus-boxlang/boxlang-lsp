@@ -164,69 +164,87 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 	}
 
 	@Test
-	void testPossibleTypoSuggestsUserDefinedIdentifier() throws Exception {
+	void testPossibleTypoIgnoresIdentifiersNestedInFunctionArguments() throws Exception {
 		String	classCode	= """
 		                      class {
-		                          function calculateTotal() { return 1; }
-		                          function caller() { return calculatTotal(); }
+		                          function caller() {
+		                              return echo( params );
+		                          }
 		                      }
 		                      """;
 
-		Path	testFile	= createTestFile( "PossibleTypoUserIdentifier.bx", classCode );
-		index.indexFile( testFile.toUri() );
-
-		Diagnostic typo = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
-		    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
-		    .findFirst()
-		    .orElse( null );
-
-		assertThat( typo ).isNotNull();
-		assertThat( typo.getSeverity() ).isEqualTo( DiagnosticSeverity.Warning );
-		assertThat( typo.getMessage().getLeft() ).contains( "calculateTotal" );
-	}
-
-	@Test
-	void testPossibleTypoPrefersCurrentFileIdentifierBeforeGlobalBif() throws Exception {
-		String	classCode	= """
-		                      class {
-		                          function what() { return "bx"; }
-		                          function thing() { return wht(); }
-		                      }
-		                      """;
-
-		Path	testFile	= createTestFile( "PossibleTypoCurrentFileBeforeBif.bx", classCode );
+		Path	testFile	= createTestFile( "PossibleTypoNestedFunctionArgument.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
 		List<Diagnostic> typoDiagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
 		    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
 		    .toList();
 
-		assertThat( typoDiagnostics ).hasSize( 1 );
-		assertThat( typoDiagnostics.getFirst().getMessage().getLeft() ).isEqualTo( "Possible typo: 'wht' may be 'what'." );
+		assertThat( typoDiagnostics ).isEmpty();
 	}
 
 	@Test
-	void testPossibleTypoOffersQuickFixForUserDefinedIdentifier() throws Exception {
+	void testPossibleTypoIgnoresIdentifiersInNestedFunctionBlock() throws Exception {
 		String	classCode	= """
 		                      class {
-		                          function calculateTotal() { return 1; }
-		                          function caller() { return calculatTotal(); }
+		                          function caller() {
+		                              if ( true ) {
+		                                  params;
+		                              }
+		                          }
 		                      }
 		                      """;
 
-		Path	testFile	= createTestFile( "PossibleTypoUserIdentifierQuickFix.bx", classCode );
+		Path	testFile	= createTestFile( "PossibleTypoNestedFunctionBlock.bx", classCode );
 		index.indexFile( testFile.toUri() );
 
-		Diagnostic	typo	= ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
+		List<Diagnostic> typoDiagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
 		    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
-		    .findFirst()
-		    .orElseThrow();
-		CodeAction	action	= getAvailableCodeActions( ProjectContextProvider.getInstance(), testFile, typo ).stream().findFirst().orElseThrow();
+		    .toList();
 
-		assertThat( action.getTitle() ).isEqualTo( "Replace 'calculatTotal' with 'calculateTotal'" );
-		assertThat( action.getKind() ).isEqualTo( CodeActionKind.QuickFix );
-		assertThat( getEditedText( action.getEdit(), testFile.toUri().toString() ) ).isEqualTo( "calculateTotal" );
-		assertThat( action.getEdit().getChanges().get( testFile.toUri().toString() ).getFirst().getRange() ).isEqualTo( typo.getRange() );
+		assertThat( typoDiagnostics ).isEmpty();
+	}
+
+	@Test
+	void testPossibleTypoIgnoresIdentifiersNestedInPseudoConstructorChain() throws Exception {
+		String	classCode	= """
+		                      class {
+		                          command( "init" )
+		                              .params( name: arguments.name )
+		                              .run();
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "PossibleTypoNestedPseudoConstructorChain.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> typoDiagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
+		    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
+		    .toList();
+
+		assertThat( typoDiagnostics ).isEmpty();
+	}
+
+	@Test
+	void testPossibleTypoIgnoresIdentifiersInComments() throws Exception {
+		String	classCode	= """
+		                      class {
+		                          // params may be param, but this is only a comment
+		                          /* functionsefes is not a function */
+		                          function caller() {
+		                              return 1;
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "PossibleTypoComments.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> typoDiagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
+		    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
+		    .toList();
+
+		assertThat( typoDiagnostics ).isEmpty();
 	}
 
 	@Test
@@ -282,73 +300,6 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 	}
 
 	@Test
-	void testPossibleTypoSuggestsInheritedIdentifier() throws Exception {
-		Path parentFile = createTestFile( "Parent.bx", """
-		                                               class {
-		                                                   function calculateTotal() { return 1; }
-		                                               }
-		                                               """ );
-		index.indexFile( parentFile.toUri() );
-
-		Path childFile = createTestFile( "Child.bx", """
-		                                             class extends="Parent" {
-		                                                 function caller() { return calculatTotal(); }
-		                                             }
-		                                             """ );
-		index.indexFile( childFile.toUri() );
-
-		Diagnostic typo = ProjectContextProvider.getInstance().getFileDiagnostics( childFile.toUri() ).stream()
-		    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
-		    .findFirst()
-		    .orElse( null );
-
-		assertThat( typo ).isNotNull();
-		assertThat( typo.getMessage().getLeft() ).contains( "calculateTotal" );
-	}
-
-	@Test
-	void testPossibleTypoPrefersUserDefinedIdentifierBeforeKeyword() throws Exception {
-		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
-		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
-		Files.writeString( tempDir.resolve( ".bxlint.json" ), """
-		                                                      {
-		                                                        "diagnostics": {
-		                                                          "possibleTypo": {
-		                                                            "params": {
-		                                                              "keywordDistance": 5,
-		                                                              "identifierDistance": 1
-		                                                            }
-		                                                          }
-		                                                        }
-		                                                      }
-		                                                      """ );
-		Path			testFile	= createTestFile( "PossibleTypoIdentifierPrecedence.bx", """
-		                                                                                     class {
-		                                                                                         function functionsefes() { return "defined"; }
-		                                                                                         function caller() { return functionsefe(); }
-		                                                                                     }
-		                                                                                     """ );
-		WorkspaceFolder	folder		= new WorkspaceFolder();
-		folder.setUri( tempDir.toUri().toString() );
-
-		try {
-			provider.setWorkspaceFolders( List.of( folder ) );
-			LintConfigLoader.invalidate();
-			index.indexFile( testFile.toUri() );
-
-			List<Diagnostic> typoDiagnostics = provider.getFileDiagnostics( testFile.toUri() ).stream()
-			    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
-			    .toList();
-
-			assertThat( typoDiagnostics ).hasSize( 1 );
-			assertThat( typoDiagnostics.getFirst().getMessage().getLeft() ).contains( "functionsefes" );
-		} finally {
-			provider.setWorkspaceFolders( savedFolders );
-			LintConfigLoader.invalidate();
-		}
-	}
-
-	@Test
 	void testPossibleTypoRuleCanBeDisabled() throws Exception {
 		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
 		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
@@ -377,89 +328,6 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 			assertThat( provider.getFileDiagnostics( testFile.toUri() ).stream()
 			    .filter( d -> d.getSeverity() == DiagnosticSeverity.Error )
 			    .toList() ).isEmpty();
-		} finally {
-			provider.setWorkspaceFolders( savedFolders );
-			LintConfigLoader.invalidate();
-		}
-	}
-
-	@Test
-	void testPossibleTypoUsesConfiguredKeywordDistance() throws Exception {
-		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
-		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
-		Files.writeString( tempDir.resolve( ".bxlint.json" ), """
-		                                                      {
-		                                                        "diagnostics": {
-		                                                          "possibleTypo": {
-		                                                            "params": {
-		                                                              "keywordDistance": 5
-		                                                            }
-		                                                          }
-		                                                        }
-		                                                      }
-		                                                      """ );
-		Path			testFile	= createTestFile( "PossibleTypoKeywordDistance.bx", """
-		                                                                                class {
-		                                                                                    functionsefes x() { return "test"; }
-		                                                                                }
-		                                                                                """ );
-		WorkspaceFolder	folder		= new WorkspaceFolder();
-		folder.setUri( tempDir.toUri().toString() );
-
-		try {
-			provider.setWorkspaceFolders( List.of( folder ) );
-			LintConfigLoader.invalidate();
-			index.indexFile( testFile.toUri() );
-
-			Diagnostic typo = provider.getFileDiagnostics( testFile.toUri() ).stream()
-			    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
-			    .findFirst()
-			    .orElse( null );
-
-			assertThat( typo ).isNotNull();
-			assertThat( typo.getSeverity() ).isEqualTo( DiagnosticSeverity.Warning );
-		} finally {
-			provider.setWorkspaceFolders( savedFolders );
-			LintConfigLoader.invalidate();
-		}
-	}
-
-	@Test
-	void testPossibleTypoUsesConfiguredIdentifierDistance() throws Exception {
-		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
-		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
-		Files.writeString( tempDir.resolve( ".bxlint.json" ), """
-		                                                      {
-		                                                        "diagnostics": {
-		                                                          "possibleTypo": {
-		                                                            "params": {
-		                                                              "identifierDistance": 1
-		                                                            }
-		                                                          }
-		                                                        }
-		                                                      }
-		                                                      """ );
-		Path			testFile	= createTestFile( "PossibleTypoIdentifierDistance.bx", """
-		                                                                                   class {
-		                                                                                       function calculateTotal() { return 1; }
-		                                                                                       function caller() { return calculatTotal(); }
-		                                                                                   }
-		                                                                                   """ );
-		WorkspaceFolder	folder		= new WorkspaceFolder();
-		folder.setUri( tempDir.toUri().toString() );
-
-		try {
-			provider.setWorkspaceFolders( List.of( folder ) );
-			LintConfigLoader.invalidate();
-			index.indexFile( testFile.toUri() );
-
-			Diagnostic typo = provider.getFileDiagnostics( testFile.toUri() ).stream()
-			    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
-			    .findFirst()
-			    .orElse( null );
-
-			assertThat( typo ).isNotNull();
-			assertThat( typo.getMessage().getLeft() ).contains( "calculateTotal" );
 		} finally {
 			provider.setWorkspaceFolders( savedFolders );
 			LintConfigLoader.invalidate();
