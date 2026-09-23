@@ -144,7 +144,7 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		String	classCode	= """
 		                      class {
 
-		                          functionsefes x (){
+		                          functoin x (){
 		                              return "test";
 		                          }
 		                      }
@@ -161,6 +161,68 @@ public class SemanticErrorDiagnosticsTest extends BaseTest {
 		    .orElse( null );
 
 		assertThat( syntaxError ).isNotNull();
+	}
+
+	@Test
+	void testPossibleTypoSuggestsTransposedFunctionKeywordInNamedClass() throws Exception {
+		String	classCode	= """
+		                      class Greeter {
+		                          functoin sayHello() {
+		                              return "Hello";
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "PossibleTypoTransposedFunctionKeyword.bx", classCode );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> typoDiagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
+		    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
+		    .toList();
+
+		assertThat( typoDiagnostics ).hasSize( 1 );
+		assertThat( typoDiagnostics.getFirst().getMessage().getLeft() ).isEqualTo( "Possible typo: 'functoin' may be 'function'." );
+	}
+
+	@Test
+	void testPossibleTypoUsesConfiguredKeywordDistance() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		Files.writeString( tempDir.resolve( ".bxlint.json" ), """
+		                                                      {
+		                                                        "diagnostics": {
+		                                                          "possibleTypo": {
+		                                                            "params": {
+		                                                              "keywordDistance": 1
+		                                                            }
+		                                                          }
+		                                                        }
+		                                                      }
+		                                                      """ );
+		Path			testFile	= createTestFile( "PossibleTypoKeywordDistance.bx", """
+		                                                                                 class Greeter {
+		                                                                                     functoin sayHello() {
+		                                                                                         return "Hello";
+		                                                                                     }
+		                                                                                }
+		                                                                                 """ );
+		WorkspaceFolder	folder		= new WorkspaceFolder();
+		folder.setUri( tempDir.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			LintConfigLoader.invalidate();
+			index.indexFile( testFile.toUri() );
+
+			List<Diagnostic> typoDiagnostics = provider.getFileDiagnostics( testFile.toUri() ).stream()
+			    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "possibleTypo".equals( d.getCode().getLeft() ) )
+			    .toList();
+
+			assertThat( typoDiagnostics ).isEmpty();
+		} finally {
+			provider.setWorkspaceFolders( savedFolders );
+			LintConfigLoader.invalidate();
+		}
 	}
 
 	@Test

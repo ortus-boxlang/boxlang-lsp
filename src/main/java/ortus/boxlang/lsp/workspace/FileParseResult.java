@@ -24,13 +24,8 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxNode;
-import ortus.boxlang.compiler.ast.BoxStatement;
 import ortus.boxlang.compiler.ast.Issue;
-import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
-import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
-import ortus.boxlang.compiler.ast.statement.BoxExpressionStatement;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
-import ortus.boxlang.compiler.ast.statement.BoxStatementBlock;
 import ortus.boxlang.compiler.parser.Parser;
 import ortus.boxlang.compiler.parser.ParsingResult;
 import ortus.boxlang.lsp.App;
@@ -320,65 +315,15 @@ public class FileParseResult {
 			return List.of();
 		}
 
-		List<Diagnostic>	diagnostics	= new ArrayList<>();
-		List<BoxStatement>	body		= boxClass.getBody();
-		for ( int i = 0; i + 2 < body.size(); i++ ) {
-			if ( ! ( body.get( i ) instanceof BoxExpressionStatement keywordStatement )
-			    || ! ( keywordStatement.getExpression() instanceof BoxIdentifier keyword )
-			    || !isFunctionKeywordTypo( keyword.getName() )
-			    || ! ( body.get( i + 1 ) instanceof BoxExpressionStatement invocationStatement )
-			    || ! ( invocationStatement.getExpression() instanceof BoxFunctionInvocation )
-			    || ! ( body.get( i + 2 ) instanceof BoxStatementBlock ) ) {
-				continue;
-			}
-
+		List<Diagnostic> diagnostics = new ArrayList<>();
+		for ( PossibleTypoDetector.Match match : PossibleTypoDetector.findFunctionKeywordTypos( boxClass ) ) {
 			Diagnostic diagnostic = new Diagnostic();
 			diagnostic.setSeverity( DiagnosticSeverity.Error );
 			diagnostic.setMessage( "Invalid function declaration: expected 'function'" );
-			diagnostic.setRange( BLASTTools.positionToRange( keywordStatement.getPosition() ) );
+			diagnostic.setRange( BLASTTools.positionToRange( match.statement().getPosition() ) );
 			diagnostics.add( diagnostic );
 		}
 		return diagnostics;
-	}
-
-	private boolean isFunctionKeywordTypo( String identifier ) {
-		String	keyword				= identifier.toLowerCase( Locale.ROOT );
-		String	expected			= "function";
-		int		lengthDifference	= Math.abs( keyword.length() - expected.length() );
-		if ( keyword.equals( expected ) ) {
-			return false;
-		}
-		if ( keyword.startsWith( expected ) ) {
-			return true;
-		}
-		if ( lengthDifference > 1 ) {
-			return false;
-		}
-
-		int	candidateIndex	= 0;
-		int	expectedIndex	= 0;
-		int	differences		= 0;
-		while ( candidateIndex < keyword.length() && expectedIndex < expected.length() ) {
-			if ( keyword.charAt( candidateIndex ) == expected.charAt( expectedIndex ) ) {
-				candidateIndex++;
-				expectedIndex++;
-				continue;
-			}
-
-			if ( ++differences > 1 ) {
-				return false;
-			}
-			if ( keyword.length() > expected.length() ) {
-				candidateIndex++;
-			} else if ( keyword.length() < expected.length() ) {
-				expectedIndex++;
-			} else {
-				candidateIndex++;
-				expectedIndex++;
-			}
-		}
-
-		return differences + Math.abs( ( keyword.length() - candidateIndex ) - ( expected.length() - expectedIndex ) ) <= 1;
 	}
 
 	private void fullyParse() {
