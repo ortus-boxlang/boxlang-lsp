@@ -555,4 +555,63 @@ public class MappingResolverTest extends BaseTest {
 			}
 		}
 	}
+
+	// ─── Cycle 23 ─────────────────────────────────────────────────────────────
+	// Workspace-level resolve adds /coldbox and /testbox when those folders exist.
+	// CommandBox installs them and projects gitignore them, so the mapping is the
+	// only way the index and extends lookup can find the framework classes.
+
+	@Test
+	void workspaceResolveIncludesImplicitColdboxAndTestboxMappings() throws Exception {
+		Path tempDir = Files.createTempDirectory( "coldboxFrameworkRoots" );
+		try {
+			Files.writeString( tempDir.resolve( "Application.cfc" ), "component {}" );
+			Path	coldboxDir	= Files.createDirectories( tempDir.resolve( "coldbox" ) );
+			Path	testboxDir	= Files.createDirectories( tempDir.resolve( "testbox" ) );
+
+			MappingResolver.invalidate( tempDir );
+			MappingConfig config = MappingResolver.resolve( tempDir );
+
+			assertEquals( coldboxDir.toAbsolutePath().normalize(), config.getMappings().get( "/coldbox" ),
+			    "A coldbox/ folder at the app root should be mapped as /coldbox" );
+			assertEquals( testboxDir.toAbsolutePath().normalize(), config.getMappings().get( "/testbox" ),
+			    "A testbox/ folder at the app root should be mapped as /testbox" );
+		} finally {
+			deleteRecursively( tempDir );
+		}
+	}
+
+	// ─── Cycle 24 ─────────────────────────────────────────────────────────────
+	// boxlang.json still wins over the implicit /coldbox mapping.
+
+	@Test
+	void boxlangJsonOverridesImplicitColdboxMapping() throws Exception {
+		Path tempDir = Files.createTempDirectory( "coldboxOverride" );
+		try {
+			Files.writeString( tempDir.resolve( "Application.cfc" ), "component {}" );
+			Files.createDirectories( tempDir.resolve( "coldbox" ) );
+			Path customDir = Files.createDirectories( tempDir.resolve( "vendor/coldbox" ) );
+			Files.writeString( tempDir.resolve( "boxlang.json" ), "{ \"mappings\": { \"/coldbox\": \"./vendor/coldbox\" } }" );
+
+			MappingResolver.invalidate( tempDir );
+			MappingConfig config = MappingResolver.resolve( tempDir );
+
+			assertEquals( customDir.toAbsolutePath().normalize(), config.getMappings().get( "/coldbox" ),
+			    "boxlang.json mapping should override the implicit /coldbox mapping" );
+		} finally {
+			deleteRecursively( tempDir );
+		}
+	}
+
+	private static void deleteRecursively( Path dir ) throws IOException {
+		try ( java.util.stream.Stream<Path> walk = Files.walk( dir ) ) {
+			walk.sorted( java.util.Comparator.reverseOrder() )
+			    .forEach( p -> {
+				    try {
+					    Files.deleteIfExists( p );
+				    } catch ( IOException ignored ) {
+				    }
+			    } );
+		}
+	}
 }
