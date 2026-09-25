@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-09-25
+
 - BLIDE-333 reduce possibleTypos rule coverage
 
 ## [1.13.0] - 2026-09-19
@@ -155,7 +157,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverted LSP to be a BoxLang module
 - BLIDE-96 Added version info
 
-[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.13.0...HEAD
+[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.14.0...HEAD
+[1.14.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.10.0...v1.11.0
