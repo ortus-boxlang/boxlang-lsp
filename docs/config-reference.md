@@ -51,7 +51,7 @@ Place boxlang.json at the workspace root (or any ancestor directory) to define v
 | `invalidImplements` | error |  | Flags implements references to interfaces that cannot be resolved. |
 | `missingQueryParamCfsqltype` | warning |  | Flags <cfqueryparam> tags that are missing a cfsqltype attribute. |
 | `missingReturnStatement` | warning |  | Flags functions with a non-void return type that lack a return statement in all code paths. |
-| `possibleTypo` | warning |  | Reports identifiers that are likely misspellings of a visible identifier or BoxLang keyword. Configure keywordDistance and identifierDistance in rule params. |
+| `possibleTypo` | warning |  | Reports likely misspellings that are difficult to detect. Configure keywordDistance in rule params. |
 | `shadowedVariable` | warning |  | Flags local variables that share the same name as a function parameter, shadowing it. |
 | `unescapedQueryParam` | warning |  | Flags query string interpolations that should be wrapped in <cfqueryparam>. |
 | `unreachableCode` | warning |  | Flags code appearing after control-flow statements like return, throw, or break that can never be executed. |
