@@ -1,7 +1,7 @@
 {
 	"name": "bx-lsp",
 	"version": "@build.version@+@build.number@",
-	"location": "https://downloads.ortussolutions.com/ortussolutions/boxlang-modules/bx-lsp/@build.version@/bx-lsp-@build.version@.zip",
+	"location": "forgeboxstorage",
 	"author": "Ortus Solutions",
 	"homepage": "https://github.com/ortus-boxlang/boxlang-lsp",
 	"documentation": "https://github.com/ortus-boxlang/boxlang-lsp",
@@ -17,7 +17,7 @@
 		"boxlang"
 	],
 	"boxlang": {
-		"minimumVersion": "1.13.0",
+		"minimumVersion": "1.17.0",
 		"moduleName": "bx-lsp"
 	},
 	"private": false,
