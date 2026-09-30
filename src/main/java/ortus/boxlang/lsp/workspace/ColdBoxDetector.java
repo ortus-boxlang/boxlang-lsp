@@ -52,6 +52,52 @@ public class ColdBoxDetector {
 	}
 
 	/**
+	 * Discover every implicit mapping for a CommandBox / ColdBox style app root.
+	 * These sit at the lowest precedence; boxlang.json, .bxlint.json,
+	 * Application.bx and IDE settings all override them.
+	 *
+	 * <p>
+	 * Mappings added:
+	 * <ul>
+	 * <li>{@code /testbox} → {@code {appRoot}/testbox} when that folder exists.
+	 * This does not require a ColdBox app, TestBox is used on its own too.
+	 * <li>{@code /coldbox} → {@code {appRoot}/coldbox} when this is a ColdBox app
+	 * and the folder exists.
+	 * <li>{@code /{moduleName}} for every module under {@code modules/} and
+	 * {@code modules_app/} when this is a ColdBox app (see
+	 * {@link #discoverModuleMappings(Path)}).
+	 * </ul>
+	 *
+	 * <p>
+	 * CommandBox installs these folders and projects usually gitignore them, so
+	 * the workspace scan skips them. Mapping them explicitly lets the index and
+	 * the extends / implements lookup find the framework classes anyway.
+	 *
+	 * @param appRoot the candidate application root directory
+	 *
+	 * @return map of virtual key → absolute path; empty when nothing applies, never null
+	 */
+	public static Map<String, Path> discoverImplicitMappings( Path appRoot ) {
+		Map<String, Path>	result	= new LinkedHashMap<>();
+		Path				testbox	= appRoot.resolve( "testbox" );
+
+		if ( Files.isDirectory( testbox ) ) {
+			result.put( "/testbox", testbox.toAbsolutePath().normalize() );
+		}
+
+		if ( isColdBoxApp( appRoot ) ) {
+			Path coldbox = appRoot.resolve( "coldbox" );
+			if ( Files.isDirectory( coldbox ) ) {
+				result.put( "/coldbox", coldbox.toAbsolutePath().normalize() );
+			}
+			// Framework roots win over a module that happens to share the name
+			discoverModuleMappings( appRoot ).forEach( result::putIfAbsent );
+		}
+
+		return result.isEmpty() ? Collections.emptyMap() : Collections.unmodifiableMap( result );
+	}
+
+	/**
 	 * Recursively discover implicit module mappings under
 	 * {@code {appRoot}/modules} and {@code {appRoot}/modules_app}.
 	 *

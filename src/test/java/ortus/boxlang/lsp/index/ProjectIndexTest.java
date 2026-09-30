@@ -10,6 +10,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import ortus.boxlang.lsp.BaseTest;
+import ortus.boxlang.lsp.workspace.MappingConfig;
 import ortus.boxlang.lsp.workspace.index.IndexedClass;
 import ortus.boxlang.lsp.workspace.index.IndexedMethod;
 import ortus.boxlang.lsp.workspace.index.IndexedProperty;
@@ -883,5 +885,62 @@ class ProjectIndexTest extends BaseTest {
 		Path testFile = tempDir.resolve( fileName );
 		Files.writeString( testFile, content );
 		return testFile;
+	}
+
+	// ============ Mapped folder indexing ============
+
+	/**
+	 * CommandBox installs coldbox/, testbox/ and modules/ and projects gitignore
+	 * them. A mapped folder must still be indexed even when the workspace
+	 * .gitignore excludes it, otherwise extends lookups and go-to-definition for
+	 * framework classes fail.
+	 */
+	@Test
+	void testInitializeIndexesGitignoredMappedFolder() throws Exception {
+		Files.writeString( tempDir.resolve( ".gitignore" ), "coldbox/\n" );
+		Path	coldboxDir		= Files.createDirectories( tempDir.resolve( "coldbox" ).resolve( "system" ) ).getParent();
+		Path	frameworkFile	= coldboxDir.resolve( "system" ).resolve( "Foo.bx" );
+		Files.writeString( frameworkFile, "class {}" );
+
+		MappingConfig	config		= new MappingConfig(
+		    Map.of( "/coldbox", coldboxDir ),
+		    List.of(),
+		    List.of(),
+		    tempDir );
+
+		ProjectIndex	mappedIndex	= new ProjectIndex();
+		mappedIndex.initialize( tempDir, config );
+
+		assertThat( mappedIndex.getIndexedFiles() ).contains( frameworkFile.toUri().toString() );
+		Optional<IndexedClass> found = mappedIndex.findClassByFQN( "coldbox.system.Foo" );
+		assertTrue( found.isPresent(), "Class under a gitignored mapped folder should be indexed with its virtual FQN" );
+	}
+
+	/**
+	 * A gitignored file that is NOT under a mapped folder must still be dropped
+	 * from the index on initialize (the BLIDE-280 behaviour).
+	 */
+	@Test
+	void testInitializeStillDropsGitignoredUnmappedFiles() throws Exception {
+		Files.writeString( tempDir.resolve( ".gitignore" ), "ignored/\n" );
+		Path ignoredFile = Files.createDirectories( tempDir.resolve( "ignored" ) ).resolve( "Ignored.bx" );
+		Files.writeString( ignoredFile, "class {}" );
+		Path			coldboxDir	= Files.createDirectories( tempDir.resolve( "coldbox" ) );
+
+		MappingConfig	config		= new MappingConfig(
+		    Map.of( "/coldbox", coldboxDir ),
+		    List.of(),
+		    List.of(),
+		    tempDir );
+
+		// Seed the index with the ignored file, then initialize with a config that does not map it
+		index.indexFile( ignoredFile.toUri() );
+		assertThat( index.getIndexedFiles() ).contains( ignoredFile.toUri().toString() );
+		index.saveCache();
+
+		ProjectIndex reloaded = new ProjectIndex();
+		reloaded.initialize( tempDir, config );
+
+		assertThat( reloaded.getIndexedFiles() ).doesNotContain( ignoredFile.toUri().toString() );
 	}
 }

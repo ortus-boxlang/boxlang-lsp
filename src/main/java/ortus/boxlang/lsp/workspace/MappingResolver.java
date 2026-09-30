@@ -180,14 +180,15 @@ public class MappingResolver {
 	 * precedence.
 	 *
 	 * <p>
-	 * ColdBox implicit module mappings are injected at the lowest priority
-	 * (below boxlang.json). Precedence stack:
+	 * Implicit ColdBox / TestBox mappings ({@code /coldbox}, {@code /testbox},
+	 * {@code /{module}}) are injected at the lowest priority (below boxlang.json).
+	 * Precedence stack:
 	 * <ol>
 	 * <li>VSCode mappings (highest)
 	 * <li>Application.bx
 	 * <li>.bxlint.json mappings
 	 * <li>boxlang.json
-	 * <li>ColdBox implicit modules (lowest)
+	 * <li>Implicit ColdBox / TestBox mappings (lowest)
 	 * </ol>
 	 */
 	private static MappingConfig mergeWithApplicationBx( Path appBxPath, Path workspaceRoot, Map<String, String> vscodeMappings ) {
@@ -204,15 +205,13 @@ public class MappingResolver {
 			}
 		}
 
-		// Merge precedence: ColdBox implicit (lowest) → boxlang.json → .bxlint.json → Application.bx
+		// Merge precedence: implicit ColdBox/TestBox (lowest) → boxlang.json → .bxlint.json → Application.bx
 		Map<String, Path> merged = new java.util.LinkedHashMap<>();
 
-		// 1. ColdBox implicit module mappings (lowest priority)
-		if ( ColdBoxDetector.isColdBoxApp( appDir ) ) {
-			merged.putAll( ColdBoxDetector.discoverModuleMappings( appDir ) );
-		}
+		// 1. Implicit ColdBox / TestBox mappings (lowest priority)
+		merged.putAll( ColdBoxDetector.discoverImplicitMappings( appDir ) );
 
-		// 2. boxlang.json overrides ColdBox implicit
+		// 2. boxlang.json overrides the implicit mappings
 		merged.putAll( base.getMappings() );
 
 		// 3. Application.bx overrides lower-priority config layers
@@ -257,18 +256,18 @@ public class MappingResolver {
 	}
 
 	private static MappingConfig computeConfig( Path workspaceRoot ) {
-		Path			configFile	= findConfigFile( workspaceRoot );
-		MappingConfig	base		= configFile == null
+		Path				configFile	= findConfigFile( workspaceRoot );
+		MappingConfig		base		= configFile == null
 		    ? emptyConfig( workspaceRoot )
 		    : parseConfig( configFile, workspaceRoot );
-		MappingConfig	withLint	= mergeLintMappings( base, workspaceRoot );
+		MappingConfig		withLint	= mergeLintMappings( base, workspaceRoot );
 
-		// Inject ColdBox implicit module mappings at workspace level so that
-		// ProjectIndexVisitor.computeFQN() can resolve module files correctly
-		// even when resolveForFile() has not been called.
-		if ( ColdBoxDetector.isColdBoxApp( workspaceRoot ) ) {
-			Map<String, Path> merged = new java.util.LinkedHashMap<>();
-			merged.putAll( ColdBoxDetector.discoverModuleMappings( workspaceRoot ) );
+		// Inject implicit ColdBox / TestBox mappings at workspace level so that
+		// ProjectIndexVisitor.computeFQN() can resolve framework and module files
+		// correctly even when resolveForFile() has not been called.
+		Map<String, Path>	implicit	= ColdBoxDetector.discoverImplicitMappings( workspaceRoot );
+		if ( !implicit.isEmpty() ) {
+			Map<String, Path> merged = new java.util.LinkedHashMap<>( implicit );
 			merged.putAll( withLint.getMappings() );
 			return new MappingConfig(
 			    merged,
