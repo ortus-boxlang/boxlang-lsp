@@ -17,7 +17,7 @@ import ortus.boxlang.lsp.workspace.index.IndexedClass;
 import ortus.boxlang.lsp.workspace.index.IndexedMethod;
 import ortus.boxlang.lsp.workspace.index.IndexedParameter;
 import ortus.boxlang.lsp.workspace.index.IndexedProperty;
-import ortus.boxlang.lsp.workspace.index.InheritanceGraph;
+import ortus.boxlang.lsp.workspace.index.JavaClassResolver;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 
 /**
@@ -61,23 +61,31 @@ public class MemberCompletionCollector {
 			return items;
 		}
 
-		IndexedClass	targetClass		= indexedClassOpt.get();
-		boolean			isCurrentClass	= className.equalsIgnoreCase( currentClassName ) ||
+		IndexedClass			targetClass			= indexedClassOpt.get();
+		boolean					isCurrentClass		= className.equalsIgnoreCase( currentClassName ) ||
 		    ( targetClass.fullyQualifiedName() != null && targetClass.fullyQualifiedName().equalsIgnoreCase( currentClassName ) );
 
-		// Collect own members first (higher priority)
-		collectClassMembers( targetClass, items, seenMembers, filterPrefix, isCurrentClass, 0 );
+		boolean					includeProtected	= isCurrentClass || resolveClass( currentClassName )
+		    .map( clazz -> index.getInheritanceGraph().getAncestors( clazz.fullyQualifiedName() ).stream()
+		        .anyMatch( parent -> parent.equalsIgnoreCase( className ) || parent.equalsIgnoreCase( targetClass.fullyQualifiedName() ) ) )
+		    .orElse( false );
 
-		// Collect inherited members
-		InheritanceGraph	graph		= index.getInheritanceGraph();
-		List<String>		ancestors	= graph.getAncestors( targetClass.fullyQualifiedName() );
-		int					depth		= 1;
-		for ( String ancestorFqn : ancestors ) {
-			Optional<IndexedClass> ancestor = index.findClassByFQN( ancestorFqn );
-			if ( ancestor.isPresent() ) {
-				collectClassMembers( ancestor.get(), items, seenMembers, filterPrefix, false, depth );
-				depth++;
+		// Resolve each parent in its own file context, including Java parents and relative BoxLang paths.
+		Set<String>				visited				= new HashSet<>();
+		Optional<IndexedClass>	current				= indexedClassOpt;
+		URI						parentContext		= contextFileUri;
+		int						depth				= 0;
+		while ( current.isPresent() && visited.add( current.get().fullyQualifiedName() ) ) {
+			IndexedClass clazz = current.get();
+			collectClassMembers( clazz, items, seenMembers, filterPrefix, isCurrentClass && depth == 0, includeProtected, depth );
+			if ( JavaClassResolver.isJavaClass( clazz.fullyQualifiedName() ) ) {
+				break; // Reflection already includes the Java superclass hierarchy.
 			}
+			if ( clazz.fileUri() != null ) {
+				parentContext = URI.create( clazz.fileUri() );
+			}
+			current = index.findClassWithContext( clazz.extendsClass(), parentContext );
+			depth++;
 		}
 
 		// Sort by relevance (depth, then alphabetically)
@@ -95,19 +103,22 @@ public class MemberCompletionCollector {
 	    Set<String> seenMembers,
 	    String filterPrefix,
 	    boolean isSameClass,
+	    boolean includeProtected,
 	    int inheritanceDepth ) {
 
-		// Collect methods
-		List<IndexedMethod> methods = index.getMethodsOfClass( clazz.fullyQualifiedName() );
+		// Block subclass overrides, but keep distinct Java overloads in this class.
+		Set<String>			overriddenMembers	= new HashSet<>( seenMembers );
+		List<IndexedMethod>	methods				= index.getMethodsOfClass( clazz.fullyQualifiedName() );
 		for ( IndexedMethod method : methods ) {
 			// Skip if already seen (overridden in subclass)
 			String memberKey = method.name().toLowerCase();
-			if ( seenMembers.contains( memberKey ) ) {
+			if ( overriddenMembers.contains( memberKey ) ) {
 				continue;
 			}
 
 			// Skip private methods from other classes
-			if ( !isSameClass && "private".equalsIgnoreCase( method.accessModifier() ) ) {
+			if ( ( !isSameClass && "private".equalsIgnoreCase( method.accessModifier() ) )
+			    || ( !includeProtected && "protected".equalsIgnoreCase( method.accessModifier() ) ) ) {
 				continue;
 			}
 

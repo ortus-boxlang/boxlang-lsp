@@ -33,6 +33,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.statement.BoxImport;
@@ -168,6 +170,39 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertThat( unreachable ).isNotNull();
 		assertThat( unreachable.getSeverity() ).isEqualTo( DiagnosticSeverity.Warning );
 		assertThat( unreachable.getTags() ).contains( DiagnosticTag.Unnecessary );
+	}
+
+	@ParameterizedTest
+	@CsvSource( { "bx:, bxm, false", "bx:, bxm, true", "cf, cfm, false", "cf, cfm, true" } )
+	void testNoUnreachableCodeAfterReturnTagAtEndOfFunction( String tagPrefix, String extension, boolean crlf ) throws Exception {
+		String code = """
+		              <!--- A function declaration --->
+		              <bx:function name="doubleIt" returntype="numeric">
+		                  <bx:argument name="n" type="numeric" required="true">
+		                  <bx:return n * 2>
+		              </bx:function>
+		              <bx:set doubled = doubleIt( 21 )>
+		              """.replace( "bx:", tagPrefix );
+		if ( crlf ) {
+			code = code.replace( "\n", "\r\n" );
+		}
+
+		Path testFile = createTestFile( "ReturnAtEnd." + extension, code );
+		index.indexFile( testFile.toUri() );
+
+		ProjectContextProvider provider = ProjectContextProvider.getInstance();
+		provider.trackDocumentOpen( testFile.toUri(), code );
+		try {
+			var parseResult = provider.getLatestFileParseResultPublic( testFile.toUri() ).orElseThrow().getParsingResult().orElseThrow();
+			assertThat( parseResult.isCorrect() ).isTrue();
+
+			List<Diagnostic> diagnostics = provider.getFileDiagnostics( testFile.toUri() );
+			assertThat( diagnostics.stream()
+			    .filter( d -> d.getCode() != null && d.getCode().isLeft() && UnreachableCodeRule.ID.equals( d.getCode().getLeft() ) )
+			    .toList() ).isEmpty();
+		} finally {
+			provider.trackDocumentClose( testFile.toUri() );
+		}
 	}
 
 	@Test

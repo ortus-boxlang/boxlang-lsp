@@ -53,10 +53,17 @@ public class MemberAccessTypeInferrer {
 		receiverText = receiverText.trim();
 
 		// Handle "this" keyword
-		if ( "this".equalsIgnoreCase( receiverText ) || "variables".equalsIgnoreCase( receiverText ) ) {
+		if ( "this".equalsIgnoreCase( receiverText ) || "variables".equalsIgnoreCase( receiverText ) || "super".equalsIgnoreCase( receiverText ) ) {
 			String containingClass = findContainingClassName( cursorLine );
 			if ( containingClass != null ) {
 				Optional<IndexedClass> indexed = resolveClass( containingClass );
+				if ( "super".equalsIgnoreCase( receiverText ) ) {
+					containingClass = indexed.map( IndexedClass::extendsClass ).orElse( null );
+					if ( containingClass == null ) {
+						return TypeInferenceResult.unknown();
+					}
+					indexed = resolveClass( containingClass );
+				}
 				return new TypeInferenceResult(
 				    containingClass,
 				    indexed.map( IndexedClass::fullyQualifiedName ).orElse( null ),
@@ -231,27 +238,7 @@ public class MemberAccessTypeInferrer {
 			return Optional.empty();
 		}
 
-		// Try to find the class first
-		Optional<IndexedClass> classOpt = resolveClass( className );
-		if ( classOpt.isEmpty() ) {
-			return Optional.empty();
-		}
-
-		IndexedClass			clazz	= classOpt.get();
-
-		// Look up method in this class
-		Optional<IndexedMethod>	method	= index.findMethod( clazz.name(), methodName );
-		if ( method.isPresent() ) {
-			return method;
-		}
-
-		// Check parent classes
-		String parentClass = clazz.extendsClass();
-		if ( parentClass != null && !parentClass.isEmpty() ) {
-			return findMethodInClassOrParents( parentClass, methodName );
-		}
-
-		return Optional.empty();
+		return index.findMethodsWithContext( className, methodName, fileParseResult.getURI() ).stream().findFirst();
 	}
 
 	/**

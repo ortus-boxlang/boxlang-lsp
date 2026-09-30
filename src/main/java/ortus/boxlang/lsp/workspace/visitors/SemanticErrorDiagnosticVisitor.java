@@ -76,6 +76,7 @@ import ortus.boxlang.lsp.workspace.BLASTTools;
 import ortus.boxlang.lsp.workspace.FileParseResult;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.index.IndexedClass;
+import ortus.boxlang.lsp.workspace.index.JavaClassResolver;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
 
 /**
@@ -546,6 +547,9 @@ public class SemanticErrorDiagnosticVisitor extends SourceCodeVisitor {
 	}
 
 	private List<MappingSuggestion> findMappingSuggestions( String className, ProjectIndex index ) {
+		if ( JavaClassResolver.isJavaClass( className ) ) {
+			return List.of();
+		}
 		Path workspaceRoot = resolveWorkspaceRoot();
 		if ( workspaceRoot == null ) {
 			return List.of();

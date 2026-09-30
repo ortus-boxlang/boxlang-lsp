@@ -11,6 +11,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -433,6 +434,11 @@ public class ProjectIndex {
 			return Optional.empty();
 		}
 
+		// Java references must never be interpreted as BoxLang filesystem paths.
+		if ( JavaClassResolver.isJavaClass( className ) ) {
+			return JavaClassResolver.findClass( className );
+		}
+
 		// Try simple name first
 		Optional<IndexedClass> result = findClassByName( className );
 		if ( result.isPresent() ) {
@@ -807,9 +813,32 @@ public class ProjectIndex {
 	 * @return Optional containing the method, or empty if not found
 	 */
 	public Optional<IndexedMethod> findMethod( String className, String methodName ) {
-		// Use lowercase key for case-insensitive lookup (BoxLang is case-insensitive)
-		String key = ( className + "." + methodName ).toLowerCase();
-		return Optional.ofNullable( methodsByKey.get( key ) );
+		String					key		= ( className + "." + methodName ).toLowerCase();
+		Optional<IndexedMethod>	indexed	= JavaClassResolver.isJavaClass( className ) ? Optional.empty() : Optional.ofNullable( methodsByKey.get( key ) );
+		return indexed.or( () -> findMethodsWithContext( className, methodName, null ).stream().findFirst() );
+	}
+
+	/**
+	 * Resolve methods, including inherited Java overloads, nearest declaration first.
+	 */
+	public List<IndexedMethod> findMethodsWithContext( String className, String methodName, URI contextFileUri ) {
+		var						visited	= new HashSet<String>();
+		Optional<IndexedClass>	current	= findClassWithContext( className, contextFileUri );
+		while ( current.isPresent() && visited.add( current.get().fullyQualifiedName() ) ) {
+			IndexedClass		clazz	= current.get();
+			List<IndexedMethod>	methods	= getMethodsOfClass( clazz.fullyQualifiedName() ).stream()
+			    .filter( method -> method.name().equalsIgnoreCase( methodName ) )
+			    .filter( method -> visited.size() == 1 || !"private".equalsIgnoreCase( method.accessModifier() ) )
+			    .toList();
+			if ( !methods.isEmpty() || JavaClassResolver.isJavaClass( clazz.fullyQualifiedName() ) ) {
+				return methods;
+			}
+			if ( clazz.fileUri() != null ) {
+				contextFileUri = URI.create( clazz.fileUri() );
+			}
+			current = findClassWithContext( clazz.extendsClass(), contextFileUri );
+		}
+		return List.of();
 	}
 
 	/**
@@ -835,6 +864,9 @@ public class ProjectIndex {
 	public List<IndexedProperty> findPropertiesOfClass( String className ) {
 		if ( className == null || className.isEmpty() ) {
 			return new ArrayList<>();
+		}
+		if ( JavaClassResolver.isJavaClass( className ) ) {
+			return JavaClassResolver.getProperties( className );
 		}
 		List<IndexedProperty> matches = propertiesByClassName.get( className.toLowerCase() );
 		return matches != null ? new ArrayList<>( matches ) : new ArrayList<>();
@@ -1002,6 +1034,9 @@ public class ProjectIndex {
 	public List<IndexedMethod> getMethodsOfClass( String className ) {
 		if ( className == null || className.isEmpty() ) {
 			return new ArrayList<>();
+		}
+		if ( JavaClassResolver.isJavaClass( className ) ) {
+			return JavaClassResolver.getMethods( className );
 		}
 		String lowerClassName = className.toLowerCase();
 		return methodsByKey.values().stream()

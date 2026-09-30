@@ -3225,7 +3225,8 @@ public class ProjectContextProvider {
 				        .stream()
 				        .findFirst()
 				        .map( fnDecl -> buildHoverForFunction( fnDecl, getClassNameFromUri( docURI ) ) )
-				        .orElse( null );
+				        .orElseGet( () -> findInvocationMethods( rootNode, null, functionName, docURI ).stream()
+				            .findFirst().map( this::buildHoverForIndexedMethod ).orElse( null ) );
 			    }
 
 			    // Handle function declarations directly
@@ -3241,23 +3242,9 @@ public class ProjectContextProvider {
 				    }
 				    String methodName = methodNameOpt.get();
 
-				    // First, try to resolve the object's type using variable tracking
-				    BoxNode obj		= methodInvocation.getObj();
-				    if ( obj instanceof BoxIdentifier objIdentifier ) {
-					    String						varName			= objIdentifier.getName();
-
-					    // Collect variable types from the AST
-					    VariableTypeCollectorVisitor typeCollector	= new VariableTypeCollectorVisitor();
-					    rootNode.accept( typeCollector );
-					    String className = typeCollector.getVariableType( varName );
-
-					    if ( className != null ) {
-						    // Look up method in the project index
-						    var indexedMethodOpt = getIndex().findMethod( className, methodName );
-						    if ( indexedMethodOpt.isPresent() ) {
-							    return buildHoverForIndexedMethod( indexedMethodOpt.get() );
-						    }
-					    }
+				    var	methods		= findInvocationMethods( rootNode, methodInvocation.getObj(), methodName, docURI );
+				    if ( !methods.isEmpty() ) {
+					    return buildHoverForIndexedMethod( methods.getFirst() );
 				    }
 
 				    // Fall back to finding method in the same file
@@ -3396,6 +3383,11 @@ public class ProjectContextProvider {
 					    return buildSignatureHelpForFunction( udfOpt.get(), getClassNameFromUri( docURI ), activeParam );
 				    }
 
+				    var methods = findInvocationMethods( rootNode, null, functionName, docURI );
+				    if ( !methods.isEmpty() ) {
+					    return buildSignatureHelpForIndexedMethods( methods, activeParam );
+				    }
+
 				    // Then try BIFs
 				    SignatureHelp bifHelp = buildSignatureHelpForBIF( functionName, activeParam );
 				    if ( bifHelp != null ) {
@@ -3413,23 +3405,9 @@ public class ProjectContextProvider {
 				    }
 				    String methodName = methodNameOpt.get();
 
-				    // Try to resolve the object's type using variable tracking
-				    BoxNode obj		= methodInvocation.getObj();
-				    if ( obj instanceof BoxIdentifier objIdentifier ) {
-					    String						varName			= objIdentifier.getName();
-
-					    // Collect variable types from the AST
-					    VariableTypeCollectorVisitor typeCollector	= new VariableTypeCollectorVisitor();
-					    rootNode.accept( typeCollector );
-					    String className = typeCollector.getVariableType( varName );
-
-					    if ( className != null ) {
-						    // Look up method in the project index
-						    var indexedMethodOpt = getIndex().findMethod( className, methodName );
-						    if ( indexedMethodOpt.isPresent() ) {
-							    return buildSignatureHelpForIndexedMethod( indexedMethodOpt.get(), activeParam );
-						    }
-					    }
+				    var	methods		= findInvocationMethods( rootNode, methodInvocation.getObj(), methodName, docURI );
+				    if ( !methods.isEmpty() ) {
+					    return buildSignatureHelpForIndexedMethods( methods, activeParam );
 				    }
 
 				    // Fall back to finding method in the same file
@@ -3465,6 +3443,36 @@ public class ProjectContextProvider {
 			    return null;
 		    } )
 		    .orElse( null );
+	}
+
+	private List<IndexedMethod> findInvocationMethods( BoxNode root, BoxNode receiver, String methodName, URI docURI ) {
+		String	className		= null;
+		String	receiverName	= receiver instanceof BoxIdentifier identifier ? identifier.getName()
+		    : receiver instanceof BoxScope scope ? scope.getName() : null;
+		if ( receiver == null || "this".equalsIgnoreCase( receiverName ) || "variables".equalsIgnoreCase( receiverName )
+		    || "super".equalsIgnoreCase( receiverName ) ) {
+			if ( root.getDescendantsOfType( BoxClass.class ).isEmpty() ) {
+				return List.of();
+			}
+			className = getClassNameFromUri( docURI );
+			if ( "super".equalsIgnoreCase( receiverName ) ) {
+				className = getIndex().findClassWithContext( className, docURI ).map( IndexedClass::extendsClass ).orElse( null );
+			}
+		} else if ( receiverName != null ) {
+			VariableTypeCollectorVisitor collector = new VariableTypeCollectorVisitor();
+			root.accept( collector );
+			className = collector.getVariableType( receiverName );
+		}
+		return getIndex().findMethodsWithContext( className, methodName, docURI );
+	}
+
+	private SignatureHelp buildSignatureHelpForIndexedMethods( List<IndexedMethod> methods, int activeParam ) {
+		// ponytail: select by parameter count; infer argument types if overload ranking is needed.
+		IndexedMethod	active	= methods.stream().filter( method -> method.parameters().size() > activeParam ).findFirst().orElse( methods.getFirst() );
+		SignatureHelp	help	= buildSignatureHelpForIndexedMethod( active, activeParam );
+		help.setSignatures( methods.stream().map( method -> buildSignatureHelpForIndexedMethod( method, activeParam ).getSignatures().getFirst() ).toList() );
+		help.setActiveSignature( methods.indexOf( active ) );
+		return help;
 	}
 
 	/**
@@ -4414,29 +4422,7 @@ public class ProjectContextProvider {
 	 * Tries simple name, FQN, and relative package resolution.
 	 */
 	private java.util.Optional<IndexedClass> findClassByNameWithRelativeResolution( String className, URI docURI ) {
-		if ( className == null || className.isEmpty() ) {
-			return java.util.Optional.empty();
-		}
-
-		ProjectIndex	index		= getIndex();
-		var				classOpt	= index.findClassByName( className );
-
-		// Try by FQN if simple name lookup failed
-		if ( classOpt.isEmpty() ) {
-			classOpt = index.findClassByFQN( className );
-		}
-
-		// If still not found and className contains a dot (potential relative path),
-		// try resolving relative to the current file's package
-		if ( classOpt.isEmpty() && className.contains( "." ) && docURI != null ) {
-			String currentPackage = getCurrentPackageFromURI( docURI );
-			if ( currentPackage != null && !currentPackage.isEmpty() ) {
-				String qualifiedName = currentPackage + "." + className;
-				classOpt = index.findClassByFQN( qualifiedName );
-			}
-		}
-
-		return classOpt;
+		return getIndex().findClassWithContext( className, docURI );
 	}
 
 	/**

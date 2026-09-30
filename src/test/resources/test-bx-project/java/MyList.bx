@@ -1,0 +1,5 @@
+class extends="java:java.util.ArrayList" {
+    public function init(){
+        this.get()
+    }
+}

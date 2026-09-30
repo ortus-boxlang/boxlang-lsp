@@ -2,13 +2,14 @@ package ortus.boxlang.lsp.workspace.completion;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 
 import ortus.boxlang.compiler.ast.BoxNode;
-import ortus.boxlang.compiler.ast.BoxScript;
+import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
 import ortus.boxlang.compiler.ast.statement.BoxFunctionDeclaration;
 import ortus.boxlang.lsp.workspace.rules.IRule;
@@ -38,8 +39,15 @@ public class FunctionCompletionRule implements IRule<CompletionFacts, List<Compl
 			result.add( createFunctionCompletionItem( func ) );
 		}
 
-		// TODO: 2. Get functions from imports
-		// TODO: 3. Get functions from project index (if appropriate for general context)
+		String className = facts.getContext().getContainingClassName();
+		if ( className != null ) {
+			Set<String>					declared	= functions.stream().map( func -> func.getName().toLowerCase() ).collect( Collectors.toSet() );
+			MemberCompletionCollector	collector	= new MemberCompletionCollector(
+			    ProjectContextProvider.getInstance().getIndex(), className, facts.fileParseResult().getURI() );
+			collector.collectMembers( className, facts.getContext().getTriggerText() ).stream()
+			    .filter( item -> item.getKind() == CompletionItemKind.Method && !declared.contains( item.getLabel().toLowerCase() ) )
+			    .forEach( result::add );
+		}
 	}
 
 	/**
