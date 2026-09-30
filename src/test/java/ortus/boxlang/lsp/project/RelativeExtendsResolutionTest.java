@@ -157,4 +157,76 @@ public class RelativeExtendsResolutionTest extends BaseTest {
 		    "Expected no error diagnostics for nested relative extends, but got: " +
 		        errors.stream().map( Diagnostic::getMessage ).toList() );
 	}
+
+	/**
+	 * Reproduces vscode-boxlang#63 (BLIDE-283): GLApp.cfc and BaseApp.cfc live in the
+	 * same folder and GLApp.cfc says {@code extends="BaseApp"} with no dots in the name.
+	 * When BaseApp.cfc is missing from the index (stale cache, background parsing off,
+	 * seed walk skipped it), the linter reported "Class or interface 'BaseApp' not found".
+	 *
+	 * An unqualified extends resolves to a sibling file first in CFML/BoxLang, so the
+	 * resolver must check the referencing file's own folder on disk.
+	 */
+	@Test
+	void unqualifiedExtendsShouldResolveToSiblingFileWithoutPreIndexing() throws Exception {
+		Path appDir = tempDir.resolve( "models" ).resolve( "app" );
+		Files.createDirectories( appDir );
+
+		Files.writeString( appDir.resolve( "BaseApp.cfc" ), "component {}" );
+
+		String	glAppCode	= """
+		                      component
+		                          extends="BaseApp"
+		                          hint="I am the implementation of a GL application"
+		                      {
+		                      }
+		                      """;
+		Path	glAppFile	= appDir.resolve( "GLApp.cfc" );
+		Files.writeString( glAppFile, glAppCode );
+
+		// Index ONLY GLApp.cfc — BaseApp.cfc is deliberately left out of the index
+		index.indexFile( glAppFile.toUri() );
+
+		List<Diagnostic> diagnostics = provider.getFileDiagnostics( glAppFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic invalidExtends = diagnostics.stream()
+		    .filter( d -> d.getCode() != null && "invalidExtends".equals( d.getCode().getLeft() ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertNull( invalidExtends,
+		    "Expected no invalidExtends diagnostic for a sibling parent class, but got: "
+		        + ( invalidExtends == null ? "" : invalidExtends.getMessage() ) );
+	}
+
+	/**
+	 * Same as above for {@code implements="IApp"}: the interface file sits next to the
+	 * class and is not pre-indexed. validateImplementsReference() uses the same resolver.
+	 */
+	@Test
+	void unqualifiedImplementsShouldResolveToSiblingFileWithoutPreIndexing() throws Exception {
+		Path appDir = tempDir.resolve( "models" ).resolve( "app" );
+		Files.createDirectories( appDir );
+
+		Files.writeString( appDir.resolve( "IApp.cfc" ), "interface {}" );
+
+		Path glAppFile = appDir.resolve( "GLApp.cfc" );
+		Files.writeString( glAppFile, "component implements=\"IApp\" {}" );
+
+		// Index ONLY GLApp.cfc — IApp.cfc is deliberately left out of the index
+		index.indexFile( glAppFile.toUri() );
+
+		List<Diagnostic> diagnostics = provider.getFileDiagnostics( glAppFile.toUri() );
+		assertNotNull( diagnostics );
+
+		Diagnostic invalidImplements = diagnostics.stream()
+		    .filter( d -> d.getCode() != null && "invalidImplements".equals( d.getCode().getLeft() ) )
+		    .findFirst()
+		    .orElse( null );
+
+		assertNull( invalidImplements,
+		    "Expected no invalidImplements diagnostic for a sibling interface, but got: "
+		        + ( invalidImplements == null ? "" : invalidImplements.getMessage() ) );
+	}
 }
