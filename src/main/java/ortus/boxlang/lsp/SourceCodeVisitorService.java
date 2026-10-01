@@ -90,7 +90,7 @@ public class SourceCodeVisitorService {
 			}
 			var	workspaceRoot	= Paths.get( new URI( folders.get( 0 ).getUri() ) );
 			var	filePath		= Paths.get( new URI( path ) );
-			return MappingResolver.resolveForFile( filePath, workspaceRoot );
+			return MappingResolver.resolveForFile( filePath, workspaceRoot, ProjectContextProvider.getInstance().getUserSettings().getMappings() );
 		} catch ( Exception e ) {
 			return null;
 		}

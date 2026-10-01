@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - BLIDE-337 Improve java extends behavior
+- BLIDE-338 InvalidExtends being reported within same folder
+- BLIDE-339 Improve LSP memory usage and error reporting in VSCode
 
 ## [1.14.0] - 2026-09-25
 

@@ -47,6 +47,61 @@ public class MappingResolverTest extends BaseTest {
 		return Paths.get( "src/test/resources/files/mappingResolverTest" ).resolve( name ).toAbsolutePath();
 	}
 
+	@Test
+	void nestedLintMappingsResolveAnUnindexedParentRelativeToTheirConfig( @org.junit.jupiter.api.io.TempDir Path root ) throws Exception {
+		Files.writeString( root.resolve( ".bxlint.json" ), "{\"mappings\":{\"models\":\"root-models\",\"inherited\":\"shared\"}}" );
+		Path app = Files.createDirectories( root.resolve( "generated/app" ) );
+		Files.writeString( app.resolve( ".bxlint.json" ), "{\"mappings\":{\"models\":\"source\"}}" );
+		Path parent = Files.createDirectories( app.resolve( "source" ) ).resolve( "Symbol.bx" );
+		Files.writeString( parent, "class {}" );
+		Path child = Files.createDirectories( app.resolve( "sub" ) ).resolve( "Child.bx" );
+		Files.writeString( child, "class extends=\"models.Symbol\" {}" );
+		var index = new ortus.boxlang.lsp.workspace.index.ProjectIndex();
+		index.initialize( root, MappingResolver.resolve( root ) );
+		try {
+			assertEquals( parent.toUri().toString(), index.findClassWithContext( "models.Symbol", child.toUri() ).orElseThrow().fileUri() );
+			MappingConfig config = MappingResolver.resolveForFile( child, root );
+			assertEquals( app.resolve( "source" ), config.getMappings().get( "models" ) );
+			assertEquals( root.resolve( "shared" ), config.getMappings().get( "inherited" ) );
+			assertEquals( root.resolve( "root-models" ), MappingResolver.resolveForFile( root.resolve( "Other.bx" ), root ).getMappings().get( "models" ) );
+			Path rootParent = Files.createDirectories( root.resolve( "root-models" ) ).resolve( "Symbol.bx" );
+			Files.writeString( rootParent, "class {}" );
+			index.indexFile( rootParent.toUri() );
+			assertEquals( parent.toUri().toString(), index.findClassWithContext( "models.Symbol", child.toUri() ).orElseThrow().fileUri(),
+			    "A globally indexed class must not hide the nested mapping" );
+		} finally {
+			MappingResolver.invalidate( root );
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	@Test
+	void nestedMappingsOverrideEquivalentVirtualKeysButNotApplicationOrClientMappings( @org.junit.jupiter.api.io.TempDir Path root ) throws Exception {
+		Files.writeString( root.resolve( ".bxlint.json" ), "{\"mappings\":{\"/models\":\"root-models\"}}" );
+		Path app = Files.createDirectories( root.resolve( "app" ) );
+		Files.writeString( app.resolve( ".bxlint.json" ), "{\"mappings\":{\"models\":\"nested-models\"}}" );
+		Path parent = Files.createDirectories( app.resolve( "nested-models" ) ).resolve( "Parent.bx" );
+		Files.writeString( parent, "class {}" );
+		Path	child	= app.resolve( "Child.bx" );
+		var		index	= new ortus.boxlang.lsp.workspace.index.ProjectIndex();
+		index.initialize( root, MappingResolver.resolve( root ) );
+		try {
+			assertEquals( parent.toUri().toString(), index.findClassWithContext( "models.Parent", child.toUri() ).orElseThrow().fileUri() );
+			Files.writeString( app.resolve( "Application.bx" ), "class { this.mappings[\"/models\"] = \"app-models\"; }" );
+			Path applicationParent = Files.createDirectories( app.resolve( "app-models" ) ).resolve( "Parent.bx" );
+			Files.writeString( applicationParent, "class {}" );
+			MappingResolver.invalidateFile( app.resolve( "Application.bx" ) );
+			assertEquals( applicationParent.toUri().toString(), index.findClassWithContext( "models.Parent", child.toUri() ).orElseThrow().fileUri() );
+			Path clientParent = Files.createDirectories( root.resolve( "client-models" ) ).resolve( "Parent.bx" );
+			Files.writeString( clientParent, "class {}" );
+			index.setVscodeMappings( Map.of( "models", "client-models" ) );
+			assertEquals( clientParent.toUri().toString(), index.findClassWithContext( "models.Parent", child.toUri() ).orElseThrow().fileUri() );
+		} finally {
+			MappingResolver.invalidate( root );
+			LintConfigLoader.invalidate();
+		}
+	}
+
 	// ─── Cycle 1 ─────────────────────────────────────────────────────────────
 	// Tracer bullet: resolve reads mappings from root boxlang.json
 

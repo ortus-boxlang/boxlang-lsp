@@ -286,7 +286,7 @@ class ProjectContextProviderFormattingTest extends BaseTest {
 			DidChangeWatchedFilesRegistrationOptions options = ( DidChangeWatchedFilesRegistrationOptions ) client.registrationRequests.getFirst()
 			    .getRegistrations().getFirst().getRegisterOptions();
 			assertThat( options.getWatchers().stream().map( watcher -> watcher.getGlobPattern().getLeft() ).toList() )
-			    .containsAtLeast( ".bxlint.json", "boxlang.json", "**/.bxformat.json", "**/.cfformat.json" );
+			    .containsAtLeast( "**/.bxlint.json", "boxlang.json", "**/.bxformat.json", "**/.cfformat.json" );
 		} finally {
 			provider.setWorkspaceFolders( savedFolders );
 			provider.setLanguageClient( null );

@@ -25,7 +25,7 @@ Place .bxlint.json at the workspace root to control static analysis. Changes are
 | `diagnostics` | object{} | `{}` |  | Map of rule ID to rule settings. Keys are rule IDs (see Lint Rules section). Each value is an object with optional 'enabled' (boolean) and 'severity' (string) fields. |
 | `include` | string[] | `[]` |  | Workspace-relative glob patterns. When non-empty, only matching files are analyzed. Supports * (segment), ** (recursive), ? (single char). Always use forward slashes. |
 | `exclude` | string[] | `[]` |  | Workspace-relative glob patterns. Files matching any exclude pattern are never analyzed, even if they match an include pattern. Evaluated after include. |
-| `mappings` | object{} | `{}` |  | Map of virtual path prefix (e.g. "/models") to absolute or relative filesystem path used by the LSP during analysis and indexing. Paths are resolved relative to the workspace root. |
+| `mappings` | object{} | `{}` |  | Map of virtual path prefix (e.g. "/models") to absolute or relative filesystem path used by the LSP during analysis and indexing. Paths are resolved relative to the containing .bxlint.json. Mapping entries are inherited from ancestor .bxlint.json files within the workspace, with nearer entries overriding the same virtual prefix. Application mappings and VS Code settings retain higher precedence. Other lint settings remain workspace-root scoped. |
 | `formatting` | object | `{}` |  | Formatting configuration shared across IDEs for the workspace. The experimental formatter toggle lives under formatting.experimental.enabled. |
 
 ## Project Mappings

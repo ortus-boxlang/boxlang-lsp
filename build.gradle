@@ -260,10 +260,47 @@ createModuleStructure.finalizedBy( zipModuleStructure )
 shadowJar.finalizedBy( createModuleStructure )
 
 test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'coldboxIntegration'
+    }
     testLogging {
 		showStandardStreams = true
 	}
+}
+
+// Opt-in: clones the real ColdBox workspace and drives a separate 512 MB LSP JVM.
+tasks.register('coldboxIntegrationTest', Test) {
+    group = 'verification'
+    description = 'Clones ColdBox and checks LSP responsiveness under a 512 MB heap cap.'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'coldboxIntegration'
+    }
+    systemProperty 'coldbox.lspClasspath', (sourceSets.main.runtimeClasspath + configurations.compileClasspath).asPath
+    systemProperty 'coldbox.lspVersion', project.version.toString()
+    systemProperty 'coldbox.lspRevision', project.gitCommitHash
+    systemProperty 'coldbox.boxlangVersion', project.boxlangVersion.toString()
+    systemProperty 'coldbox.profile', providers.gradleProperty('coldboxProfile').isPresent()
+    systemProperty 'coldbox.artifactsDir', file(providers.gradleProperty('coldboxArtifactsDir')
+        .getOrElse(layout.buildDirectory.dir('coldbox-integration').get().asFile.absolutePath)).absolutePath
+    outputs.upToDateWhen { false }
+    doFirst {
+        // Identify the actual compiled server/dependencies, including uncommitted edits.
+        def digest = java.security.MessageDigest.getInstance('SHA-256')
+        def lspFiles = (sourceSets.main.runtimeClasspath + configurations.compileClasspath).files
+            .collectMany { it.isDirectory() ? fileTree(it).files : [it] }.findAll { it.isFile() }
+            .sort { a, b -> a.name <=> b.name ?: a.path <=> b.path }
+        lspFiles.each { artifact ->
+            artifact.withInputStream { input ->
+                new java.security.DigestInputStream(input, digest).transferTo(java.io.OutputStream.nullOutputStream())
+            }
+        }
+        systemProperty 'coldbox.lspClasspathSha256', digest.digest().encodeHex().toString()
+    }
+    testLogging {
+        showStandardStreams = true
+    }
 }
 
 /**

@@ -411,6 +411,62 @@ public class ProjectDiagnosticsTest extends BaseTest {
 	// ======== Cold-open sibling resolution ========
 
 	@Test
+	void openingChildInGitIgnoredDirectoryResolvesItsUnindexedSibling( @org.junit.jupiter.api.io.TempDir Path root ) throws Exception {
+		Files.writeString( root.resolve( ".gitignore" ), "generated/**\n" );
+		Path generated = Files.createDirectories( root.resolve( "generated" ) );
+		Files.copy( testProjectRoot.resolve( "Car.bx" ), generated.resolve( "Car.bx" ) );
+		Path			child	= Files.copy( testProjectRoot.resolve( "CarChild.bx" ), generated.resolve( "CarChild.bx" ) );
+		ProjectIndex	fresh	= new ProjectIndex();
+		fresh.initialize( root );
+		provider.setIndex( fresh );
+		provider.setWorkspaceFolders( List.of( new WorkspaceFolder( root.toUri().toString(), "ignored-parent-test" ) ) );
+		LintConfigLoader.invalidate();
+		try {
+			provider.trackDocumentOpen( child.toUri(), Files.readString( child ) );
+			assertThat( provider.getFileDiagnostics( child.toUri() ).stream()
+			    .filter( d -> d.getCode() != null && d.getCode().isLeft() && "invalidExtends".equals( d.getCode().getLeft() ) )
+			    .map( d -> d.getMessage().getLeft() ).toList() ).isEmpty();
+			assertThat( fresh.findClassWithContext( "Car", child.toUri() ).orElseThrow().fileUri() )
+			    .isEqualTo( generated.resolve( "Car.bx" ).toUri().toString() );
+		} finally {
+			provider.remove( child.toUri() );
+		}
+	}
+
+	@Test
+	void nestedLintMappingChangesAndDeletionRefreshOpenDocumentDiagnostics( @org.junit.jupiter.api.io.TempDir Path root ) throws Exception {
+		Files.writeString( root.resolve( ".gitignore" ), "generated/**\n" );
+		Files.writeString( root.resolve( ".bxlint.json" ), "{\"mappings\":{\"models\":\"root-models\"}}" );
+		Path rootParent = Files.createDirectories( root.resolve( "root-models" ) ).resolve( "Symbol.bx" );
+		Files.writeString( rootParent, "class {}" );
+		Path	app		= Files.createDirectories( root.resolve( "generated/app" ) );
+		Path	config	= app.resolve( ".bxlint.json" );
+		Files.writeString( config, "{\"mappings\":{\"models\":\"source\"}}" );
+		Files.writeString( Files.createDirectories( app.resolve( "source" ) ).resolve( "Symbol.bx" ), "class {}" );
+		Path child = app.resolve( "Child.bx" );
+		Files.writeString( child, "class extends=\"models.Symbol\" {}" );
+		provider.setIndex( null );
+		provider.setWorkspaceFolders( List.of( new WorkspaceFolder( root.toUri().toString(), "nested-mappings-test" ) ) );
+		LintConfigLoader.invalidate();
+		try {
+			provider.trackDocumentOpen( child.toUri(), Files.readString( child ) );
+			assertThat( provider.getFileDiagnostics( child.toUri() ) ).isEmpty();
+			Files.writeString( config, "{\"mappings\":{\"models\":\"missing\"}}" );
+			provider.handleConfigFileChange( config.toUri() ).get( 10, java.util.concurrent.TimeUnit.SECONDS );
+			assertThat( provider.getFileDiagnostics( child.toUri() ).stream().map( d -> d.getMessage().getLeft() ).toList() )
+			    .contains( "Class or interface 'models.Symbol' not found (extends reference)." );
+			Files.delete( config );
+			provider.handleConfigFileChange( config.toUri() ).get( 10, java.util.concurrent.TimeUnit.SECONDS );
+			assertThat( provider.getFileDiagnostics( child.toUri() ) ).isEmpty();
+			assertThat( provider.getIndex().findClassWithContext( "models.Symbol", child.toUri() ).orElseThrow().fileUri() )
+			    .isEqualTo( rootParent.toUri().toString() );
+		} finally {
+			provider.remove( child.toUri() );
+			ortus.boxlang.lsp.workspace.MappingResolver.invalidate( root );
+		}
+	}
+
+	@Test
 	void openingSiblingExtendsClassWithoutPreIndexingShouldNotReportError() throws Exception {
 		// Simulate the real-world scenario: user opens CarChild.bx as the first file,
 		// BEFORE the background workspace indexer has run.

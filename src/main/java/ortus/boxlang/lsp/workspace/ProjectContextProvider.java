@@ -8,6 +8,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -20,6 +22,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
@@ -61,6 +64,7 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
 
 import com.google.gson.JsonObject;
+import com.google.common.cache.CacheBuilder;
 
 import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxInterface;
@@ -235,9 +239,15 @@ public class ProjectContextProvider {
 										} );
 
 		try {
-			List<Future<?>> futures = new ArrayList<>( candidates.size() );
-			for ( WorkspaceScanCandidate candidate : candidates ) {
-				futures.add( executor.submit( () -> consumer.accept( candidate ) ) );
+			AtomicInteger	next	= new AtomicInteger();
+			List<Future<?>>	futures	= new ArrayList<>( parallelism );
+			for ( int worker = 0; worker < parallelism; worker++ ) {
+				futures.add( executor.submit( () -> {
+					int position;
+					while ( !Thread.currentThread().isInterrupted() && ( position = next.getAndIncrement() ) < candidates.size() ) {
+						consumer.accept( candidates.get( position ) );
+					}
+				} ) );
 			}
 
 			for ( Future<?> future : futures ) {
@@ -254,30 +264,36 @@ public class ProjectContextProvider {
 		}
 	}
 
-	static ProjectContextProvider				instance;
-	private List<WorkspaceFolder>				workspaceFolders			= new ArrayList<WorkspaceFolder>();
-	private LanguageClient						client;
-	private Map<URI, FileParseResult>			parsedFiles					= new ConcurrentHashMap<URI, FileParseResult>();
-	private Map<URI, FileParseResult>			openDocuments				= new ConcurrentHashMap<URI, FileParseResult>();
-	private Map<URI, DocumentModel>				documentModels				= new ConcurrentHashMap<URI, DocumentModel>();
-	private List<FunctionDefinition>			functionDefinitions			= new ArrayList<FunctionDefinition>();
-	private UserSettings						userSettings				= new UserSettings();
-	private FormattingCapabilityCoordinator		formattingCapabilityCoordinator;
-	private final FormattingSettingsResolver	formattingSettingsResolver	= new FormattingSettingsResolver();
-	private FormatterConfigResolver				formatterConfigResolver		= new FormatterConfigResolver();
-	private PrettyPrintRuntimeAdapter			prettyPrintRuntimeAdapter	= new PrettyPrintRuntimeAdapter();
-	private long								WorkspaceDiagnosticReportId	= 1;
-	private final Map<URI, DiagnosticReport>	cachedDiagnosticReports		= new ConcurrentHashMap<URI, DiagnosticReport>();
-	private final SemanticTokensBuilder			semanticTokensBuilder		= new SemanticTokensBuilder();
+	static ProjectContextProvider					instance;
+	private List<WorkspaceFolder>					workspaceFolders			= new ArrayList<WorkspaceFolder>();
+	private LanguageClient							client;
+	// ponytail: entry-count bound, not a byte limit; oversized-file handling remains separate.
+	private Map<URI, FileParseResult>				parsedFiles					= CacheBuilder.newBuilder().maximumSize( 256 ).<URI, FileParseResult>build()
+	    .asMap();
+	private final Set<URI>							knownFiles					= ConcurrentHashMap.newKeySet();
+	private Map<URI, FileParseResult>				openDocuments				= new ConcurrentHashMap<URI, FileParseResult>();
+	private Map<URI, DocumentModel>					documentModels				= new ConcurrentHashMap<URI, DocumentModel>();
+	private List<FunctionDefinition>				functionDefinitions			= new ArrayList<FunctionDefinition>();
+	private UserSettings							userSettings				= new UserSettings();
+	private FormattingCapabilityCoordinator			formattingCapabilityCoordinator;
+	private final FormattingSettingsResolver		formattingSettingsResolver	= new FormattingSettingsResolver();
+	private FormatterConfigResolver					formatterConfigResolver		= new FormatterConfigResolver();
+	private PrettyPrintRuntimeAdapter				prettyPrintRuntimeAdapter	= new PrettyPrintRuntimeAdapter();
+	private long									WorkspaceDiagnosticReportId	= 1;
+	private final Map<URI, DiagnosticReport>		cachedDiagnosticReports		= new ConcurrentHashMap<URI, DiagnosticReport>();
+	private final SemanticTokensBuilder				semanticTokensBuilder		= new SemanticTokensBuilder();
 
-	private boolean								shouldPublishDiagnostics	= false;
-	private final AtomicBoolean					workspaceParseRunning		= new AtomicBoolean( false );
-	private final AtomicLong					workspaceParseSequence		= new AtomicLong( 0 );
-	private volatile CompletableFuture<Void>	latestWorkspaceParseFuture	= null;
-	private volatile WorkspaceScanProfile		activeWorkspaceScanProfile;
-	private ProjectIndex						projectIndex;
-	private final DebouncedDocumentProcessor	documentProcessor			= new DebouncedDocumentProcessor( 300 );
-	private final DebouncedDocumentProcessor	publishDebouncer			= new DebouncedDocumentProcessor( 50 );
+	private boolean									shouldPublishDiagnostics	= false;
+	private final AtomicBoolean						workspaceParseRunning		= new AtomicBoolean( false );
+	private final AtomicLong						workspaceParseSequence		= new AtomicLong( 0 );
+	private volatile CompletableFuture<Void>		latestWorkspaceParseFuture	= null;
+	private boolean									workspaceRescanRequested;
+	private final Object							workspaceIndexLock			= new Object();
+	private volatile List<WorkspaceScanCandidate>	seededWorkspaceCandidates;
+	private volatile WorkspaceScanProfile			activeWorkspaceScanProfile;
+	private ProjectIndex							projectIndex;
+	private final DebouncedDocumentProcessor		documentProcessor			= new DebouncedDocumentProcessor( 300 );
+	private final DebouncedDocumentProcessor		publishDebouncer			= new DebouncedDocumentProcessor( 50 );
 
 	private static final class WorkspaceScanPassProfile {
 
@@ -419,14 +435,15 @@ public class ProjectContextProvider {
 	 *
 	 * @return The project index
 	 */
-	public ProjectIndex getIndex() {
+	public synchronized ProjectIndex getIndex() {
 		if ( projectIndex == null ) {
 			projectIndex = new ProjectIndex();
 			// Initialize with workspace root if available
 			if ( workspaceFolders != null && !workspaceFolders.isEmpty() ) {
 				try {
 					Path			workspaceRoot	= Path.of( new URI( workspaceFolders.getFirst().getUri() ) );
-					MappingConfig	config			= MappingResolver.resolve( workspaceRoot );
+					MappingConfig	config			= MappingResolver.resolve( workspaceRoot, userSettings.getMappings() );
+					projectIndex.setVscodeMappings( userSettings.getMappings() );
 					projectIndex.initialize( workspaceRoot, config );
 				} catch ( Exception e ) {
 					App.logger.warn( "Failed to initialize project index with workspace root", e );
@@ -442,7 +459,8 @@ public class ProjectContextProvider {
 	 * @param index The project index to use
 	 */
 	public void setIndex( ProjectIndex index ) {
-		this.projectIndex = index;
+		this.projectIndex				= index;
+		this.seededWorkspaceCandidates	= null;
 	}
 
 	public List<DiagnosticReport> getCachedDiagnosticReports() {
@@ -450,9 +468,9 @@ public class ProjectContextProvider {
 	}
 
 	public void remove( URI docURI ) {
-		this.parsedFiles.remove( docURI );
-		this.openDocuments.remove( docURI );
+		trackDocumentClose( docURI );
 		this.cachedDiagnosticReports.remove( docURI );
+		this.knownFiles.remove( docURI );
 		// Remove from project index as well
 		if ( projectIndex != null ) {
 			projectIndex.removeFile( docURI );
@@ -531,10 +549,17 @@ public class ProjectContextProvider {
 		publishDebouncer.flushAll();
 	}
 
-	private CompletableFuture<Void> parseWorkspace( boolean force ) {
-		CompletableFuture<Void> future = CompletableFuture.runAsync( () -> {
+	private synchronized CompletableFuture<Void> parseWorkspace( boolean force ) {
+		if ( this.workspaceParseRunning.get() ) {
+			this.workspaceRescanRequested |= force;
+			return this.latestWorkspaceParseFuture;
+		}
+		CompletableFuture<Void> future = new CompletableFuture<>();
+		this.latestWorkspaceParseFuture = future;
+		this.workspaceParseRunning.set( true );
+		CompletableFuture.runAsync( () -> {
 			System.out.println( "Generating workspace diagnostic report" );
-			ProjectContextProvider					provider	= ProjectContextProvider.getInstance();
+			ProjectContextProvider					provider	= this;
 			WorkspaceDiagnosticReport				report		= new WorkspaceDiagnosticReport();
 			List<WorkspaceDocumentDiagnosticReport>	docReports	= new ArrayList<>();
 			report.setItems( docReports );
@@ -550,17 +575,6 @@ public class ProjectContextProvider {
 				return;
 			}
 
-			// TODO: this code should only be able to run one at a time, if it is already
-			// running, it should be cancelled and restarted
-			// once it completes (exceptionally or successfully) it should end the lock so that the
-			// next one can run
-
-			if ( !this.workspaceParseRunning.compareAndSet( false, true ) ) {
-				App.logger.info( "Workspace parsing is already running" );
-				// already running
-				return;
-			}
-
 			try {
 				BoxExecutor executor = AsyncService.chooseParallelExecutor( "LSP_diagnostic", 0, true );
 				executor.submitAndGet( () -> {
@@ -573,36 +587,20 @@ public class ProjectContextProvider {
 						activeWorkspaceScanProfile	= profile;
 						App.logger.info( "Starting workspace parse #{} for {}", profile.scanId, workspaceRoot );
 
-						// Get the project index for incremental indexing
-						var index = getIndex();
-
 						// ── Pass 1: index all files that need it ─────────────────────────────────
 						// This ensures every class is known before diagnostics are computed,
 						// avoiding ordering-dependent false "class not found" errors.
 						profile.indexPass.markStart();
-						List<WorkspaceScanCandidate> indexCandidates = collectWorkspaceScanCandidates( workspaceRoot, lintConfig, profile.indexPass );
-						processWorkspaceScanCandidates( indexCandidates, "LSP_index", candidate -> {
-							try {
-								profile.indexPass.analyzedFiles.increment();
-								URI fileUri = candidate.uri();
-								if ( index.needsReindexing( fileUri ) ) {
-									index.indexFile( fileUri );
-									profile.indexPass.reindexedFiles.increment();
-								} else {
-									profile.indexPass.cacheHits.increment();
-								}
-							} catch ( Exception e ) {
-								profile.indexPass.errors.increment();
-								e.printStackTrace();
-							}
-						} );
+						List<WorkspaceScanCandidate> indexCandidates = indexWorkspaceCandidates( workspaceRoot, lintConfig,
+						    profile.indexPass, force || profile.scanId > 1 );
 						profile.indexPass.markEnd();
 
 						// ── Pass 2: compute and cache diagnostics ─────────────────────────────────
 						// All classes are now indexed, so extends/implements lookups will succeed.
 						FileParseResult.resetProfiling();
 						profile.diagnosticPass.markStart();
-						List<WorkspaceScanCandidate> diagnosticCandidates = collectWorkspaceScanCandidates( workspaceRoot, lintConfig, profile.diagnosticPass );
+						List<WorkspaceScanCandidate> diagnosticCandidates = indexCandidates;
+						profile.diagnosticPass.candidateFiles.add( diagnosticCandidates.size() );
 						processWorkspaceScanCandidates( diagnosticCandidates, "LSP_diag", candidate -> {
 							try {
 								profile.diagnosticPass.analyzedFiles.increment();
@@ -631,6 +629,8 @@ public class ProjectContextProvider {
 						if ( completedProfile != null ) {
 							completedProfile.markCompleted();
 							App.logger.info( completedProfile.toLogMessage() );
+							App.logger.info( "Closed-file parse cache: entries={} limit=256 inventory={} workers={}",
+							    getClosedFileCacheSize(), this.knownFiles.size(), getWorkspaceScanParallelism() );
 						}
 						App.logger.info( "Completed workspace diagnostic report" );
 						// Save the project index cache
@@ -638,18 +638,43 @@ public class ProjectContextProvider {
 							projectIndex.saveCache();
 							App.logger.info( "Saved project index cache" );
 						}
-						workspaceParseRunning.set( false );
 					}
 
 				} );
 			} catch ( Exception e ) {
 				e.printStackTrace();
 				App.logger.info( "Completed workspace diagnostic report" );
-				workspaceParseRunning.set( false );
+			}
+		} ).whenComplete( ( ignored, failure ) -> {
+			CompletableFuture<Void> next = null;
+			synchronized ( this ) {
+				this.workspaceParseRunning.set( false );
+				if ( this.workspaceRescanRequested && failure == null ) {
+					this.workspaceRescanRequested	= false;
+					next							= parseWorkspace( true );
+				} else {
+					this.workspaceRescanRequested = false;
+				}
+			}
+			// Complete outside the monitor: dependent callbacks may request the index or an open document.
+			if ( next != null ) {
+				next.whenComplete( ( result, error ) -> {
+					if ( error == null )
+						future.complete( null );
+					else
+						future.completeExceptionally( error );
+				} );
+			} else if ( failure == null ) {
+				future.complete( null );
+			} else {
+				future.completeExceptionally( failure );
 			}
 		} );
-		this.latestWorkspaceParseFuture = future;
 		return future;
+	}
+
+	public int getClosedFileCacheSize() {
+		return this.parsedFiles.size();
 	}
 
 	public Map<String, Path> getMappings() {
@@ -685,6 +710,7 @@ public class ProjectContextProvider {
 		MappingConfig newConfig = MappingResolver.resolve( workspaceRoot, vscodeMappings );
 
 		// 2. Reset the in-memory index (clears all cached classes)
+		projectIndex.setVscodeMappings( vscodeMappings );
 		projectIndex.reinitialize( workspaceRoot, newConfig );
 
 		// 3. Re-index workspace files
@@ -806,8 +832,9 @@ public class ProjectContextProvider {
 		LintConfig	lintConfig		= LintConfigLoader.get();
 		Path		workspaceRoot	= getWorkspaceRootPath();
 
-		if ( workspaceRoot != null && projectIndex != null ) {
+		if ( workspaceRoot != null )
 			MappingResolver.invalidate( workspaceRoot );
+		if ( workspaceRoot != null && projectIndex != null ) {
 			MappingConfig newConfig = MappingResolver.resolve( workspaceRoot, userSettings.getMappings() );
 			projectIndex.reinitialize( workspaceRoot, newConfig );
 			reindexWorkspaceFiles( workspaceRoot, "lint config change" );
@@ -889,12 +916,22 @@ public class ProjectContextProvider {
 	}
 
 	private void invalidateClosedDocumentDiagnostics() {
-		this.parsedFiles.keySet().stream()
+		Path				root	= getWorkspaceRootPath();
+		GitIgnoreMatcher	ignored	= root == null ? null : GitIgnoreMatcher.create( root );
+		this.cachedDiagnosticReports.keySet().stream()
 		    .filter( uri -> !this.openDocuments.containsKey( uri ) )
 		    .toList()
 		    .forEach( uri -> {
 			    this.parsedFiles.remove( uri );
-			    this.cachedDiagnosticReports.remove( uri );
+			    if ( !shouldAnalyzePath( uri ) || !Files.isRegularFile( Path.of( uri ) )
+			        || ( ignored != null && ignored.isIgnored( Path.of( uri ) ) ) ) {
+				    DiagnosticReport report = this.cachedDiagnosticReports.get( uri );
+				    if ( report != null )
+					    report.setDiagnostics( List.of() );
+				    publishEmptyDiagnostics( uri );
+			    } else {
+				    this.cachedDiagnosticReports.remove( uri );
+			    }
 		    } );
 	}
 
@@ -929,7 +966,8 @@ public class ProjectContextProvider {
 	}
 
 	public void setWorkspaceFolders( List<WorkspaceFolder> folders ) {
-		this.workspaceFolders = folders;
+		this.workspaceFolders			= folders;
+		this.seededWorkspaceCandidates	= null;
 	}
 
 	public void setShouldPublishDiagnostics( boolean shouldPublishDiagnostics ) {
@@ -1081,12 +1119,22 @@ public class ProjectContextProvider {
 	 * This performs the expensive parsing and diagnostic operations.
 	 */
 	private void processDocumentUpdate( URI docUri, String content ) {
-		App.logger.info( "Parsing updated document {}", docUri );
-		FileParseResult fpr = FileParseResult.fromSourceString( docUri, content );
-		this.parsedFiles.remove( docUri );
-		this.openDocuments.put( docUri, fpr );
-		cacheLatestDiagnostics( fpr );
-		publishDiagnostics( docUri );
+		DocumentModel model = this.documentModels.get( docUri );
+		if ( model == null )
+			return;
+		synchronized ( model ) {
+			if ( this.documentModels.get( docUri ) != model || !Objects.equals( model.getContent(), content ) )
+				return;
+			FileParseResult current = this.openDocuments.get( docUri );
+			if ( current != null && current.hasSource( content ) )
+				return;
+			App.logger.info( "Parsing updated document {}", docUri );
+			FileParseResult fpr = FileParseResult.fromSourceString( docUri, content );
+			this.parsedFiles.remove( docUri );
+			this.openDocuments.put( docUri, fpr );
+			cacheLatestDiagnostics( fpr );
+			publishDiagnostics( docUri );
+		}
 	}
 
 	public void trackDocumentSave( URI docUri, String text ) {
@@ -1104,6 +1152,12 @@ public class ProjectContextProvider {
 			}
 		}
 
+		DocumentModel savedModel = this.documentModels.get( docUri );
+		if ( savedModel != null ) {
+			synchronized ( savedModel ) {
+				savedModel.setContent( fileContent, savedModel.getVersion() );
+			}
+		}
 		App.logger.info( "Parsing saved document {}", docUri );
 		FileParseResult fpr = FileParseResult.fromSourceString( docUri, fileContent );
 		this.parsedFiles.remove( docUri );
@@ -1131,11 +1185,7 @@ public class ProjectContextProvider {
 
 		// Parse immediately on open (no debouncing)
 		App.logger.info( "Parsing opened document {}", docUri );
-		FileParseResult fpr = FileParseResult.fromSourceString( docUri, text );
-		this.parsedFiles.remove( docUri );
-		this.openDocuments.put( docUri, fpr );
-		cacheLatestDiagnostics( fpr );
-		publishDiagnostics( docUri );
+		processDocumentUpdate( docUri, text );
 	}
 
 	/**
@@ -1147,50 +1197,92 @@ public class ProjectContextProvider {
 		if ( workspaceFolders == null || workspaceFolders.isEmpty() ) {
 			return;
 		}
-		ProjectIndex index = getIndex();
-		if ( !index.getAllClasses().isEmpty() ) {
-			return; // already seeded
-		}
 		try {
-			Path				workspaceRoot		= Path.of( new java.net.URI( workspaceFolders.getFirst().getUri() ) );
-			GitIgnoreMatcher	gitIgnoreMatcher	= GitIgnoreMatcher.create( workspaceRoot );
-			gitIgnoreMatcher.walk( workspaceRoot, p -> {
-				if ( LSPTools.canWalkFile( p ) ) {
-					try {
-						index.indexFile( p.toUri() );
-					} catch ( Exception ignored ) {
-					}
-				}
-			} );
+			Path workspaceRoot = Path.of( new URI( workspaceFolders.getFirst().getUri() ) );
+			indexWorkspaceCandidates( workspaceRoot, LintConfigLoader.get(), new WorkspaceScanPassProfile(), false );
 		} catch ( Exception e ) {
 			App.logger.debug( "Could not seed workspace index on document open", e );
+		}
+	}
+
+	private List<WorkspaceScanCandidate> indexWorkspaceCandidates( Path root, LintConfig lint,
+	    WorkspaceScanPassProfile profile, boolean refresh ) throws IOException {
+		synchronized ( this.workspaceIndexLock ) {
+			if ( !refresh && this.seededWorkspaceCandidates != null ) {
+				profile.cacheHits.add( this.seededWorkspaceCandidates.size() );
+				return this.seededWorkspaceCandidates;
+			}
+			List<WorkspaceScanCandidate>	candidates	= collectWorkspaceScanCandidates( root, lint, profile );
+			ProjectIndex					index		= getIndex();
+			processWorkspaceScanCandidates( candidates, "LSP_index", candidate -> {
+				profile.analyzedFiles.increment();
+				try {
+					if ( index.needsReindexing( candidate.uri() ) ) {
+						this.parsedFiles.remove( candidate.uri() );
+						if ( !this.openDocuments.containsKey( candidate.uri() ) )
+							this.cachedDiagnosticReports.remove( candidate.uri() );
+						index.indexFile( candidate.uri() );
+						profile.reindexedFiles.increment();
+					} else {
+						profile.cacheHits.increment();
+					}
+				} catch ( Exception e ) {
+					profile.errors.increment();
+					App.logger.warn( "Failed to index {}", candidate.uri(), e );
+				}
+			} );
+			Set<URI> inventory = new HashSet<>();
+			candidates.forEach( candidate -> inventory.add( candidate.uri() ) );
+			this.knownFiles.removeIf( uri -> Path.of( uri ).startsWith( root ) && !inventory.contains( uri ) );
+			this.knownFiles.addAll( inventory );
+			this.seededWorkspaceCandidates = candidates;
+			return candidates;
 		}
 	}
 
 	public void trackDocumentClose( URI docUri ) {
 		// Cancel any pending processing
 		documentProcessor.cancelPendingProcessing( docUri );
-		// Clean up document model
-		documentModels.remove( docUri );
-		this.openDocuments.remove( docUri );
+		publishDebouncer.cancelPendingProcessing( docUri );
+		DocumentModel model = this.documentModels.get( docUri );
+		if ( model != null ) {
+			synchronized ( model ) {
+				this.documentModels.remove( docUri, model );
+				this.openDocuments.remove( docUri );
+			}
+		} else {
+			this.openDocuments.remove( docUri );
+		}
 		this.parsedFiles.remove( docUri );
 	}
 
 	private Optional<FileParseResult> getLatestFileParseResult( URI docUri ) {
-		WorkspaceScanProfile activeProfile = this.activeWorkspaceScanProfile;
-		if ( this.openDocuments.containsKey( docUri ) ) {
-			if ( activeProfile != null ) {
+		this.knownFiles.add( docUri );
+		WorkspaceScanProfile	activeProfile	= this.activeWorkspaceScanProfile;
+		DocumentModel			model			= this.documentModels.get( docUri );
+		if ( model != null ) {
+			synchronized ( model ) {
+				FileParseResult current = this.openDocuments.get( docUri );
+				if ( current == null || !current.hasSource( model.getContent() ) ) {
+					documentProcessor.cancelPendingProcessing( docUri );
+					processDocumentUpdate( docUri, model.getContent() );
+				}
+			}
+		}
+		FileParseResult open = this.openDocuments.get( docUri );
+		if ( open != null ) {
+			if ( activeProfile != null )
 				activeProfile.diagnosticPass.openDocumentHits.increment();
-			}
-			return Optional.of( this.openDocuments.get( docUri ) );
+			return Optional.of( open );
 		}
-
-		if ( this.parsedFiles.containsKey( docUri ) ) {
-			if ( activeProfile != null ) {
+		FileParseResult cached = this.parsedFiles.get( docUri );
+		if ( cached != null ) {
+			if ( activeProfile != null )
 				activeProfile.diagnosticPass.parsedFileHits.increment();
-			}
-			return Optional.of( this.parsedFiles.get( docUri ) );
+			return Optional.of( cached );
 		}
+		if ( !Files.isRegularFile( Path.of( docUri ) ) )
+			return Optional.empty();
 
 		if ( activeProfile != null ) {
 			activeProfile.diagnosticPass.filesystemFallbacks.increment();
@@ -1249,14 +1341,6 @@ public class ProjectContextProvider {
 	}
 
 	public SemanticTokens getSemanticTokens( URI docURI ) {
-		DocumentModel model = documentModels.get( docURI );
-		if ( model != null ) {
-			return FileParseResult.fromSourceString( docURI, model.getContent() )
-			    .findAstRoot()
-			    .map( semanticTokensBuilder::build )
-			    .orElseGet( SemanticTokensContract::emptyTokens );
-		}
-
 		return getLatestFileParseResult( docURI )
 		    .flatMap( FileParseResult::findAstRoot )
 		    .map( semanticTokensBuilder::build )
@@ -1358,18 +1442,31 @@ public class ProjectContextProvider {
 	 *
 	 * @return List of reference locations
 	 */
+	private Set<URI> getReferenceFiles() {
+		Set<URI> files = new HashSet<>( this.knownFiles );
+		files.addAll( this.openDocuments.keySet() );
+		getIndex().getIndexedFiles().forEach( file -> files.add( URI.create( file ) ) );
+		Path				root	= getWorkspaceRootPath();
+		GitIgnoreMatcher	ignored	= root == null ? null : GitIgnoreMatcher.create( root );
+		files.removeIf( uri -> !this.openDocuments.containsKey( uri )
+		    && ( !Files.isRegularFile( Path.of( uri ) ) || !shouldAnalyzePath( uri )
+		        || ( ignored != null && ignored.isIgnored( Path.of( uri ) ) ) ) );
+		return files;
+	}
+
+	private Optional<BoxNode> getReferenceRoot( URI uri ) {
+		if ( this.documentModels.containsKey( uri ) || this.openDocuments.containsKey( uri ) ) {
+			return getLatestFileParseResult( uri ).flatMap( FileParseResult::findAstRoot );
+		}
+		FileParseResult cached = this.parsedFiles.get( uri );
+		return cached == null ? FileParseResult.astFromFileSystem( uri ) : cached.findAstRoot();
+	}
+
 	private List<Location> findFunctionReferences( String functionName, URI currentDocURI, boolean includeDeclaration,
 	    BoxFunctionDeclaration declarationNode ) {
-		List<Location>				references	= new ArrayList<>();
-
-		// Search across all open documents and parsed files
-		Map<URI, FileParseResult>	allFiles	= new HashMap<>();
-		allFiles.putAll( openDocuments );
-		allFiles.putAll( parsedFiles );
-
-		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
-			URI					fileUri	= entry.getKey();
-			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
+		List<Location> references = new ArrayList<>();
+		for ( URI fileUri : getReferenceFiles() ) {
+			Optional<BoxNode> rootOpt = getReferenceRoot( fileUri );
 
 			if ( rootOpt.isEmpty() ) {
 				continue;
@@ -1422,14 +1519,8 @@ public class ProjectContextProvider {
 			return references;
 		}
 
-		// Search across all open documents and parsed files
-		Map<URI, FileParseResult> allFiles = new HashMap<>();
-		allFiles.putAll( openDocuments );
-		allFiles.putAll( parsedFiles );
-
-		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
-			URI					fileUri	= entry.getKey();
-			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
+		for ( URI fileUri : getReferenceFiles() ) {
+			Optional<BoxNode> rootOpt = getReferenceRoot( fileUri );
 
 			if ( rootOpt.isEmpty() ) {
 				continue;
@@ -1518,14 +1609,8 @@ public class ProjectContextProvider {
 			return references;
 		}
 
-		// Search across all files
-		Map<URI, FileParseResult> allFiles = new HashMap<>();
-		allFiles.putAll( openDocuments );
-		allFiles.putAll( parsedFiles );
-
-		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
-			URI					fileUri	= entry.getKey();
-			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
+		for ( URI fileUri : getReferenceFiles() ) {
+			Optional<BoxNode> rootOpt = getReferenceRoot( fileUri );
 
 			if ( rootOpt.isEmpty() ) {
 				continue;
@@ -1756,16 +1841,9 @@ public class ProjectContextProvider {
 		if ( methodNameOpt.isEmpty() ) {
 			return references;
 		}
-		String						methodName	= methodNameOpt.get();
-
-		// Search across all files for method invocations with this name
-		Map<URI, FileParseResult>	allFiles	= new HashMap<>();
-		allFiles.putAll( openDocuments );
-		allFiles.putAll( parsedFiles );
-
-		for ( Map.Entry<URI, FileParseResult> entry : allFiles.entrySet() ) {
-			URI					fileUri	= entry.getKey();
-			Optional<BoxNode>	rootOpt	= entry.getValue().findAstRoot();
+		String methodName = methodNameOpt.get();
+		for ( URI fileUri : getReferenceFiles() ) {
+			Optional<BoxNode> rootOpt = getReferenceRoot( fileUri );
 
 			if ( rootOpt.isEmpty() ) {
 				continue;
@@ -4590,7 +4668,9 @@ public class ProjectContextProvider {
 
 			PublishDiagnosticsParams diagnosticParams = new PublishDiagnosticsParams();
 			diagnosticParams.setUri( docURI.toString() );
-			List<Diagnostic> diagnostics = getFileDiagnostics( docURI );
+			DiagnosticReport	cached		= this.cachedDiagnosticReports.get( docURI );
+			List<Diagnostic>	diagnostics	= !shouldAnalyzePath( docURI ) ? List.of()
+			    : cached == null ? getFileDiagnostics( docURI ) : cached.getDiagnostics();
 			diagnosticParams.setDiagnostics( diagnostics );
 			client.publishDiagnostics( diagnosticParams );
 		} );
@@ -4673,7 +4753,7 @@ public class ProjectContextProvider {
 		startConfigWatcher();
 		try {
 			FileSystemWatcher lintWatcher = new FileSystemWatcher();
-			lintWatcher.setGlobPattern( ".bxlint.json" );
+			lintWatcher.setGlobPattern( "**/.bxlint.json" );
 			lintWatcher.setKind( WatchKind.Create + WatchKind.Change + WatchKind.Delete );
 
 			FileSystemWatcher boxlangWatcher = new FileSystemWatcher();

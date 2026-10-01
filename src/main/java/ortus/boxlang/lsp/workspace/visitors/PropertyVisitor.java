@@ -18,7 +18,7 @@ public class PropertyVisitor extends VoidBoxVisitor {
 	}
 
 	public void visit( BoxProperty node ) {
-		properties.add( new ParsedProperty( getName( node ), getType( node ), node ) );
+		properties.add( new ParsedProperty( getName( node ), getType( node ) ) );
 	}
 
 	private String getName( BoxProperty node ) {

@@ -3,12 +3,9 @@ package ortus.boxlang.lsp.workspace.types;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 
-import ortus.boxlang.compiler.ast.statement.BoxProperty;
-
 public record ParsedProperty(
     String name,
-    String type,
-    BoxProperty node ) {
+    String type ) {
 
 	public CompletionItem asCompletionItem() {
 		CompletionItem item = new CompletionItem();

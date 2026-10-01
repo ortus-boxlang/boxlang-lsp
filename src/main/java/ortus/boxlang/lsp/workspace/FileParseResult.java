@@ -2,6 +2,7 @@ package ortus.boxlang.lsp.workspace;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.net.URI;
 import java.nio.file.Files;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -72,6 +74,13 @@ public class FileParseResult {
 		return fpr;
 	}
 
+	/** Parse only the AST for a cold reference search, without generating diagnostics or metadata. */
+	public static Optional<BoxNode> astFromFileSystem( URI uri ) {
+		FileParseResult result = new FileParseResult();
+		result.uri = uri;
+		return result.findAstRoot();
+	}
+
 	public static FileParseResult fromSourceString( URI uri, String source ) {
 		FileParseResult fpr = new FileParseResult();
 		fpr.uri		= uri;
@@ -85,6 +94,10 @@ public class FileParseResult {
 
 	public URI getURI() {
 		return uri;
+	}
+
+	public boolean hasSource( String content ) {
+		return this.isOpen && Objects.equals( this.source, content );
 	}
 
 	public List<ParsedProperty> properties() {
@@ -191,13 +204,13 @@ public class FileParseResult {
 		);
 	}
 
-	private Optional<ParsingResult> findParsingResult() {
-
-		if ( parseResultRef.get() == null ) {
-			parseResultRef = new WeakReference<>( parseSource() );
+	private synchronized Optional<ParsingResult> findParsingResult() {
+		ParsingResult result = parseResultRef.get();
+		if ( result == null ) {
+			result			= parseSource();
+			parseResultRef	= new WeakReference<>( result );
 		}
-
-		return Optional.ofNullable( parseResultRef.get() );
+		return Optional.ofNullable( result );
 	}
 
 	private ParsingResult parseSource() {
@@ -256,7 +269,7 @@ public class FileParseResult {
 		    || normalized.startsWith( "<bx:interface" );
 	}
 
-	private List<Diagnostic> generateDiagnostics() {
+	private List<Diagnostic> generateDiagnostics( BoxNode astRoot ) {
 		long				startNanos		= System.nanoTime();
 
 		List<Diagnostic>	fileDiagnostics	= new ArrayList<>();
@@ -275,9 +288,7 @@ public class FileParseResult {
 			return diagnostic;
 		} ).toList() );
 
-		Optional<BoxNode> astRootOpt = findAstRoot();
-		if ( astRootOpt.isPresent() ) {
-			BoxNode astRoot = astRootOpt.get();
+		if ( astRoot != null ) {
 			fileDiagnostics.addAll( generateMalformedFunctionDiagnostics( astRoot ) );
 
 			FunctionReturnDiagnosticVisitor returnDiagnosticVisitor = new FunctionReturnDiagnosticVisitor();
@@ -326,18 +337,19 @@ public class FileParseResult {
 		return diagnostics;
 	}
 
-	private void fullyParse() {
+	private synchronized void fullyParse() {
 		FULL_PARSE_COUNT.increment();
-		parseResultRef = new WeakReference<>( parseSource() );
-
-		findAstRoot().ifPresent( root -> {
-			properties			= parseProperties( root );
-			outline				= generateOutline( this.uri, root );
-
-			functionDefinitions	= generateFunctionDefinitions( this.uri, root );
-		} );
-
-		diagnostics = generateDiagnostics();
+		ParsingResult result = parseSource();
+		parseResultRef = new WeakReference<>( result );
+		BoxNode root = result == null ? null : result.getRoot();
+		try {
+			properties			= root == null ? List.of() : parseProperties( root );
+			outline				= root == null ? List.of() : generateOutline( this.uri, root );
+			functionDefinitions	= root == null ? List.of() : generateFunctionDefinitions( this.uri, root );
+			diagnostics			= generateDiagnostics( root );
+		} finally {
+			Reference.reachabilityFence( result );
+		}
 	}
 
 	private List<ParsedProperty> parseProperties( BoxNode root ) {

@@ -20,9 +20,14 @@ import ortus.boxlang.lsp.lint.LintConfigLoader;
 
 public class MappingResolver {
 
-	private static final Map<Path, MappingConfig>	cache		= new ConcurrentHashMap<>();
-	/** Cache keyed by the resolved Application.bx / Application.cfc path. */
-	private static final Map<Path, MappingConfig>	fileCache	= new ConcurrentHashMap<>();
+	private static final Map<Path, MappingConfig> cache = new ConcurrentHashMap<>();
+
+	private record FileConfigKey( Path directory, Path workspaceRoot ) {
+	}
+
+	/** Cache scoped by source directory and workspace boundary, independently of client overrides. */
+	private static final Map<FileConfigKey, MappingConfig> fileCache = com.google.common.cache.CacheBuilder.newBuilder()
+	    .maximumSize( 256 ).<FileConfigKey, MappingConfig>build().asMap();
 
 	private MappingResolver() {
 	}
@@ -62,37 +67,35 @@ public class MappingResolver {
 	/**
 	 * Invalidate any cached result for the given workspace root so the next
 	 * {@link #resolve(Path)} call re-reads the filesystem. Also clears any
-	 * per-file Application.bx cache entries underneath that workspace root.
+	 * per-directory mapping cache entries underneath that workspace root.
 	 */
 	public static void invalidate( Path workspaceRoot ) {
 		Path normRoot = workspaceRoot.toAbsolutePath().normalize();
 		cache.remove( normRoot );
-		fileCache.keySet().removeIf( p -> p.startsWith( normRoot ) );
+		fileCache.keySet().removeIf( key -> key.directory().startsWith( normRoot ) || key.workspaceRoot().startsWith( normRoot ) );
 	}
 
 	/**
-	 * Invalidate the per-file cache entry for the given Application.bx (or
-	 * Application.cfc) path so the next {@link #resolveForFile} call re-reads
-	 * it from disk.
+	 * Invalidate directory-scoped results below the given Application.bx,
+	 * Application.cfc, or nested .bxlint.json so the next resolution re-reads it.
 	 */
 	public static void invalidateFile( Path appBxPath ) {
-		fileCache.remove( appBxPath.toAbsolutePath().normalize() );
+		Path directory = appBxPath.toAbsolutePath().normalize().getParent();
+		fileCache.keySet().removeIf( key -> key.directory().startsWith( directory ) );
 	}
 
 	/**
 	 * Resolve a per-file {@link MappingConfig} for the given source file.
 	 *
 	 * <p>
-	 * Walks upward from the file's parent directory toward {@code workspaceRoot},
-	 * looking for the nearest {@code Application.bx} or {@code Application.cfc}
-	 * (case-insensitive). When found, static {@code this.mappings} entries are
-	 * extracted, resolved relative to the Application.bx directory, and merged
-	 * with the workspace-level config from {@link #resolve(Path)}. Application.bx
-	 * keys take priority on collision.
+	 * Inherits .bxlint.json mappings from the workspace root down to the source
+	 * directory; nearer virtual keys override ancestors, and each relative path
+	 * uses its config's directory. The nearest Application.bx / Application.cfc
+	 * then overrides lint mappings. Discovery never walks above workspaceRoot.
 	 *
 	 * <p>
-	 * The result is cached by the Application.bx path so repeated calls are cheap.
-	 * When no Application.bx is found the workspace-level config is returned.
+	 * Results are cached by source directory and workspace boundary (256 entries).
+	 * VSCode overrides are applied separately and remain highest priority.
 	 *
 	 * @param filePath      the source file being analysed
 	 * @param workspaceRoot the workspace root (walk-up boundary, inclusive)
@@ -120,33 +123,37 @@ public class MappingResolver {
 	 */
 	public static MappingConfig resolveForFile( Path filePath, Path workspaceRoot, Map<String, String> vscodeMappings ) {
 		Path	normalRoot	= workspaceRoot.toAbsolutePath().normalize();
-		Path	dir			= filePath.toAbsolutePath().normalize().getParent();
-
-		// Walk upward until we hit the workspace boundary (inclusive)
-		while ( dir != null ) {
-			if ( !dir.startsWith( normalRoot ) && !dir.equals( normalRoot ) ) {
-				break;
-			}
-
-			// Look for Application.bx or Application.cfc in this directory
-			Path appBx = findApplicationBx( dir );
-			if ( appBx != null ) {
-				boolean hasVscodeMappings = vscodeMappings != null && !vscodeMappings.isEmpty();
-				if ( hasVscodeMappings ) {
-					// Bypass cache when vscode mappings are present to avoid stale results
-					return mergeWithApplicationBx( appBx, workspaceRoot, vscodeMappings );
-				}
-				return fileCache.computeIfAbsent( appBx, k -> mergeWithApplicationBx( k, workspaceRoot, Collections.emptyMap() ) );
-			}
-
-			if ( dir.equals( normalRoot ) ) {
-				break;
-			}
-			dir = dir.getParent();
+		Path	directory	= filePath.toAbsolutePath().normalize().getParent();
+		if ( directory == null || !directory.startsWith( normalRoot ) ) {
+			return resolve( normalRoot, vscodeMappings );
 		}
+		MappingConfig base = fileCache.computeIfAbsent( new FileConfigKey( directory, normalRoot ), MappingResolver::computeFileConfig );
+		return vscodeMappings == null || vscodeMappings.isEmpty() ? base : mergeVscodeMappings( base, vscodeMappings, normalRoot );
+	}
 
-		// No Application.bx found within workspace — fall back to base config
-		return resolve( workspaceRoot, vscodeMappings );
+	private static MappingConfig computeFileConfig( FileConfigKey key ) {
+		Path			root		= key.workspaceRoot();
+		MappingConfig	base		= resolve( root );
+		List<Path>		lintFiles	= new ArrayList<>();
+		Path			application	= null;
+		for ( Path directory = key.directory(); directory != null && directory.startsWith( root ); directory = directory.getParent() ) {
+			if ( application == null )
+				application = findApplicationBx( directory );
+			Path lint = directory.resolve( LintConfigLoader.CONFIG_FILENAME );
+			if ( !directory.equals( root ) && Files.isRegularFile( lint ) )
+				lintFiles.add( lint );
+		}
+		Collections.reverse( lintFiles );
+		Map<String, Path> mappings = new java.util.LinkedHashMap<>( base.getMappings() );
+		for ( Path lint : lintFiles ) {
+			try {
+				mergeMappings( mappings, parseConfig( lint, root ).getMappings() );
+			} catch ( RuntimeException e ) {
+				ortus.boxlang.lsp.App.logger.warn( "Unable to read nested lint mappings from {}", lint, e );
+			}
+		}
+		base = new MappingConfig( mappings, base.getClassPaths(), base.getModulesDirectory(), root );
+		return application == null ? base : mergeWithApplicationBx( application, root, base );
 	}
 
 	// ───────────────────────────────────────────────────────────────────────────
@@ -174,10 +181,8 @@ public class MappingResolver {
 	}
 
 	/**
-	 * Merge the workspace-level config with static entries from the given
-	 * Application.bx file. Application.bx entries override base config on collision.
-	 * When vscodeMappings are provided, they are applied on top with the highest
-	 * precedence.
+	 * Merge the effective workspace/nested lint config with static entries from
+	 * Application.bx. Application.bx entries override base config on collision.
 	 *
 	 * <p>
 	 * ColdBox implicit module mappings are injected at the lowest priority
@@ -190,8 +195,7 @@ public class MappingResolver {
 	 * <li>ColdBox implicit modules (lowest)
 	 * </ol>
 	 */
-	private static MappingConfig mergeWithApplicationBx( Path appBxPath, Path workspaceRoot, Map<String, String> vscodeMappings ) {
-		MappingConfig		base		= resolve( workspaceRoot );
+	private static MappingConfig mergeWithApplicationBx( Path appBxPath, Path workspaceRoot, MappingConfig base ) {
 		Map<String, String>	rawMappings	= ApplicationBxMappingExtractor.extract( appBxPath );
 		Path				appDir		= appBxPath.getParent();
 
@@ -213,18 +217,12 @@ public class MappingResolver {
 		}
 
 		// 2. boxlang.json overrides ColdBox implicit
-		merged.putAll( base.getMappings() );
+		mergeMappings( merged, base.getMappings() );
 
 		// 3. Application.bx overrides lower-priority config layers
-		merged.putAll( appMappings );
+		mergeMappings( merged, appMappings );
 
-		MappingConfig intermediate = new MappingConfig( merged, base.getClassPaths(), base.getModulesDirectory(), workspaceRoot );
-
-		// 4. VSCode mappings on top with highest precedence
-		if ( vscodeMappings != null && !vscodeMappings.isEmpty() ) {
-			return mergeVscodeMappings( intermediate, vscodeMappings, workspaceRoot );
-		}
-		return intermediate;
+		return new MappingConfig( merged, base.getClassPaths(), base.getModulesDirectory(), workspaceRoot );
 	}
 
 	/**
@@ -244,16 +242,25 @@ public class MappingResolver {
 
 		// Merge: base first, then vscode overrides, then remove null/empty keys
 		Map<String, Path> merged = new java.util.LinkedHashMap<>( base.getMappings() );
+		mergeMappings( merged, resolvedVscode );
 		for ( Map.Entry<String, String> entry : vscodeMappings.entrySet() ) {
-			String key = entry.getKey();
 			if ( entry.getValue() == null || entry.getValue().isEmpty() ) {
-				merged.remove( key );
-			} else if ( resolvedVscode.containsKey( key ) ) {
-				merged.put( key, resolvedVscode.get( key ) );
+				merged.keySet().removeIf( key -> normalizeMappingKey( key ).equalsIgnoreCase( normalizeMappingKey( entry.getKey() ) ) );
 			}
 		}
 
 		return new MappingConfig( merged, base.getClassPaths(), base.getModulesDirectory(), workspaceRoot );
+	}
+
+	public static String normalizeMappingKey( String key ) {
+		return key == null ? "" : key.replaceAll( "^/+", "" ).replace( '/', '.' );
+	}
+
+	private static void mergeMappings( Map<String, Path> target, Map<String, Path> overrides ) {
+		overrides.forEach( ( key, path ) -> {
+			target.keySet().removeIf( oldKey -> normalizeMappingKey( oldKey ).equalsIgnoreCase( normalizeMappingKey( key ) ) );
+			target.put( key, path );
+		} );
 	}
 
 	private static MappingConfig computeConfig( Path workspaceRoot ) {

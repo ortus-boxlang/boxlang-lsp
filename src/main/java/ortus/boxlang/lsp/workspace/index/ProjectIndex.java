@@ -67,6 +67,11 @@ public class ProjectIndex {
 	private Path										workspaceRoot;
 	private Path										cacheFilePath;
 	private MappingConfig								mappingConfig;
+	private volatile Map<String, String>				vscodeMappings			= Map.of();
+
+	public void setVscodeMappings( Map<String, String> mappings ) {
+		this.vscodeMappings = mappings == null ? Map.of() : new java.util.HashMap<>( mappings );
+	}
 
 	/**
 	 * Custom TypeAdapter for Instant to handle Java 21 module restrictions
@@ -439,6 +444,14 @@ public class ProjectIndex {
 			return JavaClassResolver.findClass( className );
 		}
 
+		// Scoped aliases are authoritative; a globally indexed FQN may belong to a different project.
+		if ( className.contains( "." ) && contextFileUri != null && "file".equalsIgnoreCase( contextFileUri.getScheme() ) && workspaceRoot != null ) {
+			MappingConfig effectiveConfig = MappingResolver.resolveForFile( Paths.get( contextFileUri ), workspaceRoot, vscodeMappings );
+			if ( effectiveConfig.getMappings().keySet().stream().anyMatch( key -> mappingKeyMatches( className, key ) ) ) {
+				return findClassByMappedPath( className, contextFileUri, effectiveConfig );
+			}
+		}
+
 		// Try simple name first
 		Optional<IndexedClass> result = findClassByName( className );
 		if ( result.isPresent() ) {
@@ -464,18 +477,8 @@ public class ProjectIndex {
 			}
 		}
 
-		// Context-aware mapping fallback: resolve through the effective mappings for
-		// the referencing file, even when the candidate file has not been globally
-		// indexed with that mapping configuration yet.
-		if ( className.contains( "." ) && contextFileUri != null && workspaceRoot != null ) {
-			result = findClassByMappedPath( className, contextFileUri );
-			if ( result.isPresent() ) {
-				return result;
-			}
-		}
-
-		// Filesystem fallback: resolve dot-path as a file path
-		if ( className.contains( "." ) && workspaceRoot != null ) {
+		// Filesystem fallback also covers unindexed siblings (e.g. an explicitly opened ignored file).
+		if ( contextFileUri != null ) {
 			result = findClassByFileSystemPath( className, contextFileUri );
 			if ( result.isPresent() ) {
 				return result;
@@ -486,14 +489,12 @@ public class ProjectIndex {
 		return findClassByBxModuleFqn( className );
 	}
 
-	private Optional<IndexedClass> findClassByMappedPath( String className, URI contextFileUri ) {
+	private Optional<IndexedClass> findClassByMappedPath( String className, URI contextFileUri, MappingConfig effectiveConfig ) {
 		if ( className == null || className.isEmpty() || contextFileUri == null || workspaceRoot == null ) {
 			return Optional.empty();
 		}
 
 		try {
-			Path			contextFilePath	= Paths.get( contextFileUri ).toAbsolutePath().normalize();
-			MappingConfig	effectiveConfig	= MappingResolver.resolveForFile( contextFilePath, workspaceRoot );
 			if ( effectiveConfig == null || effectiveConfig.getMappings().isEmpty() ) {
 				return Optional.empty();
 			}
@@ -524,7 +525,14 @@ public class ProjectIndex {
 					continue;
 				}
 
-				Optional<IndexedClass> resolved = parseIndexedClassWithConfig( candidate.toUri(), effectiveConfig, className );
+				URI candidateUri = candidate.toUri();
+				if ( !needsReindexing( candidateUri ) ) {
+					Optional<IndexedClass> cached = classesByFileUri.getOrDefault( candidateUri.toString(), List.of() ).stream()
+					    .filter( clazz -> className.equalsIgnoreCase( clazz.fullyQualifiedName() ) ).findFirst();
+					if ( cached.isPresent() )
+						return cached;
+				}
+				Optional<IndexedClass> resolved = parseIndexedClassWithConfig( candidateUri, effectiveConfig, className );
 				if ( resolved.isPresent() ) {
 					return resolved;
 				}
@@ -565,7 +573,7 @@ public class ProjectIndex {
 	}
 
 	private String normalizeMappingKey( String mappingKey ) {
-		return mappingKey == null ? "" : mappingKey.replaceAll( "^/+", "" ).replace( '/', '.' );
+		return MappingResolver.normalizeMappingKey( mappingKey );
 	}
 
 	/**
