@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- BLIDE-337 Improve java extends behavior
+
 ## [1.15.0] - 2026-10-02
 
 - BLIDE-337 Improve java extends behavior
