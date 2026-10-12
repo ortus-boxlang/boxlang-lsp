@@ -4,13 +4,13 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Stream;
 
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.expression.BoxArgument;
+import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
@@ -32,13 +32,13 @@ import ortus.boxlang.runtime.types.Argument;
 
 /**
  * Provides smart completion inside function call arguments.
- * 
+ *
  * Features:
  * - Named argument completion (paramName:)
  * - Variable suggestions matching parameter type
  * - Boolean literals (true/false) for boolean parameters
  * - Shows remaining required parameters
- * 
+ *
  * Task 3.8: Completion - Arguments in Function Calls
  */
 public class ArgumentCompletionRule implements IRule<CompletionFacts, List<CompletionItem>> {
@@ -219,14 +219,21 @@ public class ArgumentCompletionRule implements IRule<CompletionFacts, List<Compl
 	 */
 	private List<ParameterInfo> getParametersForConstructor( CompletionFacts facts, BoxNew newExpr ) {
 		String className = extractClassNameFromNew( newExpr );
-		if ( className != null ) {
-			// Look for init method
-			var initMethodOpt = ProjectContextProvider.getInstance().getIndex().findMethod( className, "init" );
-			if ( initMethodOpt.isPresent() ) {
-				return extractParametersFromIndexedMethod( initMethodOpt.get() );
-			}
-		}
-		return null;
+
+		if ( className == null )
+			return null;
+
+		// NOTE: This was changed to only get parameters for directly declared init methods, not inherited ones
+		var	index			= ProjectContextProvider.getInstance().getIndex();
+		var	indexedClass	= index.findClassWithContext( className, facts.fileParseResult().getURI() );
+		if ( indexedClass.isEmpty() )
+			return null;
+
+		return index.getMethodsOfClass( indexedClass.get().fullyQualifiedName() ).stream()
+		    .filter( method -> method.name().equalsIgnoreCase( "init" ) )
+		    .findFirst()
+		    .map( this::extractParametersFromIndexedMethod )
+		    .orElse( null );
 	}
 
 	/**
@@ -236,6 +243,8 @@ public class ArgumentCompletionRule implements IRule<CompletionFacts, List<Compl
 		var expr = newExpr.getExpression();
 		if ( expr instanceof BoxIdentifier id ) {
 			return id.getName();
+		} else if ( expr instanceof BoxFQN id ) {
+			return id.getValue();
 		}
 		// Handle other cases if needed
 		return null;
@@ -344,6 +353,8 @@ public class ArgumentCompletionRule implements IRule<CompletionFacts, List<Compl
 			StringBuilder detail = new StringBuilder();
 			if ( param.required ) {
 				detail.append( "required " );
+			} else {
+				detail.append( "optional " );
 			}
 			detail.append( param.type );
 			item.setDetail( detail.toString() );

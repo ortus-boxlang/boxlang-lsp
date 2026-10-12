@@ -351,7 +351,7 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 			if ( child instanceof BoxArgumentDeclaration argDecl ) {
 				String	name			= argDecl.getName();
 				String	typeHint		= argDecl.getType() != null ? argDecl.getType().toString() : "any";
-				boolean	required		= extractArgumentRequired( argDecl );
+				boolean	required		= argDecl.getRequired();
 				String	defaultValue	= BLASTTools.getValue( argDecl.getValue() ).orElse( null );
 
 				parameters.add( new IndexedParameter( name, typeHint, required, defaultValue ) );
@@ -361,21 +361,23 @@ public class ProjectIndexVisitor extends VoidBoxVisitor {
 		return parameters;
 	}
 
-	private boolean extractArgumentRequired( BoxArgumentDeclaration argDecl ) {
-		// Check annotations for required
-		List<BoxAnnotation> annotations = findAnnotations( argDecl );
-		for ( BoxAnnotation annotation : annotations ) {
-			if ( BLASTTools.getAnnotationName( annotation ).filter( name -> name.equalsIgnoreCase( "required" ) ).isPresent() ) {
-				// If just "required" annotation with no value, it's true
-				if ( annotation.getValue() == null ) {
-					return true;
-				}
-				String value = extractAnnotationValue( annotation );
-				return value == null || value.equalsIgnoreCase( "true" );
-			}
-		}
-		return false;
-	}
+	// NOTE: The method below has been deprecated. "argDecl.getRequired()" fulfills this same purpose, if not better.
+
+	// private boolean extractArgumentRequired( BoxArgumentDeclaration argDecl ) {
+	// // Check annotations for required
+	// List<BoxAnnotation> annotations = findAnnotations( argDecl );
+	// for ( BoxAnnotation annotation : annotations ) {
+	// if ( BLASTTools.getAnnotationName( annotation ).filter( name -> name.equalsIgnoreCase( "required" ) ).isPresent() ) {
+	// // If just "required" annotation with no value, it's true
+	// if ( annotation.getValue() == null ) {
+	// return true;
+	// }
+	// String value = extractAnnotationValue( annotation );
+	// return value == null || value.equalsIgnoreCase( "true" );
+	// }
+	// }
+	// return false;
+	// }
 
 	private String extractPropertyName( BoxProperty node ) {
 		Optional<String> propertyName = BLASTTools.getPropertyName( node );
