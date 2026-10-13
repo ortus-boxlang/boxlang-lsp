@@ -1,6 +1,6 @@
 class {
 
-	function calc( qty ) {
+	function calc( numeric qty = 1 ) {
 		var total = 0;
 		TOTAL = Total + qty;
 		// total is just a comment here

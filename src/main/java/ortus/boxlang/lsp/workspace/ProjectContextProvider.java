@@ -1462,6 +1462,9 @@ public class ProjectContextProvider {
 			}
 			name = identifier.getName();
 		} else if ( target instanceof BoxArgumentDeclaration argDecl ) {
+			if ( !containsPosition( parameterNameRange( argDecl ), pos ) ) {
+				return highlights;
+			}
 			name = argDecl.getName();
 		} else {
 			return highlights;
@@ -1477,12 +1480,12 @@ public class ProjectContextProvider {
 		    .filter( arg -> name.equalsIgnoreCase( arg.getName() ) )
 		    .findFirst()
 		    .orElse( null );
-		boolean					isLocalVar	= function.getDescendantsOfType( ortus.boxlang.compiler.ast.expression.BoxAssignment.class,
-		    assignment -> findOwningFunction( assignment ) == function
-		        && assignment.getModifiers().contains( ortus.boxlang.compiler.ast.expression.BoxAssignmentModifier.VAR )
+		boolean					isLocalVar	= getDirectFunctionDescendants(
+		    function,
+		    ortus.boxlang.compiler.ast.expression.BoxAssignment.class ).stream()
+		    .anyMatch( assignment -> assignment.getModifiers().contains( ortus.boxlang.compiler.ast.expression.BoxAssignmentModifier.VAR )
 		        && assignment.getLeft() instanceof BoxIdentifier left
-		        && name.equalsIgnoreCase( left.getName() ) )
-		    .size() > 0;
+		        && name.equalsIgnoreCase( left.getName() ) );
 		if ( parameter == null && !isLocalVar ) {
 			return highlights;
 		}
@@ -1491,8 +1494,10 @@ public class ProjectContextProvider {
 		if ( parameter != null ) {
 			addHighlightRange( ranges, parameterNameRange( parameter ) );
 		}
-		for ( BoxIdentifier id : function.getDescendantsOfType( BoxIdentifier.class,
-		    n -> name.equalsIgnoreCase( n.getName() ) && findOwningFunction( n ) == function && !isMemberAccessName( n ) ) ) {
+		for ( BoxIdentifier id : getDirectFunctionDescendants( function, BoxIdentifier.class ) ) {
+			if ( !name.equalsIgnoreCase( id.getName() ) || isMemberAccessName( id ) ) {
+				continue;
+			}
 			if ( id.getPosition() != null ) {
 				int	line	= id.getPosition().getStart().getLine() - 1;
 				int	col		= id.getPosition().getStart().getColumn();
@@ -1523,6 +1528,33 @@ public class ProjectContextProvider {
 			current = current.getParent();
 		}
 		return null;
+	}
+
+	/**
+	 * Collect descendants belonging directly to a function, without entering nested callable
+	 * scopes. Pruning nested functions, closures and lambdas during traversal prevents a
+	 * same-named identifier in a nested scope from ever becoming a highlight candidate.
+	 */
+	private <T extends BoxNode> List<T> getDirectFunctionDescendants( BoxFunctionDeclaration function, Class<T> type ) {
+		List<T> descendants = new ArrayList<>();
+		for ( BoxNode child : function.getChildren() ) {
+			collectDirectFunctionDescendants( child, type, descendants );
+		}
+		return descendants;
+	}
+
+	private <T extends BoxNode> void collectDirectFunctionDescendants( BoxNode node, Class<T> type, List<T> descendants ) {
+		if ( node instanceof BoxFunctionDeclaration
+		    || node instanceof ortus.boxlang.compiler.ast.expression.BoxClosure
+		    || node instanceof ortus.boxlang.compiler.ast.expression.BoxLambda ) {
+			return;
+		}
+		if ( type.isInstance( node ) ) {
+			descendants.add( type.cast( node ) );
+		}
+		for ( BoxNode child : node.getChildren() ) {
+			collectDirectFunctionDescendants( child, type, descendants );
+		}
 	}
 
 	/**
@@ -1562,6 +1594,13 @@ public class ProjectContextProvider {
 			}
 		}
 		return new Range( new Position( line, col ), new Position( line, col + name.length() ) );
+	}
+
+	private boolean containsPosition( Range range, Position position ) {
+		return range != null
+		    && position.getLine() == range.getStart().getLine()
+		    && position.getCharacter() >= range.getStart().getCharacter()
+		    && position.getCharacter() < range.getEnd().getCharacter();
 	}
 
 	private void addHighlightRange( Map<String, Range> ranges, Range range ) {

@@ -73,10 +73,10 @@ public class DocumentHighlightTest extends BaseTest {
 
 	@Test
 	void testParameterHighlightsDeclarationAndUses() throws Exception {
-		List<String> expected = List.of( "2:16-2:19", "4:18-4:21" );
+		List<String> expected = List.of( "2:24-2:27", "4:18-4:21" );
 
 		// From the parameter in the signature, and from its use
-		assertThat( highlightsAt( 2, 16 ) ).containsExactlyElementsIn( expected ).inOrder();
+		assertThat( highlightsAt( 2, 24 ) ).containsExactlyElementsIn( expected ).inOrder();
 		assertThat( highlightsAt( 4, 18 ) ).containsExactlyElementsIn( expected ).inOrder();
 	}
 
@@ -93,6 +93,8 @@ public class DocumentHighlightTest extends BaseTest {
 		assertThat( highlightsAt( 7, 18 ) ).isEmpty(); // property name in object.total
 		assertThat( highlightsAt( 7, 11 ) ).isEmpty(); // `object` is not a declared local or parameter
 		assertThat( highlightsAt( 9, 8 ) ).isEmpty(); // `total` inside the nested closure
+		assertThat( highlightsAt( 2, 16 ) ).isEmpty(); // parameter type is not the parameter name
+		assertThat( highlightsAt( 2, 30 ) ).isEmpty(); // parameter default value is not the parameter name
 		assertThat( highlightsAt( 0, 0 ) ).isEmpty(); // class keyword
 	}
 
