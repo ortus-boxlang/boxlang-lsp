@@ -1,6 +1,7 @@
 package ortus.boxlang.lsp;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -321,6 +322,8 @@ public class ArgumentCompletionTest extends BaseTest {
 
 	@Test
 	public void testConstructorArgumentsForFullyQualifiedClass() {
+		// clears shared index, sets workspace root to src/test/resources/files/
+		// so that we can use 'argumentCompletionTest.User'
 		ProjectIndex index = pcp.getIndex();
 		index.clear();
 		index.initialize( testDir.getParent() );
@@ -357,6 +360,38 @@ public class ArgumentCompletionTest extends BaseTest {
 
 		assertThat( hasItem( items, "username=" ) ).isFalse();
 		assertThat( hasItem( items, "email=" ) ).isFalse();
+		assertThat( hasItem( items, "active=" ) ).isTrue();
+	}
+
+	@ParameterizedTest
+	@ValueSource( strings = { "new DoesNotExist(|);", "new TestClass(|);" } )
+	public void testConstructorWithoutResolvableInitHasNoArgumentSuggestions( String call ) {
+		// DoesNotExist is not in the index; TestClass is indexed but declares no init
+		List<CompletionItem> items = assertDoesNotThrow( () -> getConstructorCompletions( call ) );
+
+		assertThat( items.stream().noneMatch( item -> item.getLabel().endsWith( "=" ) ) ).isTrue();
+	}
+
+	@Test
+	public void testConstructorArgumentsExcludeInheritedInit() {
+		// Admin extends User but declares no init of its own
+		List<CompletionItem> items = getConstructorCompletions( "new Admin(|);" );
+
+		assertThat( hasItem( items, "username=" ) ).isFalse();
+		assertThat( hasItem( items, "email=" ) ).isFalse();
+		assertThat( hasItem( items, "active=" ) ).isFalse();
+	}
+
+	@Test
+	public void testConstructorArgumentsInBxClassFile() throws Exception {
+		List<CompletionItem> items = getCompletionsWithModifiedLine(
+		    "var user = new User(\"john\", \"john@example.com\");",
+		    "var user = new User();",
+		    33, 22  // Line 34, after '('
+		);
+
+		assertThat( hasItem( items, "username=" ) ).isTrue();
+		assertThat( hasItem( items, "email=" ) ).isTrue();
 		assertThat( hasItem( items, "active=" ) ).isTrue();
 	}
 
