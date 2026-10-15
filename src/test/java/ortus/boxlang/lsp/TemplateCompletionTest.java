@@ -145,6 +145,15 @@ class TemplateCompletionTest extends BaseTest {
 		assertThat( item.getInsertTextFormat() ).isEqualTo( org.eclipse.lsp4j.InsertTextFormat.Snippet );
 	}
 
+	@Test
+	void componentCompletionIncludesAnnotationDescriptionAndDocumentationLink() {
+		CompletionItem	item			= completions( "<bx:" ).stream()
+		    .filter( candidate -> candidate.getLabel().equals( "bx:setting" ) ).findFirst().orElseThrow();
+		String			documentation	= item.getDocumentation().getRight().getValue();
+		assertThat( documentation ).contains( "Modify runtime settings and configuration" );
+		assertThat( documentation ).contains( "https://boxlang.ortusbooks.com/boxlang-language/reference/components/system/setting" );
+	}
+
 	private List<CompletionItem> completions( String source ) {
 		return completions( source, ".bxm", null );
 	}

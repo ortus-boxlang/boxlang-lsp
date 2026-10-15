@@ -8,12 +8,11 @@ import java.util.stream.Stream;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.InsertTextFormat;
-import org.eclipse.lsp4j.MarkupContent;
-import org.eclipse.lsp4j.MarkupKind;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
+import ortus.boxlang.lsp.workspace.ComponentDocumentation;
 import ortus.boxlang.lsp.workspace.rules.IRule;
 import ortus.boxlang.runtime.BoxRuntime;
 import ortus.boxlang.runtime.components.Attribute;
@@ -44,7 +43,7 @@ public class ComponentCompletionRule implements IRule<CompletionFacts, List<Comp
 						item.setInsertText( snippet );
 						item.setTextEdit( Either.forLeft( new TextEdit( new Range( tag.start(), cursor ), snippet ) ) );
 						item.setDetail( formatComponentSignature( componentDescriptor ) );
-						item.setDocumentation( formatComponentDocumentation( componentDescriptor ) );
+						item.setDocumentation( ComponentDocumentation.format( componentDescriptor ) );
 						item.setSortText( "a" );
 
 						return item;
@@ -130,66 +129,6 @@ public class ComponentCompletionRule implements IRule<CompletionFacts, List<Comp
 		}
 
 		return "<bx:%s %s />".formatted( name.toLowerCase(), args );
-	}
-
-	/**
-	 * Format comprehensive documentation for a component tag.
-	 * Includes tag description, attributes with types and descriptions, and usage examples.
-	 */
-	private MarkupContent formatComponentDocumentation( ComponentDescriptor descriptor ) {
-		StringBuilder	doc		= new StringBuilder();
-		String			name	= descriptor.name.toString();
-
-		// Tag signature
-		doc.append( "**" ).append( name ).append( "** tag\n\n" );
-
-		// Body requirement
-		if ( descriptor.requiresBody ) {
-			doc.append( "_Requires body content_\n\n" );
-		} else if ( descriptor.allowsBody ) {
-			doc.append( "_Allows body content_\n\n" );
-		} else {
-			doc.append( "_Self-closing tag_\n\n" );
-		}
-
-		// Attributes table
-		Attribute[] attributes = descriptor.getComponent().getDeclaredAttributes();
-		if ( attributes.length > 0 ) {
-			doc.append( "**Attributes:**\n\n" );
-
-			// Sort: required first, then alphabetically
-			Stream.of( attributes )
-			    .sorted( ( a, b ) -> {
-				    if ( a.validators().contains( Validator.REQUIRED ) && !b.validators().contains( Validator.REQUIRED ) ) {
-					    return -1;
-				    } else if ( !a.validators().contains( Validator.REQUIRED ) && b.validators().contains( Validator.REQUIRED ) ) {
-					    return 1;
-				    }
-				    return a.name().compareTo( b.name() );
-			    } )
-			    .forEach( attr -> {
-				    String attrName		= attr.name().toString();
-				    boolean isRequired	= attr.validators().contains( Validator.REQUIRED );
-				    Object defaultValue	= attr.defaultValue();
-
-				    doc.append( "- **" ).append( attrName ).append( "**" );
-
-				    if ( isRequired ) {
-					    doc.append( " _(required)_" );
-				    } else if ( defaultValue != null && !defaultValue.toString().isEmpty() ) {
-					    doc.append( " — default: `" ).append( defaultValue ).append( "`" );
-				    }
-
-				    doc.append( "\n" );
-			    } );
-		}
-
-		// Create MarkupContent
-		MarkupContent markup = new MarkupContent();
-		markup.setKind( MarkupKind.MARKDOWN );
-		markup.setValue( doc.toString() );
-
-		return markup;
 	}
 
 }

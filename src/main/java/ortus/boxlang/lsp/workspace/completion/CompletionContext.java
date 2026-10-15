@@ -71,6 +71,12 @@ public class CompletionContext {
 		this.fileParseResult		= fileParseResult;
 	}
 
+	/** Whether hover is on an opening or closing tag name, rather than tag-like text in a value. */
+	public static boolean isTemplateTagName( FileParseResult file, Position position ) {
+		TemplateTagContext tag = TemplateTagContext.analyze( file, position );
+		return tag != null && ( tag.kind() == CompletionContextKind.BXM_TAG || tag.text().matches( "(?i)</bx:\\w*" ) );
+	}
+
 	/**
 	 * Analyze the file and cursor position to determine the completion context.
 	 *
