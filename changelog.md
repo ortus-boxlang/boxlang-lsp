@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- BLIDE-347 Add bx:script to tag autocomplete suggestions
+- BLIDE-346 Improve tag autocomplete
+
 ## [1.16.0] - 2026-10-09
 
 - BLIDE-337 Improve java extends behavior

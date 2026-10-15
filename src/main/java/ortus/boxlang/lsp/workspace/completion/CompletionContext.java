@@ -30,11 +30,6 @@ public class CompletionContext {
 	// Member access matches: identifier., identifier.partial, expr().partial, etc.
 	// The receiver group captures what's before the last dot (simplified - may include parens)
 	private static final Pattern		MEMBER_ACCESS_PATTERN	= Pattern.compile( "([\\w\\d\\$_\\)\\]]+)\\s*\\.\\s*(\\w[\\w\\d\\$_]*)?$" );
-	private static final Pattern		BXM_TAG_PATTERN			= Pattern.compile( "<bx:(\\w*)$", Pattern.CASE_INSENSITIVE );
-	// Pattern for BXM tag attributes: <bx:tagname followed by space and optional partial attribute name
-	// Captures: group(1) = tag name, group(2) = partial attribute name (if any)
-	private static final Pattern		BXM_TAG_ATTR_PATTERN	= Pattern.compile( "<bx:(\\w+)\\s+(?:[\\w\\-]+=[\"'][^\"']*[\"']\\s+)*([\\w\\-]*)$",
-	    Pattern.CASE_INSENSITIVE );
 	private static final Pattern		TEMPLATE_EXPR_PATTERN	= Pattern.compile( "#(\\w*)$" );
 	private static final Pattern		IDENTIFIER_PATTERN		= Pattern.compile( "(\\w+)$" );
 	private static final String			SINGLE_LINE_COMMENT		= "//";
@@ -101,6 +96,12 @@ public class CompletionContext {
 			return bxlintCommentContext;
 		}
 
+		TemplateTagContext tagContext = TemplateTagContext.analyze( fileParseResult, cursorPosition );
+		if ( tagContext != null ) {
+			return new CompletionContext( tagContext.kind(), tagContext.partial(), tagContext.name(), containingMethodName, containingClassName,
+			    -1, cursorPosition, fileParseResult );
+		}
+
 		if ( isInsideStringLiteral( textBeforeCursor ) || isInsideComment( lineText, cursorCol ) ) {
 			return new CompletionContext(
 			    CompletionContextKind.NONE,
@@ -116,38 +117,6 @@ public class CompletionContext {
 
 		// Check for BXM-specific contexts in template files
 		if ( fileParseResult.isTemplate() ) {
-			// Check for BXM tag attributes first (more specific than BXM tag)
-			Matcher bxmTagAttrMatcher = BXM_TAG_ATTR_PATTERN.matcher( textBeforeCursor );
-			if ( bxmTagAttrMatcher.find() ) {
-				String	tagName		= bxmTagAttrMatcher.group( 1 );
-				String	partialAttr	= bxmTagAttrMatcher.group( 2 ) != null ? bxmTagAttrMatcher.group( 2 ) : "";
-				return new CompletionContext(
-				    CompletionContextKind.BXM_TAG_ATTRIBUTE,
-				    partialAttr,
-				    tagName, // Use receiverText to store tag name
-				    containingMethodName,
-				    containingClassName,
-				    -1,
-				    cursorPosition,
-				    fileParseResult
-				);
-			}
-
-			// Check for BXM tag
-			Matcher bxmTagMatcher = BXM_TAG_PATTERN.matcher( textBeforeCursor );
-			if ( bxmTagMatcher.find() ) {
-				return new CompletionContext(
-				    CompletionContextKind.BXM_TAG,
-				    bxmTagMatcher.group( 1 ) != null ? bxmTagMatcher.group( 1 ) : "",
-				    null,
-				    containingMethodName,
-				    containingClassName,
-				    -1,
-				    cursorPosition,
-				    fileParseResult
-				);
-			}
-
 			// Check for template expression
 			Matcher templateExprMatcher = TEMPLATE_EXPR_PATTERN.matcher( textBeforeCursor );
 			if ( templateExprMatcher.find() ) {
