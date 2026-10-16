@@ -127,14 +127,13 @@ public class BxmTagCompletionTest extends BaseTest {
 	}
 
 	@Test
-	@DisplayName( "Should complete attribute values for known attributes" )
+	@DisplayName( "Should not offer tag or attribute names inside attribute values" )
 	void testAttributeValueCompletion() {
 		// Position: Line 18 (0-indexed), inside "<bx:output encodefor=\""
 		List<CompletionItem> items = getCompletionsAt( 18, 27 );
 
-		// Should have value completions if the attribute has known values
-		// Note: Exact values depend on BoxRuntime metadata
-		assertThat( items ).isNotEmpty();
+		// Enumerated value completion is separate; whole tags must not leak into values.
+		assertThat( items ).isEmpty();
 	}
 
 	@Test

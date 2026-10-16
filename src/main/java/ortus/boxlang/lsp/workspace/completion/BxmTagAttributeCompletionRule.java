@@ -46,8 +46,8 @@ public class BxmTagAttributeCompletionRule implements IRule<CompletionFacts, Lis
 		}
 
 		// Get already-used attributes to avoid suggesting them again
-		String	lineText		= facts.fileParseResult().readLine( facts.completionParams().getPosition().getLine() );
-		var		usedAttributes	= extractUsedAttributes( lineText );
+		var	tag				= TemplateTagContext.analyze( facts.fileParseResult(), facts.completionParams().getPosition() );
+		var	usedAttributes	= extractUsedAttributes( tag.text() );
 
 		// Add attribute completions
 		Stream.of( descriptor.getComponent().getDeclaredAttributes() )
@@ -91,11 +91,11 @@ public class BxmTagAttributeCompletionRule implements IRule<CompletionFacts, Lis
 
 	/**
 	 * Extract already-used attribute names from the line text.
-	 * Simple regex-based extraction looking for attribute="value" patterns.
+	 * Consume whole attribute values so text inside a value is not mistaken for another attribute.
 	 */
 	private java.util.Set<String> extractUsedAttributes( String lineText ) {
 		java.util.Set<String>	used	= new java.util.HashSet<>();
-		java.util.regex.Pattern	pattern	= java.util.regex.Pattern.compile( "\\b([\\w\\-]+)\\s*=\\s*[\"']" );
+		java.util.regex.Pattern	pattern	= java.util.regex.Pattern.compile( "\\b([\\w\\-]+)\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|[^\\s>]+)" );
 		java.util.regex.Matcher	matcher	= pattern.matcher( lineText );
 
 		while ( matcher.find() ) {

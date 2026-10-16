@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.lsp4j.CompletionItem;
+import org.eclipse.lsp4j.CompletionTriggerKind;
 
 import ortus.boxlang.lsp.workspace.rules.RuleCollection;
 
@@ -30,6 +31,14 @@ public class CompletionProviderRuleBook extends RuleCollection<CompletionFacts, 
 	}
 
 	public static List<CompletionItem> execute( CompletionFacts facts ) {
+		var requestContext = facts.completionParams().getContext();
+		if ( requestContext != null && requestContext.getTriggerKind() == CompletionTriggerKind.TriggerCharacter
+		    && List.of( "<", ":", " " ).contains( requestContext.getTriggerCharacter() ) ) {
+			var kind = facts.getContext().getKind();
+			if ( kind != CompletionContextKind.BXM_TAG && kind != CompletionContextKind.BXM_TAG_ATTRIBUTE ) {
+				return List.of();
+			}
+		}
 		return instance.execute( facts, new ArrayList<CompletionItem>() );
 	}
 }
