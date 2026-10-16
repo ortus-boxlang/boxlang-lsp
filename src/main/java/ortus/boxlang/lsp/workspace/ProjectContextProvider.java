@@ -115,6 +115,8 @@ import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor.Variab
 import ortus.boxlang.lsp.workspace.visitors.VariableScopeCollectorVisitor.VariableScope;
 import ortus.boxlang.lsp.workspace.visitors.VariableTypeCollectorVisitor;
 import ortus.boxlang.runtime.BoxRuntime;
+import ortus.boxlang.lsp.workspace.completion.CompletionContext;
+import ortus.boxlang.compiler.ast.statement.component.BoxComponent;
 import ortus.boxlang.runtime.async.executors.BoxExecutor;
 import ortus.boxlang.runtime.bifs.BIFDescriptor;
 import ortus.boxlang.runtime.services.AsyncService;
@@ -3282,8 +3284,10 @@ public class ProjectContextProvider {
 	 * @return Hover information or null if no hover is available
 	 */
 	public Hover getHoverInfo( URI docURI, Position position ) {
-		return getLatestFileParseResult( docURI )
-		    .flatMap( fpr -> fpr.findAstRoot() )
+		FileParseResult file = getLatestFileParseResult( docURI ).orElse( null );
+		if ( file == null )
+			return null;
+		return file.findAstRoot()
 		    .map( rootNode -> {
 			    FindHoverTargetVisitor visitor = new FindHoverTargetVisitor( position );
 			    rootNode.accept( visitor );
@@ -3291,6 +3295,13 @@ public class ProjectContextProvider {
 
 			    if ( target == null ) {
 				    return null;
+			    }
+
+			    if ( target instanceof BoxComponent component ) {
+				    if ( !CompletionContext.isTemplateTagName( file, position ) )
+					    return null;
+				    var descriptor = BoxRuntime.getInstance().getComponentService().getComponent( component.getName() );
+				    return descriptor == null ? null : new Hover( ComponentDocumentation.format( descriptor ) );
 			    }
 
 			    // Handle function invocations - look up the function definition

@@ -143,7 +143,7 @@ public class FileParseResult {
 		return lineStream.skip( lineNumber ).findFirst().orElse( "" );
 	}
 
-	List<String> readAllLines() {
+	public List<String> readAllLines() {
 		if ( this.isOpen ) {
 			List<String> lines = new ArrayList<>();
 			for ( String line : this.source.split( "\n", -1 ) ) {

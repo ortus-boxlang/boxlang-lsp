@@ -65,7 +65,7 @@ public class CompletionsTest {
 
 		CompletionParams		c	= new CompletionParams();
 		TextDocumentIdentifier	td	= new TextDocumentIdentifier( p.toUri().toString() );
-		c.setPosition( new Position( 3, 1 ) );
+		c.setPosition( new Position( 4, 1 ) ); // After '<', using zero-based LSP coordinates.
 		c.setTextDocument( td );
 		List<CompletionItem> completionItems = pcp.getAvailableCompletions( f.toURI(), c );
 		assertFalse( completionItems.isEmpty(), "Completion items should not be empty." );
@@ -96,7 +96,7 @@ public class CompletionsTest {
 
 		CompletionParams		c	= new CompletionParams();
 		TextDocumentIdentifier	td	= new TextDocumentIdentifier( p.toUri().toString() );
-		c.setPosition( new Position( 5, 7 ) );
+		c.setPosition( new Position( 4, 7 ) ); // After '<bx:thr', not the following blank line.
 		c.setTextDocument( td );
 		List<CompletionItem> completionItems = pcp.getAvailableCompletions( f.toURI(), c );
 		assertFalse( completionItems.isEmpty(), "Completion items should not be empty." );
@@ -105,6 +105,8 @@ public class CompletionsTest {
 
 		assertTrue( item != null, "Couldn't find the bx:thread autosuggest." );
 
-		assertThat( item.getInsertText() ).isEqualTo( "thread >$0</bx:thread>" );
+		assertThat( item.getInsertText() ).isEqualTo( "<bx:thread >$0</bx:thread>" );
+		assertThat( item.getTextEdit().getLeft().getRange().getStart() ).isEqualTo( new Position( 4, 0 ) );
+		assertThat( item.getTextEdit().getLeft().getRange().getEnd() ).isEqualTo( c.getPosition() );
 	}
 }
