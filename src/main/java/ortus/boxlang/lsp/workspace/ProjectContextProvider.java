@@ -3423,8 +3423,17 @@ public class ProjectContextProvider {
 		    .orElse( null );
 	}
 
-	public List<SelectionRange> getSelectionRanges(URI docURI, List<Position> positions) {
-		return List.of();
+	// Builds expand-selection chains from the latest parse, which reflects unsaved editor
+	// text. Parse failures degrade to caret-only ranges instead of failing the request.
+	public List<SelectionRange> getSelectionRanges( URI docURI, List<Position> positions ) {
+		Optional<BoxNode> astRoot;
+		try {
+			astRoot = getLatestFileParseResult( docURI ).flatMap( FileParseResult::findAstRoot );
+		} catch ( RuntimeException e ) {
+			App.logger.debug( "Selection range parse failed for {}: {}", docURI, e.getMessage() );
+			astRoot = Optional.empty();
+		}
+		return SelectionRangeProvider.getSelectionRanges( astRoot, positions );
 	}
 
 	/**

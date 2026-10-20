@@ -21,23 +21,18 @@ public class BLASTTools {
 	/**
 	 * Get source text when the AST node retained it.
 	 */
-	// Returns retained source text when a node does not expose a more specific value.
 	public static Optional<String> getSourceText( BoxNode node ) {
 		return Optional.ofNullable( node ).map( BoxNode::getSourceText );
 	}
 
-	// Returns an identifier name in a null-safe form for AST visitors and navigation.
 	public static Optional<String> getName( BoxIdentifier node ) {
 		return Optional.ofNullable( node ).map( BoxIdentifier::getName );
 	}
 
-	// Returns the name of a function invocation for call-site analysis.
 	public static Optional<String> getName( BoxFunctionInvocation node ) {
 		return Optional.ofNullable( node ).map( BoxFunctionInvocation::getName );
 	}
 
-	// Resolves a method name from the several AST node types the parser can produce,
-	// giving visitors one consistent way to inspect method calls.
 	public static Optional<String> getName( BoxMethodInvocation node ) {
 		if ( node == null || node.getName() == null ) {
 			return Optional.empty();
@@ -56,18 +51,14 @@ public class BLASTTools {
 		return getSourceText( name );
 	}
 
-	// Returns the value stored by a fully qualified name node.
 	public static Optional<String> getValue( BoxFQN node ) {
 		return Optional.ofNullable( node ).map( BoxFQN::getValue );
 	}
 
-	// Returns the value stored by a string-literal node.
 	public static Optional<String> getValue( BoxStringLiteral node ) {
 		return Optional.ofNullable( node ).map( BoxStringLiteral::getValue );
 	}
 
-	// Extracts text from common AST node types and falls back to retained source text.
-	// Annotation, property, and navigation code use this shared normalization.
 	public static Optional<String> getValue( BoxNode node ) {
 		if ( node instanceof BoxFQN fqn ) {
 			return getValue( fqn );
@@ -81,28 +72,22 @@ public class BLASTTools {
 		return getSourceText( node );
 	}
 
-	// Extracts a regular annotation key for metadata-driven language features.
 	public static Optional<String> getAnnotationName( BoxAnnotation annotation ) {
 		return annotation == null ? Optional.empty() : getValue( annotation.getKey() );
 	}
 
-	// Extracts a regular annotation value for metadata-driven language features.
 	public static Optional<String> getAnnotationValue( BoxAnnotation annotation ) {
 		return annotation == null ? Optional.empty() : getValue( annotation.getValue() );
 	}
 
-	// Extracts a documentation annotation key for documentation-aware visitors.
 	public static Optional<String> getAnnotationName( BoxDocumentationAnnotation annotation ) {
 		return annotation == null ? Optional.empty() : getValue( annotation.getKey() );
 	}
 
-	// Extracts a documentation annotation value for documentation-aware visitors.
 	public static Optional<String> getAnnotationValue( BoxDocumentationAnnotation annotation ) {
 		return annotation == null ? Optional.empty() : getValue( annotation.getValue() );
 	}
 
-	// Finds and stringifies a property's name annotation so property metadata can be
-	// connected to the parsed-property model used by workspace features.
 	public static Optional<String> getPropertyName( BoxProperty property ) {
 		if ( property == null ) {
 			return Optional.empty();
@@ -118,16 +103,12 @@ public class BLASTTools {
 		return Optional.empty();
 	}
 
-	// Converts the compiler's one-based source position to the zero-based LSP range
-	// expected by editors and used by diagnostics and navigation.
 	public static Range positionToRange( ortus.boxlang.compiler.ast.Position pos ) {
 		return new Range(
 		    new Position( pos.getStart().getLine() - 1, pos.getStart().getColumn() ),
 		    new Position( pos.getEnd().getLine() - 1, pos.getEnd().getColumn() ) );
 	}
 
-	// Checks whether an editor position falls inside an AST node. Function calls use
-	// a narrowed name range so navigation targets the symbol rather than the call.
 	public static boolean containsPosition( BoxNode node, int line, int column ) {
 		ortus.boxlang.compiler.ast.Position nodePos = node.getPosition();
 

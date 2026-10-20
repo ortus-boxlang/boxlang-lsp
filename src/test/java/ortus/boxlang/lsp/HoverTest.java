@@ -20,38 +20,7 @@ public class HoverTest extends BaseTest {
 
 		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
 		svc.didOpen( new org.eclipse.lsp4j.DidOpenTextDocumentParams(
-
-		    /*
-		     * Why the long org.eclipse.lsp4j. names?
-		     * That's the class's full name, including its package. If you write the full name, you don't need an import line at the top. HoverTest mixes both
-		     * styles: some
-		     * classes are imported, and some are written out in full. If you add imports instead, you can write new TextDocumentItem(...).
-		     */
 		    new org.eclipse.lsp4j.TextDocumentItem( defPath.toUri().toString(), "boxlang", 1, java.nio.file.Files.readString( defPath ) ) ) );
-		/*
-		 * 1. Read the files text: java.nio.file.Files.readString(defPath) reads the text in the file.
-		 * 
-		 * 2. Turn the path to URI: So this entire line opens the file and returns everything inside it in
-		 * one big string. .toUri() conerts it to the format LSP uses to identify files. .toString() turns that into plain text.
-		 * 
-		 * 3. Package it as a TextDocumentItem
-		 * new TextDocumentItem is a container that describes one open file which takes 4 values:
-		 * - uri: Which file this is
-		 * - languageId: what language it's written in
-		 * - version: version number of the file's contents. It goes up each time the file is edited; 1 means just opened
-		 * - text: the code itself
-		 * 
-		 * 4. Wrap it in a DidOpenTextDocumentParams
-		 * new DidOpenTextDocumentParams(textDocumentItem)
-		 * This is an envelope around the item. Every LSP method takes a "Params" objects even when there's only one thing inside it.
-		 * Hover takes HoverParams, and opening a file takes DidOpenTextDocumentParams
-		 * 
-		 * 5. Tell the server
-		 * 
-		 * svc.didOpen(params) tells the server that the user just opened this file and here is its content. The server reads the code,
-		 * understands its structure and keeps it in memory. After this it can answer questions about the file live hover or selection range.
-		 * 
-		 */
 
 		// Position is on "getUser" call in line 34: "var result = getUser(1);"
 		HoverParams hoverParams = new HoverParams();

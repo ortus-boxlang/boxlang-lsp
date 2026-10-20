@@ -40,19 +40,14 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 
 	private boolean									supportsFileWatch;
 
-	// Creates the language server with the default workspace, document, project,
-	// and formatting services used by the LSP runtime.
 	public LanguageServer() {
 		this( createDefaults() );
 	}
 
-	// Wires the supplied services into the server so they share the same formatting
-	// coordinator and project context.
 	private LanguageServer( DefaultServices defaults ) {
 		this( defaults.workspaceService(), new BoxLangTextDocumentService(), ProjectContextProvider.getInstance(), defaults.formattingCapabilityCoordinator() );
 	}
 
-	// Creates the default workspace and formatting services used during startup.
 	private static DefaultServices createDefaults() {
 		FormattingCapabilityCoordinator formattingCapabilityCoordinator = new FormattingCapabilityCoordinator();
 		return new DefaultServices( new BoxLangWorkspaceService( formattingCapabilityCoordinator ), formattingCapabilityCoordinator );
@@ -74,8 +69,6 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 	}
 
 	@Override
-	// Negotiates client capabilities and initializes workspace-specific state. The
-	// advertised capabilities determine which requests the client sends afterward.
 	public CompletableFuture<InitializeResult> initialize( InitializeParams params ) {
 		return CompletableFutures.computeAsync( ( cancelToken ) -> {
 			ServerCapabilities	capabilities							= new ServerCapabilities();
@@ -98,7 +91,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			capabilities.setDocumentFormattingProvider( formattingCapabilityCoordinator.shouldAdvertiseFormattingStatically() );
 			CompletionOptions completionOptions = new CompletionOptions();
 			capabilities.setReferencesProvider( true );
-			capabilities.setSelectionRangeProvider(true);
+			capabilities.setSelectionRangeProvider( true );
 
 			completionOptions.setTriggerCharacters( List.of( "." ) );
 			// completionOptions.
@@ -152,8 +145,6 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 	}
 
 	@Override
-	// Completes startup by loading configuration, enabling file watching, publishing
-	// diagnostics, and beginning workspace parsing.
 	public void initialized( InitializedParams params ) {
 		App.logger.info( "Received initialized notification" );
 		LintConfigLoader.get();
@@ -171,7 +162,6 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 	}
 
 	@Override
-	// Acknowledges the client's shutdown request before the final exit notification.
 	public CompletableFuture<Object> shutdown() {
 		return CompletableFutures.computeAsync( ( cancelChecker ) -> {
 			App.logger.info( "Received shutdown command - shutting down now" );
@@ -180,34 +170,27 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 	}
 
 	@Override
-	// Terminates the language-server process after shutdown is complete.
 	public void exit() {
 		App.logger.info( "Received exit command - exiting" );
 		System.exit( 0 );
 	}
 
 	@Override
-	// Receives trace-setting changes. The current implementation only records receipt.
 	public void setTrace( SetTraceParams params ) {
 		App.logger.info( "Received setTrace command" );
 	}
 
 	@Override
-	// Returns the service handling document-level language features such as completion,
-	// formatting, hover, symbols, navigation, and references.
 	public TextDocumentService getTextDocumentService() {
 		return textDocumentService;
 	}
 
 	@Override
-	// Returns the service handling project-wide operations and workspace commands.
 	public WorkspaceService getWorkspaceService() {
 		return workspaceService;
 	}
 
 	@Override
-	// Connects the client to services that publish diagnostics, messages, and dynamic
-	// formatting-registration updates.
 	public void connect( LanguageClient client ) {
 
 		workspaceService.setLanguageClient( client );
