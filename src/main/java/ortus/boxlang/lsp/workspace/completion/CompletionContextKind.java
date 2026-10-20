@@ -49,7 +49,7 @@ public enum CompletionContextKind {
 	FUNCTION_ARGUMENT,
 
 	/**
-	 * BXM tag context: `<bx:` or `<bx:partial`
+	 * BXM tag context: `<`, `<b`, `<bx`, `<bx:` or `<bx:partial`
 	 * Complete with: tag names
 	 */
 	BXM_TAG,

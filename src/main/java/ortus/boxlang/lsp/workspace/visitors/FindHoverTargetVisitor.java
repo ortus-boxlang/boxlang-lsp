@@ -1,6 +1,8 @@
 package ortus.boxlang.lsp.workspace.visitors;
 
 import org.eclipse.lsp4j.Position;
+import java.util.regex.Pattern;
+import ortus.boxlang.compiler.ast.statement.component.BoxComponent;
 
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.expression.BoxDotAccess;
@@ -40,6 +42,27 @@ public class FindHoverTargetVisitor extends VoidBoxVisitor {
 
 	public BoxNode getHoverTarget() {
 		return hoverTarget;
+	}
+
+	@Override
+	public void visit( BoxComponent node ) {
+		var		start	= node.getPosition() == null ? null : node.getPosition().getStart();
+		String	source	= node.getSourceText();
+		if ( start != null && source != null && BLASTTools.containsPosition( node, line, column ) ) {
+			String[]	lines			= source.split( "\n", -1 );
+			int			relativeLine	= line - start.getLine();
+			int			offset			= column - ( relativeLine == 0 ? start.getColumn() : 0 );
+			for ( int i = 0; i < relativeLine && i < lines.length; i++ )
+				offset += lines[ i ].length() + 1;
+			var name = Pattern.compile( "^<bx:\\w+|</bx:\\w+(?=\\s*>\\s*$)", Pattern.CASE_INSENSITIVE ).matcher( source );
+			while ( name.find() ) {
+				if ( offset > name.start() && offset < name.end() ) {
+					this.hoverTarget = node;
+					return;
+				}
+			}
+		}
+		visitChildren( node );
 	}
 
 	@Override
