@@ -24,11 +24,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.DiagnosticTag;
+import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.WorkspaceEdit;
 
 import ortus.boxlang.compiler.ast.BoxClass;
 import ortus.boxlang.compiler.ast.BoxNode;
@@ -82,6 +86,7 @@ import ortus.boxlang.lsp.workspace.ProjectContextProvider;
  */
 public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 
+	private List<CodeAction>							codeActions			= new ArrayList<>();
 	private List<Diagnostic>							diagnostics			= new ArrayList<>();
 
 	// For tracking shadowed variables per function
@@ -133,7 +138,10 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 
 	@Override
 	public List<CodeAction> getCodeActions() {
-		return List.of();
+		if ( !DiagnosticRuleRegistry.getInstance().isEnabled( UnusedImportRule.ID, true ) ) {
+			return List.of();
+		}
+		return codeActions;
 	}
 
 	// ============ Empty Catch Block Detection ============
@@ -549,9 +557,29 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 				    UnusedImportRule.ID
 				);
 				diagnostic.setTags( List.of( DiagnosticTag.Unnecessary ) );
+				// Preserve identity when the client returns this diagnostic in a code-action request.
+				diagnostic.setData( Map.of( "id", UUID.randomUUID().toString() ) );
 				diagnostics.add( diagnostic );
+
+				// Wildcard imports affect multiple symbols and are outside this statement-level fix.
+				if ( !isWildcardImport( importNode ) && filePath != null ) {
+					CodeAction action = new CodeAction( "Remove unused import" );
+					action.setKind( CodeActionKind.QuickFix );
+					action.setDiagnostics( List.of( diagnostic ) );
+					action.setEdit( new WorkspaceEdit( Map.of(
+					    filePath,
+					    List.of( new TextEdit( diagnostic.getRange(), "" ) ) ) ) );
+					codeActions.add( action );
+				}
 			}
 		}
+	}
+
+	private boolean isWildcardImport( BoxImport importNode ) {
+		return BLASTTools.getValue( importNode.getExpression() )
+		    .map( String::trim )
+		    .filter( expression -> expression.endsWith( "*" ) )
+		    .isPresent();
 	}
 
 	private void generateUnusedPrivateMethodDiagnostics() {

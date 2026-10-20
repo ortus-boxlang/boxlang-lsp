@@ -25,10 +25,23 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
+import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.CodeActionContext;
+import org.eclipse.lsp4j.CodeActionKind;
+import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.DiagnosticTag;
+import org.eclipse.lsp4j.DidOpenTextDocumentParams;
+import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
+import org.eclipse.lsp4j.TextDocumentItem;
+import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.WorkspaceFolder;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,8 +49,11 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import com.google.gson.JsonObject;
+
 import ortus.boxlang.compiler.ast.expression.BoxFQN;
 import ortus.boxlang.compiler.ast.statement.BoxImport;
+import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.lint.rules.UnreachableCodeRule;
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
@@ -668,6 +684,147 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 		assertThat( unusedImport ).isNotNull();
 		assertThat( unusedImport.getSeverity() ).isEqualTo( DiagnosticSeverity.Warning );
 		assertThat( unusedImport.getTags() ).contains( DiagnosticTag.Unnecessary );
+	}
+
+	@ParameterizedTest
+	@CsvSource( { "UnusedImportQuickFix.bx, false", "UnusedImportQuickFix.bxs, true" } )
+	void testUnusedImportQuickFixThroughTextDocumentService( String fileName, boolean script ) throws Exception {
+		String						lineEnding	= "\r\n";
+		String						source		= script
+		    ? String.join( lineEnding,
+		        "// keep comment before imports",
+		        "import java:java.util.ArrayList as UnusedList;",
+		        "// keep comment between imports",
+		        "import java:java.util.HashMap as UsedMap;",
+		        "var map = new UsedMap();",
+		        "" )
+		    : String.join( lineEnding,
+		        "// keep comment before imports",
+		        "import java:java.util.ArrayList as UnusedList;",
+		        "// keep comment between imports",
+		        "import java:java.util.HashMap as UsedMap;",
+		        "class {",
+		        "    function void use() {",
+		        "        var map = new UsedMap();",
+		        "    }",
+		        "}",
+		        "" );
+
+		Path						testFile	= createTestFile( fileName, source );
+		BoxLangTextDocumentService	service		= new BoxLangTextDocumentService();
+		service.didOpen( new DidOpenTextDocumentParams(
+		    new TextDocumentItem( testFile.toUri().toString(), "boxlang", 1, source ) ) );
+
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		Diagnostic				unusedImport	= provider.getFileDiagnostics( testFile.toUri() ).stream()
+		    .filter( diagnostic -> diagnostic.getCode() != null && diagnostic.getCode().isLeft()
+		        && "unusedImport".equals( diagnostic.getCode().getLeft() ) )
+		    .findFirst()
+		    .orElseThrow();
+
+		JsonObject				clientData		= new JsonObject();
+		clientData.addProperty( "id", ( ( Map<?, ?> ) unusedImport.getData() ).get( "id" ).toString() );
+		Diagnostic clientDiagnostic = new Diagnostic();
+		clientDiagnostic.setRange( unusedImport.getRange() );
+		clientDiagnostic.setMessage( unusedImport.getMessage().getLeft() );
+		clientDiagnostic.setSeverity( unusedImport.getSeverity() );
+		clientDiagnostic.setSource( unusedImport.getSource() );
+		clientDiagnostic.setCode( unusedImport.getCode() );
+		clientDiagnostic.setData( clientData );
+
+		CodeActionParams params = new CodeActionParams();
+		params.setTextDocument( new TextDocumentIdentifier( testFile.toUri().toString() ) );
+		params.setRange( unusedImport.getRange() );
+		params.setContext( new CodeActionContext( List.of( clientDiagnostic ) ) );
+		CodeAction action = service.codeAction( params ).join().stream()
+		    .filter( Either::isRight )
+		    .map( Either::getRight )
+		    .findFirst()
+		    .orElseThrow();
+
+		assertThat( action.getTitle() ).isEqualTo( "Remove unused import" );
+		assertThat( action.getKind() ).isEqualTo( CodeActionKind.QuickFix );
+		TextEdit	edit			= action.getEdit().getChanges().values().iterator().next().getFirst();
+		String		editedSource	= applyEdit( source, edit );
+		String		expectedSource	= source.replace( "import java:java.util.ArrayList as UnusedList;", "" );
+		assertThat( editedSource ).isEqualTo( expectedSource );
+
+		service.didChange( new org.eclipse.lsp4j.DidChangeTextDocumentParams(
+		    new org.eclipse.lsp4j.VersionedTextDocumentIdentifier( testFile.toUri().toString(), 2 ),
+		    List.of( new org.eclipse.lsp4j.TextDocumentContentChangeEvent( editedSource ) ) ) );
+		assertThat( provider.getFileDiagnostics( testFile.toUri() ).stream()
+		    .filter( diagnostic -> diagnostic.getCode() != null && diagnostic.getCode().isLeft()
+		        && "unusedImport".equals( diagnostic.getCode().getLeft() ) ) )
+		    .isEmpty();
+		assertThat( editedSource ).contains( "import java:java.util.HashMap as UsedMap;" );
+		assertThat( editedSource ).contains( "// keep comment before imports" );
+		assertThat( editedSource ).contains( "// keep comment between imports" );
+	}
+
+	@Test
+	void testUnusedImportQuickFixNotOfferedWhenSuppressed() throws Exception {
+		Path testFile = createTestFile( "SuppressedUnusedImport.bx", """
+		                                                             // bxlint:disable unusedImport
+		                                                             import java:java.util.ArrayList;
+		                                                             // bxlint:enable unusedImport
+		                                                             class { function void run() {} }
+		                                                             """ );
+		index.indexFile( testFile.toUri() );
+
+		assertThat( ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
+		    .filter( diagnostic -> diagnostic.getCode() != null && diagnostic.getCode().isLeft()
+		        && "unusedImport".equals( diagnostic.getCode().getLeft() ) ) )
+		    .isEmpty();
+		assertThat( ProjectContextProvider.getInstance().getFileCodeActions( testFile.toUri() ) ).isEmpty();
+	}
+
+	@Test
+	void testUnusedImportQuickFixNotOfferedWhenRuleDisabled() throws Exception {
+		ProjectContextProvider	provider		= ProjectContextProvider.getInstance();
+		List<WorkspaceFolder>	savedFolders	= provider.getWorkspaceFolders();
+		Files.writeString( tempDir.resolve( ".bxlint.json" ), """
+		                                                      {
+		                                                        "diagnostics": {
+		                                                          "unusedImport": { "enabled": false }
+		                                                        }
+		                                                      }
+		                                                      """ );
+		WorkspaceFolder folder = new WorkspaceFolder();
+		folder.setUri( tempDir.toUri().toString() );
+
+		try {
+			provider.setWorkspaceFolders( List.of( folder ) );
+			LintConfigLoader.invalidate();
+			Path testFile = createTestFile( "DisabledUnusedImport.bx", """
+			                                                           import java:java.util.ArrayList;
+			                                                           class { function void run() {} }
+			                                                           """ );
+			index.indexFile( testFile.toUri() );
+
+			assertThat( provider.getFileDiagnostics( testFile.toUri() ).stream()
+			    .filter( diagnostic -> diagnostic.getCode() != null && diagnostic.getCode().isLeft()
+			        && "unusedImport".equals( diagnostic.getCode().getLeft() ) ) )
+			    .isEmpty();
+			assertThat( provider.getFileCodeActions( testFile.toUri() ) ).isEmpty();
+		} finally {
+			provider.setWorkspaceFolders( savedFolders );
+			LintConfigLoader.invalidate();
+		}
+	}
+
+	private static String applyEdit( String source, TextEdit edit ) {
+		Range	range	= edit.getRange();
+		int		start	= offsetAt( source, range.getStart() );
+		int		end		= offsetAt( source, range.getEnd() );
+		return source.substring( 0, start ) + edit.getNewText() + source.substring( end );
+	}
+
+	private static int offsetAt( String source, Position position ) {
+		int offset = 0;
+		for ( int line = 0; line < position.getLine(); line++ ) {
+			offset = source.indexOf( '\n', offset ) + 1;
+		}
+		return offset + position.getCharacter();
 	}
 
 	@Test
