@@ -1,7 +1,5 @@
 package ortus.boxlang.lsp;
 
-import static com.google.common.truth.Truth.assertThat;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -14,6 +12,8 @@ import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import static com.google.common.truth.Truth.assertThat;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
@@ -162,6 +162,56 @@ public class BxlintRuleCompletionTest extends BaseTest {
 		int						cursorCol	= source.lines().toList().get( 2 ).length();
 		params.setTextDocument( identifier );
 		params.setPosition( new Position( 2, cursorCol ) );
+
+		List<CompletionItem> items = provider.getAvailableCompletions( testFile.toUri(), params );
+
+		assertThat( items.stream().map( CompletionItem::getLabel ).toList() ).contains( "unusedVariable" );
+	}
+
+	@Test
+	void testDisableNextLineExcludesListedRulesAndSuggestsOthers() throws Exception {
+		String	source		= """
+		                      class {
+		                          function demo() {
+		                              // bxlint-disable-next-line unusedVariable, unu
+		                          }
+		                      }
+		                      """;
+		Path	testFile	= tempDir.resolve( "BxlintRuleCompletionNextLineExistingRules.bx" );
+		Files.writeString( testFile, source );
+
+		index.indexFile( testFile.toUri() );
+		provider.trackDocumentOpen( testFile.toUri(), source );
+
+		CompletionParams		params		= new CompletionParams();
+		TextDocumentIdentifier	identifier	= new TextDocumentIdentifier( testFile.toUri().toString() );
+		int						cursorCol	= source.lines().toList().get( 2 ).length();
+		params.setTextDocument( identifier );
+		params.setPosition( new Position( 2, cursorCol ) );
+
+		List<CompletionItem> items = provider.getAvailableCompletions( testFile.toUri(), params );
+
+		assertThat( items.stream().map( CompletionItem::getLabel ).toList() ).doesNotContain( "unusedVariable" );
+		assertThat( items.stream().map( CompletionItem::getLabel ).toList() ).contains( "unusedImport" );
+	}
+
+	@Test
+	void testCompletesRuleNamesInsideTemplateBxlintNextLineComment() throws Exception {
+		String	source		= """
+		                      <!-- bxlint-disable-next-line unu -->
+		                      <bx:output>#value#</bx:output>
+		                      """;
+		Path	testFile	= tempDir.resolve( "BxlintRuleCompletionTemplateNextLine.bxm" );
+		Files.writeString( testFile, source );
+
+		index.indexFile( testFile.toUri() );
+		provider.trackDocumentOpen( testFile.toUri(), source );
+
+		CompletionParams		params		= new CompletionParams();
+		TextDocumentIdentifier	identifier	= new TextDocumentIdentifier( testFile.toUri().toString() );
+		int						cursorCol	= source.lines().toList().get( 0 ).indexOf( " -->" );
+		params.setTextDocument( identifier );
+		params.setPosition( new Position( 0, cursorCol ) );
 
 		List<CompletionItem> items = provider.getAvailableCompletions( testFile.toUri(), params );
 

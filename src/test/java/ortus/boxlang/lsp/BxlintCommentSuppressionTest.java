@@ -242,6 +242,97 @@ public class BxlintCommentSuppressionTest extends BaseTest {
 		assertWithMessage( diagnosticSummary( diagnostics ) ).that( hasDiagnostic( diagnostics, "unusedVariable", 4 ) ).isTrue();
 	}
 
+	@Test
+	void testBxlintDisableNextLineBlankNextLine() throws Exception {
+		String	code		= """
+		                      		class{
+		                      		function demo() {
+		                      		// bxlint-disable-next-line
+
+		                      		reported = 1;
+		                      	}
+		                      		}
+		                      """;
+		Path	testFile	= createTestFile( "testBxlintDisableNextLineBlankNextLine.bx", code );
+		index.indexFile( testFile.toUri() );
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		assertWithMessage( diagnosticSummary( diagnostics ) ).that( hasDiagnostic( diagnostics, "unusedVariable", 4 ) ).isTrue();
+	}
+
+	@Test
+	void testBxlintDisableNextLineMultiRules() throws Exception {
+		String	code		= """
+		                      		class{
+		                      		function demo() {
+		                      		// bxlint-disable-next-line emptyCatchBlock, unusedVariable
+		                      		suppressed = 1;
+		                      		reported = 2;
+		                      	}
+		                      		}
+		                      """;
+		Path	testFile	= createTestFile( "testBxlintDisableNextLineMultiRules.bx", code );
+		index.indexFile( testFile.toUri() );
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		assertWithMessage( diagnosticSummary( diagnostics ) ).that( hasDiagnostic( diagnostics, "unusedVariable", 3 ) ).isFalse();
+		assertWithMessage( diagnosticSummary( diagnostics ) ).that( hasDiagnostic( diagnostics, "unusedVariable", 4 ) ).isTrue();
+	}
+
+	@Test
+	void testBxlintDisableNextLineMultiDiag() throws Exception {
+		String	code		= """
+		                      class {
+		                          function demo() {
+		                              try {
+		                                  foo();
+		                              // bxlint-disable-next-line emptyCatchBlock
+		                              } catch (any e) {
+		                              }
+
+		                              try {
+		                                  foo();
+		                              } catch (any e) {
+		                              }
+		                          }
+		                      }
+		                      """;
+
+		Path	testFile	= createTestFile( "BxlintDisableNextLineMultiDiag.bx", code );
+		index.indexFile( testFile.toUri() );
+
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		assertWithMessage( diagnosticSummary( diagnostics ) ).that( hasDiagnostic( diagnostics, "emptyCatchBlock", 5 ) ).isFalse();
+		assertWithMessage( diagnosticSummary( diagnostics ) ).that( hasDiagnostic( diagnostics, "emptyCatchBlock", 10 ) ).isTrue();
+		Diagnostic control = diagnostics.stream()
+		    .filter( diagnostic -> diagnostic.getCode() != null && "emptyCatchBlock".equals( diagnostic.getCode().getLeft() ) ).findFirst().orElseThrow();
+		assertWithMessage( "control emptyCatchBlock should span multiple lines" ).that( control.getRange().getEnd().getLine() )
+		    .isGreaterThan( control.getRange().getStart().getLine() );
+	}
+
+	@Test
+	void testBxlintDisableNextLineTemplateCommentSuppression() throws Exception {
+		String	code		= """
+		                                      	<bx:function name="demo">
+		                      <!--- bxlint-disable-next-line unusedVariable --->
+		                      			<bx:set suppressed = 1>
+		                      			<bx:set reported = 2>
+		                      </bx:function>
+
+		                                      """;
+		Path	testFile	= createTestFile( "testBxlintDisableNextLineTemplateCommentSuppression.bxm", code );
+		index.indexFile( testFile.toUri() );
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+		assertNotNull( diagnostics );
+
+		assertWithMessage( diagnosticSummary( diagnostics ) ).that( hasDiagnostic( diagnostics, "unusedVariable", 2 ) ).isFalse();
+		assertWithMessage( diagnosticSummary( diagnostics ) ).that( hasDiagnostic( diagnostics, "unusedVariable", 3 ) ).isTrue();
+	}
+
 	private boolean hasDiagnostic( List<Diagnostic> diagnostics, String ruleId, int line ) {
 		return diagnostics.stream().anyMatch( diagnostic -> diagnostic.getCode() != null
 		    && diagnostic.getCode().isLeft()
