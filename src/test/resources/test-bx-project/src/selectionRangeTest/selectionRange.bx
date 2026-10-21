@@ -1,0 +1,14 @@
+/* 
+
+This is a test file for testing SelectionRanges within boxLang files.
+
+*/
+
+class {
+	function subtract( a, b ){
+
+    var c = a - b;
+
+    return c;
+}
+}

@@ -29,7 +29,7 @@
             "mainClass": "ortus.boxlang.runtime.BoxRunner",
             "projectName": "bx-lsp-boxlang-lsp",
             "env": {
-                "BOXLANG_RUNTIME_MODULESDIRECTORY": "/Users/jacob/dev/ortus-boxlang/boxlang-lsp/build"
+                "BOXLANG_RUNTIME_MODULESDIRECTORY": "${workspaceFolder}/build"
             },
             "args": [
                 "--bx-config",
