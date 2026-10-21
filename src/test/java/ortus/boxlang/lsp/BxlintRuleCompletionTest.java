@@ -141,4 +141,30 @@ public class BxlintRuleCompletionTest extends BaseTest {
 		assertThat( items.stream().map( CompletionItem::getLabel ).toList() ).contains( "unusedVariable" );
 		assertThat( items.stream().map( CompletionItem::getLabel ).toList() ).doesNotContain( "unusedImport" );
 	}
+
+	@Test
+	void testCompletesRuleNamesInsideBxlintDisableNextLine() throws Exception {
+		String	source		= """
+		                      class {
+		                          function demo() {
+		                              // bxlint-disable-next-line unu
+		                          }
+		                      }
+		                      """;
+		Path	testFile	= tempDir.resolve( "BxlintRuleCompletionNextLine.bx" );
+		Files.writeString( testFile, source );
+
+		index.indexFile( testFile.toUri() );
+		provider.trackDocumentOpen( testFile.toUri(), source );
+
+		CompletionParams		params		= new CompletionParams();
+		TextDocumentIdentifier	identifier	= new TextDocumentIdentifier( testFile.toUri().toString() );
+		int						cursorCol	= source.lines().toList().get( 2 ).length();
+		params.setTextDocument( identifier );
+		params.setPosition( new Position( 2, cursorCol ) );
+
+		List<CompletionItem> items = provider.getAvailableCompletions( testFile.toUri(), params );
+
+		assertThat( items.stream().map( CompletionItem::getLabel ).toList() ).contains( "unusedVariable" );
+	}
 }

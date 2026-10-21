@@ -232,6 +232,7 @@ public class DiagnosticSuppressionFilter {
 				case DIRECTIVE_DISABLE_FOR_FUNCTION -> addScopedSuppressionRule( rules, astRoot, directive, true );
 				case DIRECTIVE_DISABLE_FOR_CLASS -> addScopedSuppressionRule( rules, astRoot, directive, false );
 				case DIRECTIVE_DISABLE_NEXT_LINE -> {
+					addNextLineSuppressionRule( rules, directive, sourceLines.size() );
 				}
 				case DIRECTIVE_ENABLE_FOR_FUNCTION -> addScopedSuppressionRule( unsuppressionRules, astRoot, directive, true );
 				case DIRECTIVE_ENABLE_FOR_CLASS -> addScopedSuppressionRule( unsuppressionRules, astRoot, directive, false );
@@ -267,6 +268,21 @@ public class DiagnosticSuppressionFilter {
 		}
 
 		rules.add( new SuppressionRule( range, openSection.suppressAllWarningsAndErrors(), openSection.suppressedRuleIds() ) );
+	}
+
+	private static void addNextLineSuppressionRule( List<SuppressionRule> rules, CommentDirective directive, int sourceLineCount ) {
+		int targetLine = directive.line() + 1;
+
+		if ( directive.line() >= sourceLineCount - 1 ) {
+			return;
+		}
+
+		Range range = toSectionRange( targetLine, targetLine );
+
+		if ( range == null ) {
+			return;
+		}
+		rules.add( new SuppressionRule( range, directive.suppressAllWarningsAndErrors(), directive.suppressedRuleIds() ) );
 	}
 
 	private static int findMatchingSectionDirective( CommentDirective directive, List<OpenSectionDirective> openSections ) {

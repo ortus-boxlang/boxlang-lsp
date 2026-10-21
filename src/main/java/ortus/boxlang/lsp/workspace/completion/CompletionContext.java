@@ -35,7 +35,7 @@ public class CompletionContext {
 	private static final String			SINGLE_LINE_COMMENT		= "//";
 	private static final String			TEMPLATE_COMMENT		= "<!--";
 	private static final Pattern		BXLINT_COMMENT_PATTERN	= Pattern.compile(
-	    "^\\s*(?://\\s*|<!---?\\s*)bxlint(?::|-)(?:disable|enable|disable-for-function|disable-for-class|enable-for-function|enable-for-class)(?:\\s+(.*?))?\\s*(?:--+>)?$",
+	    "^\\s*(?://\\s*|<!---?\\s*)bxlint(?::|-)(?:disable|enable|disable-next-line|disable-for-function|disable-for-class|enable-for-function|enable-for-class)(?:\\s+(.*?))?\\s*(?:--+>)?$",
 	    Pattern.CASE_INSENSITIVE
 	);
 

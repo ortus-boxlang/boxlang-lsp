@@ -18,7 +18,7 @@ import ortus.boxlang.lsp.workspace.rules.IRule;
 public class BxlintRuleCompletionRule implements IRule<CompletionFacts, List<CompletionItem>> {
 
 	private static final Pattern BXLINT_COMMENT_PATTERN = Pattern.compile(
-	    "^\\s*(?://\\s*|<!---?\\s*)bxlint(?::|-)(?:disable|enable|disable-for-function|disable-for-class|enable-for-function|enable-for-class)(?:\\s+(.*?))?\\s*(?:--+>)?$",
+	    "^\\s*(?://\\s*|<!---?\\s*)bxlint(?::|-)(?:disable|enable|disable-next-line|disable-for-function|disable-for-class|enable-for-function|enable-for-class)(?:\\s+(.*?))?\\s*(?:--+>)?$",
 	    Pattern.CASE_INSENSITIVE
 	);
 
