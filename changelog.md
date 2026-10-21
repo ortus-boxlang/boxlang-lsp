@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-10-16
+
+- BLIDE-347 Add bx:script to tag autocomplete suggestions
+- BLIDE-346 Improve tag autocomplete
+- BLIDE-348 Add hover docs to tag components
+
+## [1.16.0] - 2026-10-09
+
+- BLIDE-337 Improve java extends behavior
+
+## [1.15.0] - 2026-10-02
+
 - BLIDE-337 Improve java extends behavior
 - BLIDE-338 InvalidExtends being reported within same folder
 - BLIDE-339 Improve LSP memory usage and error reporting in VSCode
@@ -161,7 +173,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverted LSP to be a BoxLang module
 - BLIDE-96 Added version info
 
-[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.14.0...HEAD
+[unreleased]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.17.0...HEAD
+[1.17.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.16.0...v1.17.0
+[1.16.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.15.0...v1.16.0
+[1.15.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/ortus-boxlang/boxlang-lsp/compare/v1.11.0...v1.12.0

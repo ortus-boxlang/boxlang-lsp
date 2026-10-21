@@ -93,8 +93,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			capabilities.setReferencesProvider( true );
 			capabilities.setSelectionRangeProvider( true );
 
-			completionOptions.setTriggerCharacters( List.of( "." ) );
-			// completionOptions.
+			completionOptions.setTriggerCharacters( List.of( ".", "<", ":", " " ) );
 			capabilities.setCompletionProvider( completionOptions );
 
 			SignatureHelpOptions signatureHelpOptions = new SignatureHelpOptions();
