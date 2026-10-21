@@ -1,5 +1,5 @@
 class User {
-	function init(required string username, required string email) {
+	function init(required string username, required string email, boolean active = true) {
 		variables.username = username;
 		variables.email = email;
 		return this;
