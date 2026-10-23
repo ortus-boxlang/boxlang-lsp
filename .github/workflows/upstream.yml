@@ -1,0 +1,38 @@
+name: Upstream Workflow
+
+on:
+    schedule:
+      - cron: '0 0 */1 * *'
+    workflow_dispatch:
+
+permissions:
+  contents: write
+  
+jobs:
+    sync:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repo
+              uses: actions/checkout@v4
+              with:
+                fetch-depth: 0
+                
+            - name: Add upstream remote
+              run: git remote add upstream https://github.com/ortus-boxlang/boxlang-lsp.git
+
+            - name: Fetch upstream
+              run: git fetch upstream
+
+            - name: Configure Git identity
+              run: |
+                git config --local user.name "github-actions[bot]"
+                git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            - name: Merge upstream changes
+              run: git merge upstream/development --no-edit
+
+            - name: Push updated main to origin
+              run: git push origin development
+
+    

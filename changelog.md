@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- BLIDE-314 Add `bxlint-disable-next-line` comment directive to suppress diagnostics on the following line, with rule-name autocomplete
+
+
 ## [1.17.0] - 2026-10-16
 
 - BLIDE-347 Add bx:script to tag autocomplete suggestions
