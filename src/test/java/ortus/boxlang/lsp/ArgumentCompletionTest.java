@@ -1,6 +1,7 @@
 package ortus.boxlang.lsp;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -16,6 +17,8 @@ import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import ortus.boxlang.lsp.workspace.ProjectContextProvider;
 import ortus.boxlang.lsp.workspace.index.ProjectIndex;
@@ -284,24 +287,113 @@ public class ArgumentCompletionTest extends BaseTest {
 	// }
 
 	// ==================== Constructor Argument Completion Tests ====================
-	// TODO: Constructor argument completion is not yet fully implemented
-	// The context detection doesn't recognize constructor calls as FUNCTION_ARGUMENT context
-	// This would require enhancing the CompletionContext logic to handle new ClassName() calls
+	@ParameterizedTest
+	@ValueSource( strings = { "new User(|);", "new User(|" } )
+	public void testConstructorArgumentsInEmptyCall( String call ) {
+		List<CompletionItem> items = getConstructorCompletions( call );
 
-	// @Test
-	// public void testConstructorArgumentCompletion() throws Exception {
-	// // Test resource file needs a class with constructor
-	// // This test verifies completion works for new ClassName() calls
-	// List<CompletionItem> items = getCompletionsWithModifiedLine(
-	// "var user = new User(\"john\", \"john@example.com\");",
-	// "var user = new User();",
-	// 33, 20 // Line 34 (0-indexed: 33), inside parens (after '(')
-	// );
-	//
-	// // User has init method with username and email parameters
-	// assertThat( hasItem( items, "username=" ) ).isTrue();
-	// assertThat( hasItem( items, "email=" ) ).isTrue();
-	// }
+		assertThat( hasItem( items, "username=" ) ).isTrue();
+		assertThat( hasItem( items, "email=" ) ).isTrue();
+		assertThat( hasItem( items, "active=" ) ).isTrue();
+		for ( String label : List.of( "username=", "email=", "active=" ) ) {
+			assertThat( findItem( items, label ).getInsertText() ).isEqualTo( label );
+		}
+	}
+
+	@Test
+	public void testConstructorParameterDetailsAndRequiredOrdering() {
+		List<CompletionItem>	items		= getConstructorCompletions( "new User(|);" );
+		CompletionItem			username	= findItem( items, "username=" );
+		CompletionItem			email		= findItem( items, "email=" );
+		CompletionItem			active		= findItem( items, "active=" );
+
+		assertThat( username ).isNotNull();
+		assertThat( email ).isNotNull();
+		assertThat( active ).isNotNull();
+		assertThat( username.getDetail() ).isEqualTo( "required string" );
+		assertThat( email.getDetail() ).isEqualTo( "required string" );
+		assertThat( active.getDetail() ).isEqualTo( "optional boolean" );
+		assertThat( username.getSortText() ).isNotNull();
+		assertThat( email.getSortText() ).isNotNull();
+		assertThat( active.getSortText() ).isNotNull();
+		assertThat( username.getSortText() ).isLessThan( active.getSortText() );
+		assertThat( email.getSortText() ).isLessThan( active.getSortText() );
+	}
+
+	@Test
+	public void testConstructorArgumentsForFullyQualifiedClass() {
+		// clears shared index, sets workspace root to src/test/resources/files/
+		// so that we can use 'argumentCompletionTest.User'
+		ProjectIndex index = pcp.getIndex();
+		index.clear();
+		index.initialize( testDir.getParent() );
+		index.indexFile( testDir.resolve( "User.bx" ).toUri() );
+		List<CompletionItem> items = getConstructorCompletions( "new argumentCompletionTest.User(|);" );
+
+		assertThat( hasItem( items, "username=" ) ).isTrue();
+		assertThat( hasItem( items, "email=" ) ).isTrue();
+		assertThat( hasItem( items, "active=" ) ).isTrue();
+	}
+
+	@Test
+	public void testConstructorArgumentAfterPartialName() {
+		List<CompletionItem>	items		= getConstructorCompletions( "new User(user|);" );
+
+		CompletionItem			username	= findItem( items, "username=" );
+		assertThat( username ).isNotNull();
+		assertThat( username.getInsertText() ).isEqualTo( "username=" );
+	}
+
+	@ParameterizedTest
+	@ValueSource( strings = { "username", "USERNAME" } )
+	public void testConstructorArgumentsAfterCommaExcludeUsedNames( String argumentName ) {
+		List<CompletionItem> items = getConstructorCompletions( "new User(" + argumentName + "=\"john\", |);" );
+
+		assertThat( hasItem( items, "username=" ) ).isFalse();
+		assertThat( hasItem( items, "email=" ) ).isTrue();
+		assertThat( hasItem( items, "active=" ) ).isTrue();
+	}
+
+	@Test
+	public void testConstructorPartialNameAfterCommaExcludesUsedNames() {
+		List<CompletionItem> items = getConstructorCompletions( "new User(username=\"john\", email=\"john@example.com\", ac|);" );
+
+		assertThat( hasItem( items, "username=" ) ).isFalse();
+		assertThat( hasItem( items, "email=" ) ).isFalse();
+		assertThat( hasItem( items, "active=" ) ).isTrue();
+	}
+
+	@ParameterizedTest
+	@ValueSource( strings = { "new DoesNotExist(|);", "new TestClass(|);" } )
+	public void testConstructorWithoutResolvableInitHasNoArgumentSuggestions( String call ) {
+		// DoesNotExist is not in the index; TestClass is indexed but declares no init
+		List<CompletionItem> items = assertDoesNotThrow( () -> getConstructorCompletions( call ) );
+
+		assertThat( items.stream().noneMatch( item -> item.getLabel().endsWith( "=" ) ) ).isTrue();
+	}
+
+	@Test
+	public void testConstructorArgumentsExcludeInheritedInit() {
+		// Admin extends User but declares no init of its own
+		List<CompletionItem> items = getConstructorCompletions( "new Admin(|);" );
+
+		assertThat( hasItem( items, "username=" ) ).isFalse();
+		assertThat( hasItem( items, "email=" ) ).isFalse();
+		assertThat( hasItem( items, "active=" ) ).isFalse();
+	}
+
+	@Test
+	public void testConstructorArgumentsInBxClassFile() throws Exception {
+		List<CompletionItem> items = getCompletionsWithModifiedLine(
+		    "var user = new User(\"john\", \"john@example.com\");",
+		    "var user = new User();",
+		    33, 22  // Line 34, after '('
+		);
+
+		assertThat( hasItem( items, "username=" ) ).isTrue();
+		assertThat( hasItem( items, "email=" ) ).isTrue();
+		assertThat( hasItem( items, "active=" ) ).isTrue();
+	}
 
 	// ==================== Edge Case Tests ====================
 
@@ -358,6 +450,21 @@ public class ArgumentCompletionTest extends BaseTest {
 		params.setPosition( new Position( line, column ) );
 
 		return pcp.getAvailableCompletions( f.toURI(), params );
+	}
+
+	private List<CompletionItem> getConstructorCompletions( String callWithCursor ) {
+		Path	testFile	= testDir.resolve( "constructor.bxs" );
+		int		column		= callWithCursor.indexOf( '|' );
+		assertThat( column ).isAtLeast( 0 );
+		pcp.trackDocumentOpen( testFile.toUri(), callWithCursor.replace( "|", "" ) );
+		try {
+			CompletionParams params = new CompletionParams();
+			params.setTextDocument( new TextDocumentIdentifier( testFile.toUri().toString() ) );
+			params.setPosition( new Position( 0, column ) );
+			return pcp.getAvailableCompletions( testFile.toUri(), params );
+		} finally {
+			pcp.trackDocumentClose( testFile.toUri() );
+		}
 	}
 
 	private boolean hasItem( List<CompletionItem> items, String label ) {

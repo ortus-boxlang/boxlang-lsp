@@ -1,0 +1,6 @@
+class extends="User" {
+
+	function getRole() {
+		return "admin";
+	}
+}
