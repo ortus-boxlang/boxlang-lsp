@@ -1435,6 +1435,184 @@ public class ProjectContextProvider {
 	}
 
 	/**
+	 * Find the occurrences of the local variable or parameter at the given position,
+	 * limited to the function that declares it (textDocument/documentHighlight).
+	 * <p>
+	 * Supported targets: an unqualified identifier, or a parameter declaration, inside a
+	 * non-nested function of a .bx/.bxs file, whose name is declared in that function with
+	 * <code>var</code> or as a parameter. Names match case-insensitively. Member access such as
+	 * <code>object.total</code>, strings, comments, other functions and nested closures/lambdas
+	 * are excluded. Any other cursor target returns an empty list.
+	 *
+	 * @param docURI The document URI
+	 * @param pos    The cursor position
+	 *
+	 * @return Deduplicated, identifier-only highlight ranges sorted by position
+	 */
+	public List<org.eclipse.lsp4j.DocumentHighlight> findDocumentHighlights( URI docURI, Position pos ) {
+		List<org.eclipse.lsp4j.DocumentHighlight>	highlights	= new ArrayList<>();
+		String										path		= docURI.getPath() == null ? "" : docURI.getPath().toLowerCase();
+		if ( !path.endsWith( ".bx" ) && !path.endsWith( ".bxs" ) ) {
+			return highlights;
+		}
+
+		BoxNode	target	= findReferenceTarget( docURI, pos ).orElse( null );
+		String	name;
+		if ( target instanceof BoxIdentifier identifier ) {
+			if ( isMemberAccessName( identifier ) ) {
+				return highlights;
+			}
+			name = identifier.getName();
+		} else if ( target instanceof BoxArgumentDeclaration argDecl ) {
+			if ( !containsPosition( parameterNameRange( argDecl ), pos ) ) {
+				return highlights;
+			}
+			name = argDecl.getName();
+		} else {
+			return highlights;
+		}
+
+		// The owner must be a plain function that is not nested inside another function or closure
+		if ( name == null || ! ( findOwningFunction( target ) instanceof BoxFunctionDeclaration function )
+		    || findOwningFunction( function ) != null ) {
+			return highlights;
+		}
+
+		BoxArgumentDeclaration	parameter	= function.getArgs().stream()
+		    .filter( arg -> name.equalsIgnoreCase( arg.getName() ) )
+		    .findFirst()
+		    .orElse( null );
+		boolean					isLocalVar	= getDirectFunctionDescendants(
+		    function,
+		    ortus.boxlang.compiler.ast.expression.BoxAssignment.class ).stream()
+		    .anyMatch( assignment -> assignment.getModifiers().contains( ortus.boxlang.compiler.ast.expression.BoxAssignmentModifier.VAR )
+		        && assignment.getLeft() instanceof BoxIdentifier left
+		        && name.equalsIgnoreCase( left.getName() ) );
+		if ( parameter == null && !isLocalVar ) {
+			return highlights;
+		}
+
+		Map<String, Range> ranges = new HashMap<>();
+		if ( parameter != null ) {
+			addHighlightRange( ranges, parameterNameRange( parameter ) );
+		}
+		for ( BoxIdentifier id : getDirectFunctionDescendants( function, BoxIdentifier.class ) ) {
+			if ( !name.equalsIgnoreCase( id.getName() ) || isMemberAccessName( id ) ) {
+				continue;
+			}
+			if ( id.getPosition() != null ) {
+				int	line	= id.getPosition().getStart().getLine() - 1;
+				int	col		= id.getPosition().getStart().getColumn();
+				addHighlightRange( ranges, new Range( new Position( line, col ), new Position( line, col + id.getName().length() ) ) );
+			}
+		}
+
+		ranges.values().stream()
+		    .sorted( ( a, b ) -> a.getStart().getLine() != b.getStart().getLine()
+		        ? Integer.compare( a.getStart().getLine(), b.getStart().getLine() )
+		        : Integer.compare( a.getStart().getCharacter(), b.getStart().getCharacter() ) )
+		    .forEach( range -> highlights.add(
+		        new org.eclipse.lsp4j.DocumentHighlight( range, org.eclipse.lsp4j.DocumentHighlightKind.Text ) ) );
+		return highlights;
+	}
+
+	/**
+	 * The nearest enclosing function, closure, or lambda of a node, or null at class/script level.
+	 */
+	private BoxNode findOwningFunction( BoxNode node ) {
+		BoxNode current = node.getParent();
+		while ( current != null ) {
+			if ( current instanceof BoxFunctionDeclaration
+			    || current instanceof ortus.boxlang.compiler.ast.expression.BoxClosure
+			    || current instanceof ortus.boxlang.compiler.ast.expression.BoxLambda ) {
+				return current;
+			}
+			current = current.getParent();
+		}
+		return null;
+	}
+
+	/**
+	 * Collect descendants belonging directly to a function, without entering nested callable
+	 * scopes. Pruning nested functions, closures and lambdas during traversal prevents a
+	 * same-named identifier in a nested scope from ever becoming a highlight candidate.
+	 */
+	private <T extends BoxNode> List<T> getDirectFunctionDescendants( BoxFunctionDeclaration function, Class<T> type ) {
+		List<T> descendants = new ArrayList<>();
+		for ( BoxNode child : function.getChildren() ) {
+			collectDirectFunctionDescendants( child, type, descendants );
+		}
+		return descendants;
+	}
+
+	private <T extends BoxNode> void collectDirectFunctionDescendants( BoxNode node, Class<T> type, List<T> descendants ) {
+		if ( node instanceof BoxFunctionDeclaration
+		    || node instanceof ortus.boxlang.compiler.ast.expression.BoxClosure
+		    || node instanceof ortus.boxlang.compiler.ast.expression.BoxLambda ) {
+			return;
+		}
+		if ( type.isInstance( node ) ) {
+			descendants.add( type.cast( node ) );
+		}
+		for ( BoxNode child : node.getChildren() ) {
+			collectDirectFunctionDescendants( child, type, descendants );
+		}
+	}
+
+	/**
+	 * True when the identifier is the member name of a dot access, like <code>total</code> in <code>object.total</code>.
+	 */
+	private boolean isMemberAccessName( BoxIdentifier identifier ) {
+		return identifier.getParent() instanceof BoxDotAccess dotAccess && dotAccess.getAccess() == identifier;
+	}
+
+	/**
+	 * The range of just the name inside a parameter declaration such as <code>required numeric qty = 1</code>.
+	 */
+	private Range parameterNameRange( BoxArgumentDeclaration parameter ) {
+		if ( parameter.getPosition() == null ) {
+			return null;
+		}
+		int		line	= parameter.getPosition().getStart().getLine() - 1;
+		int		col		= parameter.getPosition().getStart().getColumn();
+		String	name	= parameter.getName();
+		String	source	= parameter.getSourceText();
+		if ( source != null ) {
+			int						equals	= source.indexOf( '=' );
+			String					head	= equals >= 0 ? source.substring( 0, equals ) : source;
+			java.util.regex.Matcher	matcher	= java.util.regex.Pattern
+			    .compile( "(?i)(?<![\\w$])" + java.util.regex.Pattern.quote( name ) + "(?![\\w$])" )
+			    .matcher( head );
+			int						offset	= -1;
+			while ( matcher.find() ) {
+				offset = matcher.start();
+			}
+			if ( offset >= 0 ) {
+				String	before		= head.substring( 0, offset );
+				int		newline		= before.lastIndexOf( '\n' );
+				int		extraLines	= ( int ) before.chars().filter( c -> c == '\n' ).count();
+				line	+= extraLines;
+				col		= newline >= 0 ? offset - newline - 1 : col + offset;
+			}
+		}
+		return new Range( new Position( line, col ), new Position( line, col + name.length() ) );
+	}
+
+	private boolean containsPosition( Range range, Position position ) {
+		return range != null
+		    && position.getLine() == range.getStart().getLine()
+		    && position.getCharacter() >= range.getStart().getCharacter()
+		    && position.getCharacter() < range.getEnd().getCharacter();
+	}
+
+	private void addHighlightRange( Map<String, Range> ranges, Range range ) {
+		if ( range != null ) {
+			ranges.putIfAbsent( range.getStart().getLine() + ":" + range.getStart().getCharacter() + "-"
+			    + range.getEnd().getLine() + ":" + range.getEnd().getCharacter(), range );
+		}
+	}
+
+	/**
 	 * Find all references to a function/method by name.
 	 *
 	 * @param functionName       The function name to search for

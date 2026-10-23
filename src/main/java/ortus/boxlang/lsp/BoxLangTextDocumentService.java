@@ -19,6 +19,8 @@ import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
+import org.eclipse.lsp4j.DocumentHighlight;
+import org.eclipse.lsp4j.DocumentHighlightParams;
 import org.eclipse.lsp4j.DocumentDiagnosticParams;
 import org.eclipse.lsp4j.DocumentDiagnosticReport;
 import org.eclipse.lsp4j.DocumentFormattingParams;
@@ -262,6 +264,19 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 		boolean			includeDeclaration	= params.getContext() != null && params.getContext().isIncludeDeclaration();
 		List<Location>	locs				= ProjectContextProvider.getInstance().findReferences( docURI, params.getPosition(), includeDeclaration );
 		return CompletableFuture.completedFuture( locs );
+	}
+
+	/**
+	 * The document highlight request is sent from the client to the server to resolve the
+	 * occurrences of the local variable or parameter under the cursor within its function.
+	 */
+	@JsonRequest
+	@Override
+	public CompletableFuture<List<? extends DocumentHighlight>> documentHighlight( DocumentHighlightParams params ) {
+		return CompletableFutures.computeAsync( ( cancelToken ) -> {
+			URI docURI = LSPTools.convertDocumentURI( params.getTextDocument().getUri() );
+			return ProjectContextProvider.getInstance().findDocumentHighlights( docURI, params.getPosition() );
+		} );
 	}
 
 	/**

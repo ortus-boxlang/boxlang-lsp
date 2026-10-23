@@ -1,0 +1,20 @@
+class {
+
+	function calc( numeric qty = 1 ) {
+		var total = 0;
+		TOTAL = Total + qty;
+		// total is just a comment here
+		var label = "total";
+		var x = object.total;
+		var fn = function() {
+			var total = 1;
+		};
+		return label;
+	}
+
+	function other() {
+		var total = 99;
+		return total;
+	}
+
+}
