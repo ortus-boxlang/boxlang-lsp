@@ -46,6 +46,7 @@ Place boxlang.json at the workspace root (or any ancestor directory) to define v
 | ------- | ---------------- | ----- | ----------- |
 | `duplicateMethod` | error |  | Flags multiple method definitions with the same name within the same class. |
 | `duplicateProperty` | error |  | Flags multiple property definitions with the same name within the same class. |
+| `duplicateStructKey` | warning |  | Flags struct literal keys that repeat an earlier key in the same struct (case-insensitive), which silently overwrites the earlier value. |
 | `emptyCatchBlock` | warning |  | Flags catch blocks that contain no executable code, which silently swallows exceptions. |
 | `invalidExtends` | error |  | Flags extends references to classes or interfaces that cannot be resolved. |
 | `invalidImplements` | error |  | Flags implements references to interfaces that cannot be resolved. |

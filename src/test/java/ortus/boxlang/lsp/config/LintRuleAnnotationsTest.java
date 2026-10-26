@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import ortus.boxlang.lsp.config.annotation.LintRule;
 import ortus.boxlang.lsp.lint.rules.DuplicateMethodRule;
 import ortus.boxlang.lsp.lint.rules.DuplicatePropertyRule;
+import ortus.boxlang.lsp.lint.rules.DuplicateStructKeyRule;
 import ortus.boxlang.lsp.lint.rules.EmptyCatchBlockRule;
 import ortus.boxlang.lsp.lint.rules.InvalidExtendsRule;
 import ortus.boxlang.lsp.lint.rules.InvalidImplementsRule;
@@ -81,6 +82,11 @@ public class LintRuleAnnotationsTest {
 	@Test
 	void unreachableCodeRule_hasLintRule() {
 		assertLintRule( UnreachableCodeRule.class, "unreachableCode", "warning" );
+	}
+
+	@Test
+	void duplicateStructKeyRule_hasLintRule() {
+		assertLintRule( DuplicateStructKeyRule.class, "duplicateStructKey", "warning" );
 	}
 
 	@Test

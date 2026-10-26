@@ -31,6 +31,7 @@ import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.DiagnosticTag;
 
 import ortus.boxlang.compiler.ast.BoxClass;
+import ortus.boxlang.compiler.ast.BoxExpression;
 import ortus.boxlang.compiler.ast.BoxNode;
 import ortus.boxlang.compiler.ast.BoxScript;
 import ortus.boxlang.compiler.ast.comment.BoxComment;
@@ -40,6 +41,9 @@ import ortus.boxlang.compiler.ast.expression.BoxFunctionInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxIdentifier;
 import ortus.boxlang.compiler.ast.expression.BoxMethodInvocation;
 import ortus.boxlang.compiler.ast.expression.BoxNew;
+import ortus.boxlang.compiler.ast.expression.BoxSpreadExpression;
+import ortus.boxlang.compiler.ast.expression.BoxStringLiteral;
+import ortus.boxlang.compiler.ast.expression.BoxStructLiteral;
 import ortus.boxlang.compiler.ast.statement.BoxAccessModifier;
 import ortus.boxlang.compiler.ast.statement.BoxAnnotation;
 import ortus.boxlang.compiler.ast.statement.BoxArgumentDeclaration;
@@ -58,6 +62,7 @@ import ortus.boxlang.lsp.SourceCodeVisitor;
 import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
 import ortus.boxlang.lsp.workspace.BLASTTools;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
+import ortus.boxlang.lsp.lint.rules.DuplicateStructKeyRule;
 import ortus.boxlang.lsp.lint.rules.EmptyCatchBlockRule;
 import ortus.boxlang.lsp.lint.rules.MissingReturnStatementRule;
 import ortus.boxlang.lsp.lint.rules.ShadowedVariableRule;
@@ -77,6 +82,7 @@ import ortus.boxlang.lsp.workspace.ProjectContextProvider;
  * - Missing return statement when return type hint is present
  * - Unused private methods
  * - Unused imports
+ * - Duplicate literal struct keys
  *
  * Each diagnostic type has its own rule ID for individual configuration.
  */
@@ -287,6 +293,46 @@ public class SemanticWarningDiagnosticVisitor extends SourceCodeVisitor {
 		}
 
 		return false;
+	}
+
+	// ============ Duplicate Struct Key Detection ============
+
+	@Override
+	public void visit( BoxStructLiteral node ) {
+		Set<String>			seenKeys	= new HashSet<>();
+		List<BoxExpression>	values		= node.getValues();
+
+		for ( int i = 0; i < values.size(); i++ ) {
+			BoxExpression key = values.get( i );
+			// A spread entry has no value after it, so it takes one slot instead of a key/value pair
+			if ( key instanceof BoxSpreadExpression ) {
+				continue;
+			}
+			i++;
+
+			String keyName = null;
+			if ( key instanceof BoxIdentifier identifier ) {
+				keyName = identifier.getName();
+			} else if ( key instanceof BoxStringLiteral stringLiteral ) {
+				keyName = stringLiteral.getValue();
+			}
+			// Computed keys (interpolated strings, expressions) are only known at runtime
+			if ( keyName == null || key.getPosition() == null ) {
+				continue;
+			}
+
+			if ( !seenKeys.add( keyName.toLowerCase() ) ) {
+				diagnostics.add( new Diagnostic(
+				    ProjectContextProvider.positionToRange( key.getPosition() ),
+				    "Duplicate struct key '" + keyName + "' overwrites an earlier value for the same key.",
+				    DiagnosticSeverity.Warning,
+				    "boxlang",
+				    DuplicateStructKeyRule.ID
+				) );
+			}
+		}
+
+		visitChildren( node );
 	}
 
 	// ============ Shadowed Variable Detection ============

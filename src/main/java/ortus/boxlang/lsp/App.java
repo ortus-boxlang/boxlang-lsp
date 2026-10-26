@@ -20,6 +20,7 @@ import ortus.boxlang.lsp.lint.DiagnosticRuleRegistry;
 import ortus.boxlang.lsp.lint.LintConfigLoader;
 import ortus.boxlang.lsp.lint.rules.DuplicateMethodRule;
 import ortus.boxlang.lsp.lint.rules.DuplicatePropertyRule;
+import ortus.boxlang.lsp.lint.rules.DuplicateStructKeyRule;
 import ortus.boxlang.lsp.lint.rules.EmptyCatchBlockRule;
 import ortus.boxlang.lsp.lint.rules.InvalidExtendsRule;
 import ortus.boxlang.lsp.lint.rules.InvalidImplementsRule;
@@ -68,6 +69,7 @@ public class App {
 		// Warning diagnostic rules
 		DiagnosticRuleRegistry.getInstance().register( new EmptyCatchBlockRule() );
 		DiagnosticRuleRegistry.getInstance().register( new UnreachableCodeRule() );
+		DiagnosticRuleRegistry.getInstance().register( new DuplicateStructKeyRule() );
 		DiagnosticRuleRegistry.getInstance().register( new ShadowedVariableRule() );
 		DiagnosticRuleRegistry.getInstance().register( new MissingReturnStatementRule() );
 		DiagnosticRuleRegistry.getInstance().register( new UnusedPrivateMethodRule() );

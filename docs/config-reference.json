@@ -80,6 +80,12 @@
         "description": "Flags multiple property definitions with the same name within the same class."
       },
       {
+        "id": "duplicateStructKey",
+        "defaultSeverity": "warning",
+        "since": "",
+        "description": "Flags struct literal keys that repeat an earlier key in the same struct (case-insensitive), which silently overwrites the earlier value."
+      },
+      {
         "id": "emptyCatchBlock",
         "defaultSeverity": "warning",
         "since": "",

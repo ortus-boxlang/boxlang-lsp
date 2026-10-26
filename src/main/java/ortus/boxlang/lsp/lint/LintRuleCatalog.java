@@ -6,6 +6,7 @@ import java.util.List;
 import ortus.boxlang.lsp.config.annotation.LintRule;
 import ortus.boxlang.lsp.lint.rules.DuplicateMethodRule;
 import ortus.boxlang.lsp.lint.rules.DuplicatePropertyRule;
+import ortus.boxlang.lsp.lint.rules.DuplicateStructKeyRule;
 import ortus.boxlang.lsp.lint.rules.EmptyCatchBlockRule;
 import ortus.boxlang.lsp.lint.rules.InvalidExtendsRule;
 import ortus.boxlang.lsp.lint.rules.InvalidImplementsRule;
@@ -27,6 +28,7 @@ public final class LintRuleCatalog {
 	    UnscopedVariableRule.class,
 	    DuplicateMethodRule.class,
 	    DuplicatePropertyRule.class,
+	    DuplicateStructKeyRule.class,
 	    EmptyCatchBlockRule.class,
 	    InvalidExtendsRule.class,
 	    InvalidImplementsRule.class,
