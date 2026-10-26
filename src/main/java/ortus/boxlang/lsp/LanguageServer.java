@@ -4,21 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import org.eclipse.lsp4j.CodeActionKind;
-import org.eclipse.lsp4j.CodeActionOptions;
-import org.eclipse.lsp4j.CodeLensOptions;
-import org.eclipse.lsp4j.CompletionOptions;
-import org.eclipse.lsp4j.ExecuteCommandOptions;
-import org.eclipse.lsp4j.InitializeParams;
-import org.eclipse.lsp4j.InitializeResult;
-import org.eclipse.lsp4j.InitializedParams;
-import org.eclipse.lsp4j.MessageParams;
-import org.eclipse.lsp4j.MessageType;
-import org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions;
-import org.eclipse.lsp4j.ServerCapabilities;
-import org.eclipse.lsp4j.SetTraceParams;
-import org.eclipse.lsp4j.SignatureHelpOptions;
-import org.eclipse.lsp4j.TextDocumentSyncKind;
+import org.eclipse.lsp4j.*;
 import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
@@ -137,6 +123,7 @@ public class LanguageServer implements org.eclipse.lsp4j.services.LanguageServer
 			}
 
 			capabilities.setDocumentFormattingProvider( formattingCapabilityCoordinator.shouldAdvertiseFormattingStatically() );
+			capabilities.setFoldingRangeProvider( new FoldingRangeProviderOptions() );
 
 			return new InitializeResult( capabilities );
 		} );

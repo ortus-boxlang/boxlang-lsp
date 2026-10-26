@@ -6,39 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import org.eclipse.lsp4j.CodeAction;
-import org.eclipse.lsp4j.CodeActionParams;
-import org.eclipse.lsp4j.CodeLens;
-import org.eclipse.lsp4j.CodeLensParams;
-import org.eclipse.lsp4j.Command;
-import org.eclipse.lsp4j.CompletionItem;
-import org.eclipse.lsp4j.CompletionList;
-import org.eclipse.lsp4j.CompletionParams;
-import org.eclipse.lsp4j.DefinitionParams;
-import org.eclipse.lsp4j.DidChangeTextDocumentParams;
-import org.eclipse.lsp4j.DidCloseTextDocumentParams;
-import org.eclipse.lsp4j.DidOpenTextDocumentParams;
-import org.eclipse.lsp4j.DidSaveTextDocumentParams;
-import org.eclipse.lsp4j.DocumentDiagnosticParams;
-import org.eclipse.lsp4j.DocumentDiagnosticReport;
-import org.eclipse.lsp4j.DocumentFormattingParams;
-import org.eclipse.lsp4j.DocumentSymbol;
-import org.eclipse.lsp4j.DocumentSymbolCapabilities;
-import org.eclipse.lsp4j.DocumentSymbolParams;
-import org.eclipse.lsp4j.Hover;
-import org.eclipse.lsp4j.HoverParams;
-import org.eclipse.lsp4j.ImplementationParams;
-import org.eclipse.lsp4j.Location;
-import org.eclipse.lsp4j.LocationLink;
-import org.eclipse.lsp4j.RelatedFullDocumentDiagnosticReport;
-import org.eclipse.lsp4j.SemanticTokens;
-import org.eclipse.lsp4j.SemanticTokensParams;
-import org.eclipse.lsp4j.SignatureHelp;
-import org.eclipse.lsp4j.SignatureHelpParams;
-import org.eclipse.lsp4j.SymbolInformation;
-import org.eclipse.lsp4j.TextDocumentRegistrationOptions;
-import org.eclipse.lsp4j.TextEdit;
-import org.eclipse.lsp4j.TypeDefinitionParams;
+import org.eclipse.lsp4j.*;
 import org.eclipse.lsp4j.adapters.CodeActionResponseAdapter;
 import org.eclipse.lsp4j.adapters.DocumentDiagnosticReportTypeAdapter;
 import org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter;
@@ -106,6 +74,20 @@ public class BoxLangTextDocumentService implements TextDocumentService {
 		App.logger.debug( params.getTextDocument().getUri() );
 		// TODO Auto-generated method stub
 		// throw new UnsupportedOperationException("Unimplemented method 'didSave'");
+	}
+
+	@Override
+	@JsonRequest
+	public CompletableFuture<List<FoldingRange>> foldingRange( FoldingRangeRequestParams params ) {
+		return CompletableFutures.computeAsync( cancelToken -> {
+			String	uri			= params.getTextDocument().getUri();
+			URI		documentURI	= LSPTools.convertDocumentURI( uri );
+
+			if ( documentURI == null )
+				return new ArrayList<>();
+
+			return BoxlangFoldingProvider.getFoldingRanges( documentURI );
+		} );
 	}
 
 	@ResponseJsonAdapter( DocumentDiagnosticReportTypeAdapter.class )
