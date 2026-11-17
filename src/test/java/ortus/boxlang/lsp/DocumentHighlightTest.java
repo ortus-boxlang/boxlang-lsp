@@ -66,6 +66,32 @@ public class DocumentHighlightTest extends BaseTest {
 	}
 
 	@Test
+	void testLocalVariableHighlightsExcludeMethodNames() throws Exception {
+		changeSource( source.replace( "var x = object.total;", "var x = object.total();" ) );
+
+		// The method name in object.total() is not a use of the local variable total.
+		assertThat( highlightsAt( 3, 6 ) ).containsExactly( "3:6-3:11", "4:2-4:7", "4:10-4:15" ).inOrder();
+	}
+
+	@Test
+	void testLocalVariableHighlightsExcludeStructKeys() throws Exception {
+		changeSource( source.replace( "var x = object.total;", "var x = {total: 1};" ) );
+
+		// The literal key in {total: 1} is not a use of the local variable total.
+		assertThat( highlightsAt( 3, 6 ) ).containsExactly( "3:6-3:11", "4:2-4:7", "4:10-4:15" ).inOrder();
+	}
+
+	@Test
+	void testLocalVariableInMethodArgumentResolvesLikeDeclaration() throws Exception {
+		changeSource( source.replace( "var x = object.total;", "var x = object.consume(total);" ) );
+		List<String> expected = List.of( "3:6-3:11", "4:2-4:7", "4:10-4:15", "7:25-7:30" );
+
+		// The declaration and the method argument must resolve to the same four occurrences.
+		assertThat( highlightsAt( 3, 6 ) ).containsExactlyElementsIn( expected ).inOrder();
+		assertThat( highlightsAt( 7, 27 ) ).containsExactlyElementsIn( expected ).inOrder();
+	}
+
+	@Test
 	void testCursorOnAnyOccurrenceGivesTheSameResult() throws Exception {
 		// Cursor on `Total` (the read in `TOTAL = Total + qty;`)
 		assertThat( highlightsAt( 4, 12 ) ).containsExactly( "3:6-3:11", "4:2-4:7", "4:10-4:15" ).inOrder();
@@ -117,6 +143,12 @@ public class DocumentHighlightTest extends BaseTest {
 		    List.of( new TextDocumentContentChangeEvent( edited ) ) ) );
 
 		assertThat( highlightsAt( 3, 6 ) ).containsExactly( "3:6-3:11", "4:2-4:7", "4:10-4:15", "11:9-11:14" ).inOrder();
+	}
+
+	private void changeSource( String edited ) {
+		svc.didChange( new DidChangeTextDocumentParams(
+		    new VersionedTextDocumentIdentifier( fileUri, 2 ),
+		    List.of( new TextDocumentContentChangeEvent( edited ) ) ) );
 	}
 
 	private DocumentHighlightParams paramsAt( int line, int character ) {
