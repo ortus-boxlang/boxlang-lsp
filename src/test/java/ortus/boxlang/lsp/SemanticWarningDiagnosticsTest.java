@@ -762,6 +762,36 @@ public class SemanticWarningDiagnosticsTest extends BaseTest {
 	}
 
 	@Test
+	void testUnusedImportQuickFixPreservesTextAfterSupplementaryUnicodeCharacter() throws Exception {
+		String						source		= "/* \uD83D\uDE80 keep this comment */import java:java.util.ArrayList; // keep this too\nvar answer = 42;\n";
+		Path						testFile	= createTestFile( "UnicodeUnusedImport.bxs", source );
+		String						uri			= testFile.toUri().toString();
+		BoxLangTextDocumentService	service		= new BoxLangTextDocumentService();
+		service.didOpen( new DidOpenTextDocumentParams( new TextDocumentItem( uri, "boxlang", 1, source ) ) );
+		try {
+			Diagnostic			unusedImport	= ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() ).stream()
+			    .filter( diagnostic -> diagnostic.getCode() != null && diagnostic.getCode().isLeft()
+			        && "unusedImport".equals( diagnostic.getCode().getLeft() ) )
+			    .findFirst().orElseThrow();
+
+			CodeActionParams	params			= new CodeActionParams();
+			params.setTextDocument( new TextDocumentIdentifier( uri ) );
+			params.setRange( unusedImport.getRange() );
+			params.setContext( new CodeActionContext( List.of( unusedImport ) ) );
+			CodeAction	action	= service.codeAction( params ).join().stream()
+			    .filter( Either::isRight ).map( Either::getRight )
+			    .filter( candidate -> "Remove unused import".equals( candidate.getTitle() ) )
+			    .findFirst().orElseThrow();
+
+			TextEdit	edit	= action.getEdit().getChanges().get( uri ).getFirst();
+			// LSP character offsets use UTF-16. The emoji before the import occupies two code units.
+			assertThat( applyEdit( source, edit ) ).isEqualTo( source.replace( "import java:java.util.ArrayList;", "" ) );
+		} finally {
+			service.didClose( new org.eclipse.lsp4j.DidCloseTextDocumentParams( new TextDocumentIdentifier( uri ) ) );
+		}
+	}
+
+	@Test
 	void testUnusedImportQuickFixNotOfferedWhenSuppressed() throws Exception {
 		Path testFile = createTestFile( "SuppressedUnusedImport.bx", """
 		                                                             // bxlint:disable unusedImport
