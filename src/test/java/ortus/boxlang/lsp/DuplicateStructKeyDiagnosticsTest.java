@@ -100,6 +100,16 @@ public class DuplicateStructKeyDiagnosticsTest extends BaseTest {
 	}
 
 	@Test
+	void testNumericLiteralAndQuotedNumericKeyMatch() throws Exception {
+		String				code		= "x = { 1: \"first\", \"1\": \"second\" };";
+		List<Diagnostic>	duplicates	= duplicateKeyDiagnostics( "NumericKey.bxs", code );
+
+		// Confirm that the second literal overwrites the first value at runtime.
+		assertThat( runtime.executeSource( code + " x[1];" ) ).isEqualTo( "second" );
+		assertThat( startCharacters( duplicates ) ).containsExactly( code.indexOf( "\"1\"" ) );
+	}
+
+	@Test
 	void testUniqueKeysAreNotFlagged() throws Exception {
 		String code = "x = { name: 1, id: 2, \"other\": 3 };";
 
