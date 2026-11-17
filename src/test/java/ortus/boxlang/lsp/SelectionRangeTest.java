@@ -83,6 +83,44 @@ public class SelectionRangeTest extends BaseTest {
 	}
 
 	@Test
+	void memberAccessReceiverExpandsThroughCompleteExpression() throws Exception {
+		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
+		String						uri		= open( svc, write( "memberAccessReceiver.bxs", "var x = foo.bar;" ) );
+
+		// The cursor is on the first "o" in foo, not on a range boundary.
+		List<SelectionRange>		ranges	= request( svc, uri, new Position( 0, 9 ) );
+
+		assertThat( ranges ).hasSize( 1 );
+		assertThat( chain( ranges.get( 0 ) ) ).containsExactly(
+		    range( 0, 8, 0, 11 ), // foo
+		    range( 0, 8, 0, 15 ), // foo.bar
+		    range( 0, 4, 0, 15 ), // x = foo.bar
+		    range( 0, 0, 0, 15 ), // var x = foo.bar
+		    range( 0, 0, 0, 16 )  // script, including the semicolon
+		).inOrder();
+		assertStrictlyNested( ranges.get( 0 ) );
+	}
+
+	@Test
+	void memberAccessPropertyExpandsThroughCompleteExpression() throws Exception {
+		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
+		String						uri		= open( svc, write( "memberAccessProperty.bxs", "var x = foo.bar;" ) );
+
+		// The cursor is on the "a" in bar. The next step must include the receiver, not just .bar.
+		List<SelectionRange>		ranges	= request( svc, uri, new Position( 0, 13 ) );
+
+		assertThat( ranges ).hasSize( 1 );
+		assertThat( chain( ranges.get( 0 ) ) ).containsExactly(
+		    range( 0, 12, 0, 15 ), // bar
+		    range( 0, 8, 0, 15 ),  // foo.bar
+		    range( 0, 4, 0, 15 ),  // x = foo.bar
+		    range( 0, 0, 0, 15 ),  // var x = foo.bar
+		    range( 0, 0, 0, 16 )   // script, including the semicolon
+		).inOrder();
+		assertStrictlyNested( ranges.get( 0 ) );
+	}
+
+	@Test
 	void nestedExpressionChainEachParentStrictlyContainsItsChild() throws Exception {
 		BoxLangTextDocumentService	svc		= new BoxLangTextDocumentService();
 		String						uri		= open( svc, SELECTION_BX );
