@@ -136,6 +136,36 @@ class FoldingRangeTest extends BaseTest {
 	}
 
 	@Test
+	void preservesBracelessElseWhenClosingLineAlsoContainsBodyCode() throws Exception {
+		assertThat( folds( "test.bxs", """
+		                               if ( ready ) {
+		                                   writeOutput( 1 );
+		                                   writeOutput( 2 ); } else
+		                                   writeOutput( 3 );
+		                               """ ) ).containsExactly( new FoldingRange( 0, 1 ) );
+	}
+
+	@Test
+	void preservesStatementAfterFunctionClosingBrace() throws Exception {
+		assertThat( folds( "test.bxs", """
+		                               function run() {
+		                                   return 1;
+		                               } writeOutput( "after" );
+		                               """ ) ).containsExactly( new FoldingRange( 0, 1 ) );
+	}
+
+	@Test
+	void preservesFunctionHeaderAfterBlockCommentClosingDelimiter() throws Exception {
+		assertThat( folds( "test.bxs", """
+		                               /*
+		                                * Function notes.
+		                                */ function run() {
+		                                   return 1;
+		                               }
+		                               """ ) ).containsExactly( commentFold( 0, 1 ), new FoldingRange( 2, 4 ) );
+	}
+
+	@Test
 	void endsIfFoldBeforeBracelessElseInsideClassMethod() throws Exception {
 		assertThat( folds( "Greeter.bx", """
 		                                 class {
