@@ -143,6 +143,36 @@ public class BxlintRuleCompletionTest extends BaseTest {
 	}
 
 	@Test
+	void testDisableNextLineTextInsideStringDoesNotCompleteRuleNames() throws Exception {
+		String	source		= """
+		                      class {
+		                          function demo() {
+		                              var example = "Example directive:
+		                      // bxlint-disable-next-line unu
+		                      ";
+		                              writeOutput(example);
+		                          }
+		                      }
+		                      """;
+		Path	testFile	= tempDir.resolve( "StringDirectiveCompletion.bx" );
+		Files.writeString( testFile, source );
+		index.indexFile( testFile.toUri() );
+		provider.trackDocumentOpen( testFile.toUri(), source );
+		try {
+			CompletionParams params = new CompletionParams();
+			params.setTextDocument( new TextDocumentIdentifier( testFile.toUri().toString() ) );
+			params.setPosition( new Position( 3, source.lines().toList().get( 3 ).length() ) );
+
+			List<CompletionItem> items = provider.getAvailableCompletions( testFile.toUri(), params );
+
+			// The cursor is inside a multiline string, not a bxlint comment.
+			assertThat( items.stream().map( CompletionItem::getLabel ).toList() ).containsNoneOf( "unusedVariable", "unusedImport" );
+		} finally {
+			provider.trackDocumentClose( testFile.toUri() );
+		}
+	}
+
+	@Test
 	void testCompletesRuleNamesInsideBxlintDisableNextLine() throws Exception {
 		String	source		= """
 		                      class {

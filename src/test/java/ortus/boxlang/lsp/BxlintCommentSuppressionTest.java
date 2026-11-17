@@ -333,6 +333,33 @@ public class BxlintCommentSuppressionTest extends BaseTest {
 		assertWithMessage( diagnosticSummary( diagnostics ) ).that( hasDiagnostic( diagnostics, "unusedVariable", 3 ) ).isTrue();
 	}
 
+	@Test
+	void testDisableNextLineTextInsideStringDoesNotSuppressDiagnostics() throws Exception {
+		String	code		= """
+		                      class {
+		                          function demo() {
+		                              var example = "Example directive:
+		                      // bxlint-disable-next-line unusedVariable
+		                      "; var reported = 1;
+		                              writeOutput(example);
+		                          }
+		                      }
+		                      """;
+
+		// Establish that the following variable produces a diagnostic without directive-like string content.
+		Path	controlFile	= createTestFile( "StringDirectiveControl.bx", code.replace( "bxlint-disable-next-line", "example-only" ) );
+		index.indexFile( controlFile.toUri() );
+		List<Diagnostic> control = ProjectContextProvider.getInstance().getFileDiagnostics( controlFile.toUri() );
+		assertWithMessage( diagnosticSummary( control ) ).that( hasDiagnostic( control, "unusedVariable", 4 ) ).isTrue();
+
+		Path testFile = createTestFile( "StringDirective.bx", code );
+		index.indexFile( testFile.toUri() );
+		List<Diagnostic> diagnostics = ProjectContextProvider.getInstance().getFileDiagnostics( testFile.toUri() );
+
+		// The text on line 3 belongs to the multiline string. It is not a suppression comment.
+		assertWithMessage( diagnosticSummary( diagnostics ) ).that( hasDiagnostic( diagnostics, "unusedVariable", 4 ) ).isTrue();
+	}
+
 	private boolean hasDiagnostic( List<Diagnostic> diagnostics, String ruleId, int line ) {
 		return diagnostics.stream().anyMatch( diagnostic -> diagnostic.getCode() != null
 		    && diagnostic.getCode().isLeft()
